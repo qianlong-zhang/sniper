@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -305,9 +305,7 @@ static VOID InstrumentTrace(TRACE trace, VOID *v)
 // code which just confuses the educational points being made).
 static VOID CheckThreadCount(THREADID threadIndex, CONTEXT *, INT32, VOID *)
 {
-    #ifndef TARGET_WINDOWS
-        ASSERT (threadIndex==0, "This tool does not handle multiple threads\n");
-    #endif
+    ASSERT (threadIndex==0, "This tool does not handle multiple threads\n");
 }
 
 
@@ -593,17 +591,17 @@ int main(int argc, char *argv[])
     out.open(KnobOutput.Value().c_str());
 
     // Our instruction instrumentation collectsinformation for REP prefixed instructions.
-    INS_AddInstrumentFunction(InstrumentInstruction, NULL);
+    INS_AddInstrumentFunction(InstrumentInstruction, 0);
     // Our trace instrumentation collects the information for all instructions.
     // It is similar to inscount2.
-    TRACE_AddInstrumentFunction(InstrumentTrace, NULL);
+    TRACE_AddInstrumentFunction(InstrumentTrace, 0);
 
     // Fini prints the results.
-    PIN_AddFiniFunction(Fini, NULL);
-    PIN_AddThreadStartFunction(CheckThreadCount, NULL);
+    PIN_AddFiniFunction(Fini, 0);
+    PIN_AddThreadStartFunction(CheckThreadCount, 0);
 
     // Never returns
     PIN_StartProgram();
     
-    return 1;
+    return 0;
 }

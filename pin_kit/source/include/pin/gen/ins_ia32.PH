@@ -65,7 +65,7 @@ extern string INS_Disassemble(INS ins);
 
                                                                   /* DO NOT EDIT */
 /* DO NOT EDIT */
-/* INS_MemoryOffset is now deprecated.
+/* INS_MemoryOffset is now deprecated. 
  * Use INS_MemoryDisplacement() instead.
  */
 extern PIN_DEPRECATED_API ADDRINT INS_MemoryOffset(INS ins);
@@ -89,13 +89,7 @@ extern UINT32 INS_MemoryScale(INS ins);
 extern BOOL INS_IsStandardMemop(INS ins);
 
                                                                   /* DO NOT EDIT */
-extern BOOL INS_hasKnownMemorySize(INS ins);
-
-                                                                  /* DO NOT EDIT */
 extern BOOL INS_ChangeReg(const INS ins, const REG old_reg, const REG new_reg, const BOOL as_read);
-
-                                                                  /* DO NOT EDIT */
-extern BOOL INS_IsCacheLineFlush(INS ins);
 
                                                                   /* DO NOT EDIT */
 

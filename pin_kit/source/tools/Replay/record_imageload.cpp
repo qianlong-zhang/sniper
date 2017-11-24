@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -56,38 +56,19 @@ static FILE * imgLog;
 static int  imageCount = 0;
 static BOOL logging = FALSE;
 
-static int getReplayImageType(IMG img)
-{
-    if (IMG_IsMainExecutable(img))
-        return REPLAY_IMAGE_TYPE_MAIN_EXE;
-    if (IMG_IsInterpreter(img))
-        return REPLAY_IMAGE_TYPE_INTERPRETER;
-    return REPLAY_IMAGE_TYPE_REGULAR;
-}
-
 // Save the image load event 
 static void LogImageLoad(IMG img, void *v)
 {
-    if (IMG_IsVDSO(img))
-    {
-        return;
-    }
-
     // Ensure that we can't overflow when we read it back.
     ASSERTX (IMG_Name(img).length() < MAX_FILENAME_LENGTH);
 
     // Log the data needed to restore it
-    fprintf (imgLog, "L '%s' 0x%lx %d\n", IMG_Name(img).c_str(), (unsigned long)IMG_LoadOffset(img), getReplayImageType(img));
+    fprintf (imgLog, "L '%s' 0x%lx \n", IMG_Name(img).c_str(), (unsigned long)IMG_LoadOffset(img));
 }
 
 // Save the image unload event 
 static void LogImageUnload(IMG img, void *)
 {
-    if (IMG_IsVDSO(img))
-    {
-        return;
-    }
-
     ASSERTX (IMG_Name(img).length() < MAX_FILENAME_LENGTH);
 
     // Log the unload event.
@@ -96,22 +77,20 @@ static void LogImageUnload(IMG img, void *)
 
 
 // Parse the image description
-static void ParseImageLoadLine(string &imageName,  ADDRINT *offset, REPLAY_IMAGE_TYPE* type)
+static void ParseImageLoadLine(string &imageName,  ADDRINT *offset)
 {
     // Data was written like this :-
     // fprintf (imgLog, "L '%s' 0x%x\n", IMG_Name(img).c_str(), 
     //          IMG_LoadOffset(img), base, IMG_HighAddress(img));
     char imgNameBuffer[MAX_FILENAME_LENGTH];
-    int typeInt = (int)REPLAY_IMAGE_TYPE_REGULAR;
 
-    int itemsRead = fscanf(imgLog," '%[^']' %p %d\n",&imgNameBuffer[0], (void**)offset, &typeInt);
-    if (itemsRead != 3)
+    int itemsRead = fscanf(imgLog," '%[^']' %p\n",&imgNameBuffer[0], (void**)offset);
+    if (itemsRead != 2)
     {
-        fprintf (trace, "ParseImageLoadLine: Failed to parse; parsed %d expected to parse 3\n", itemsRead);
+        fprintf (trace, "ParseImageLoadLine: Failed to parse; parsed %d expected to parse 2\n", itemsRead);
         exit(1);
     }
     imageName = imgNameBuffer;
-    *type = (REPLAY_IMAGE_TYPE)typeInt;
 }
 
 static void ParseImageUnloadLine(string &imageName)
@@ -140,6 +119,8 @@ static IMG FindNamedImg(const string& imgName)
     return IMG_Invalid();
 }
 
+static int replayedImageCount = 0;
+
 // Replay the image log.
 // We run this before the each instruction of the code as an analysis routine.
 // So we eat up the image loads one instruction at a time!
@@ -158,16 +139,15 @@ static void ReplayImageEntry()
             {
                 string imageName;
                 ADDRINT offset;
-                REPLAY_IMAGE_TYPE type;
 
-                ParseImageLoadLine(imageName, &offset, &type);
+                ParseImageLoadLine(imageName, &offset);
                 if (KnobVerbose)
                     fprintf (trace, "Replaying load for %s\n", imageName.c_str());
                 // And, finally, inform Pin that it is all there, which will invoke
                 // image load callbacks.
                 PIN_LockClient();
                 // Tag the first image as the main program
-                PIN_ReplayImageLoad(imageName.c_str(), imageName.c_str(), offset, type);
+                PIN_ReplayImageLoad(imageName.c_str(), imageName.c_str(), offset, replayedImageCount++==0);
                 PIN_UnlockClient();
 
                 break;
@@ -228,11 +208,6 @@ static VOID PrintImageList()
         int nSecs;
         int nRtns;
 
-        if (IMG_IsVDSO(img))
-        {
-            continue;
-        }
-
         CountImageSecsAndRtns (img, &nSecs, &nRtns);
         fprintf (trace, "   L  %-40s [0x%lx:0x%lx] offset 0x%lx %2d SECs %4d RTNs\n", IMG_Name(img).c_str(),
                  (unsigned long)IMG_LowAddress(img), (unsigned long)IMG_HighAddress(img), (unsigned long)IMG_LoadOffset(img), nSecs, nRtns);
@@ -242,11 +217,6 @@ static VOID PrintImageList()
 // Trace an image load event
 static VOID TraceImageLoad(IMG img, VOID *v)
 {
-    if (IMG_IsVDSO(img))
-    {
-        return;
-    }
-
     fprintf(trace, "[%2d]+ %-40s\n", imageCount++, IMG_Name(img).c_str());
     PrintImageList();
 }
@@ -254,11 +224,6 @@ static VOID TraceImageLoad(IMG img, VOID *v)
 // Trace an image unload event
 static VOID TraceImageUnload(IMG img, VOID *v)
 {
-    if (IMG_Name(img).find("[vdso]") != std::string::npos)
-    {
-        return;
-    }
-
     fprintf(trace, "[%2d]- %-40s\n", imageCount--, IMG_Name(img).c_str());
     PrintImageList();
 }

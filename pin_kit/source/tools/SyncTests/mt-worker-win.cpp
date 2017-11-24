@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -39,15 +39,14 @@ END_LEGAL */
 
 #include <iostream>
 #include <windows.h>
+#include "fund.hpp"
 #include "atomic.hpp"
 
-extern "C" __declspec(dllexport) void InstrumentedWithPin(volatile UINT32 *);
-extern "C" __declspec(dllexport) void TellPinThreadCount(ADDRINT);
-extern "C" __declspec(dllexport) void TellPinThreadStart();
+extern "C" __declspec(dllexport) void InstrumentedWithPin(volatile FUND::UINT32 *);
+extern "C" __declspec(dllexport) void TellPinThreadCount(FUND::ADDRINT);
 
-typedef void (*FUNPTR1)(volatile UINT32 *);
-typedef void (*FUNPTR2)(ADDRINT);
-typedef void (*FUNPTR3)();
+typedef void (*FUNPTR1)(volatile FUND::UINT32 *);
+typedef void (*FUNPTR2)(FUND::ADDRINT);
 
 static volatile bool Ready = false;
 
@@ -135,8 +134,6 @@ static unsigned GetCpuCount()
 
 static DWORD WINAPI Worker(LPVOID)
 {
-    volatile FUNPTR3 threadstarted = TellPinThreadStart;
-    threadstarted();
     // Wait for all the worker threads to be created.  We use an active
     // spin loop here to help ensure that all thread execute the loop below
     // in parallel.
@@ -147,25 +144,20 @@ static DWORD WINAPI Worker(LPVOID)
     // from inlining the body.
     //
     volatile FUNPTR1 doFun = InstrumentedWithPin;
-    volatile UINT32 done = 0;
+    volatile FUND::UINT32 done = 0;
     while (!done)
         doFun(&done);
 
     return 0;
 }
 
-extern "C" void InstrumentedWithPin(volatile UINT32 *done)
+extern "C" void InstrumentedWithPin(volatile FUND::UINT32 *done)
 {
     // Pin tool places instrumentation here.
     // It stores non-zero to 'done' when the thread should exit.
 }
 
-extern "C" void TellPinThreadCount(ADDRINT threadCount)
+extern "C" void TellPinThreadCount(FUND::ADDRINT threadCount)
 {
     // Pin tool can place instrumentation here to learn the worker thread count.
-}
-
-extern "C" void TellPinThreadStart()
-{
-    // Pin tool can place instrumentation here to know the worker thread started.
 }

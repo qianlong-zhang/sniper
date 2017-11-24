@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -866,9 +866,9 @@ extern "C" ADDRINT setFlagsX=0;
 
 void VerifyAndDumpX87RegsAtReplacedFunction()
 {
-    static char buffer[2048 + 16];
+    static char buffer[2048];
     static char* aligned_bufp =reinterpret_cast<char*> 
-                               (((reinterpret_cast<ADDRINT>(buffer) + 16) >> 4) << 4);
+                               (((reinterpret_cast<ADDRINT>(buffer) + 16) >> 4)<<4);
     FPSTATE *fpVerboseContext1 = reinterpret_cast <FPSTATE *>(aligned_bufp);
     mmx_save(aligned_bufp);
     printf ("VerifyAndDumpX87RegsAtReplacedFunction\n");
@@ -918,9 +918,9 @@ EXPORT_CSYM void ReplacedX87Regs()
 
 void SetX87Regs(unsigned int val)
 {
-    static char buffer[2048 + 16];
+    static char buffer[2048];
     static char* aligned_bufp =reinterpret_cast<char*> 
-                               (((reinterpret_cast<ADDRINT>(buffer) + 16) >> 4) << 4);
+                               (((reinterpret_cast<ADDRINT>(buffer) + 16) >> 4)<<4);
     FPSTATE *fpVerboseContext1 = reinterpret_cast <FPSTATE *>(aligned_bufp);
     mmx_save(aligned_bufp);
 
@@ -967,9 +967,9 @@ void SetX87Regs(unsigned int val)
 
 void VerifyAndDumpX87RegsAtExecutedAtFunction()
 {
-    static char buffer[2048 + 16];
+    static char buffer[2048];
     static char* aligned_bufp =reinterpret_cast<char*> 
-                               (((reinterpret_cast<ADDRINT>(buffer) + 16) >> 4) << 4);
+                               (((reinterpret_cast<ADDRINT>(buffer) + 16) >> 4)<<4);
     FPSTATE *fpVerboseContext1 = reinterpret_cast <FPSTATE *>(aligned_bufp);
     mmx_save(aligned_bufp);
     printf ("VerifyAndDumpX87RegsAtExecutedAtFunction\n");
@@ -1640,3 +1640,4 @@ int main()
 
     return(0);
 }
+

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -33,14 +33,21 @@ END_LEGAL */
 // when the mmap function is called by the tool.
 
 #include "pin.H"
-#include <os-apis.h>
 #include <iostream>
 #include <fstream>
 #include <errno.h>
 #include <string.h>
+#if defined(TARGET_WINDOWS)
+namespace WINDOWS
+{
+#include <windows.h>
+}
+#else
+#include <sys/mman.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#endif
 
 /* ===================================================================== */
 /* Global Variables */
@@ -59,22 +66,51 @@ KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o", "tool_memory_ac
 /* ================================================================== */
 // Utilities
 /* ================================================================== */
+#if defined(TARGET_WINDOWS)
+
+size_t GetPageSize()
+{
+    WINDOWS::SYSTEM_INFO sysInfo;
+    WINDOWS::GetSystemInfo(&sysInfo);
+    return static_cast<size_t>(sysInfo.dwPageSize);
+}
+
 
 const char * MmapNoMemoryAccess()
 {
-    char* ptr = NULL;
-    OS_AllocateMemory(NATIVE_PID_CURRENT, OS_PAGE_PROTECTION_TYPE_NOACCESS,
-                      getpagesize(), OS_MEMORY_FLAGS_PRIVATE, (void**)&ptr);
-    return ptr;
+    return reinterpret_cast<const char *> (WINDOWS::VirtualAlloc(0, GetPageSize(), MEM_COMMIT, PAGE_NOACCESS));
 }
 
 const char * MmapWithMemoryAccess()
 {
-    char* ptr = NULL;
-    OS_AllocateMemory(NATIVE_PID_CURRENT, OS_PAGE_PROTECTION_TYPE_READ|OS_PAGE_PROTECTION_TYPE_WRITE,
-                      getpagesize(), OS_MEMORY_FLAGS_PRIVATE, (void**)&ptr);
-    return ptr;
+    return reinterpret_cast<const char *> (WINDOWS::VirtualAlloc(0, GetPageSize(), MEM_COMMIT, PAGE_READWRITE));
 }
+
+#else
+
+size_t GetPageSize()
+{
+    return static_cast<size_t>(getpagesize());
+}
+
+const char * MmapNoMemoryAccess()
+{
+#if defined(TARGET_MAC)
+    return reinterpret_cast<const char *> (mmap(0, GetPageSize(), PROT_NONE , MAP_ANON | MAP_PRIVATE, -1, 0));
+#else
+   return reinterpret_cast<const char *> (mmap(0, GetPageSize(), PROT_NONE , MAP_ANONYMOUS | MAP_PRIVATE, 0, 0));
+#endif
+}
+
+const char * MmapWithMemoryAccess()
+{
+#if defined(TARGET_MAC)
+    return reinterpret_cast<const char *> (mmap(0, GetPageSize(),PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0));
+#else
+   return reinterpret_cast<const char *> (mmap(0, GetPageSize(), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, 0, 0));
+#endif
+}
+#endif
 
 static VOID ToolMmap()
 {

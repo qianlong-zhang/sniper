@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -39,20 +39,8 @@ const UINT32 period = 10000;
 UINT32 acount = 0;
 UINT32 pcount = 0;
 
-
-THREADID myThread = INVALID_THREADID;
-
-ADDRINT IfMyThread(THREADID threadId)
+ADDRINT Always()
 {
-    return threadId == myThread;
-}
-
-ADDRINT Always(THREADID threadId)
-{
-    if (!IfMyThread(threadId))
-    {
-        return false;
-    }
     ++acount;
     return acount==period;
 }
@@ -66,12 +54,8 @@ VOID Rare()
 UINT32 ccount = 0;
 UINT32 rcount = 0;
 
-ADDRINT AlwaysNoinline(THREADID threadId)
+ADDRINT AlwaysNoinline()
 {
-    if (!IfMyThread(threadId))
-    {
-        return false;
-    }
     ++ccount;
     if (ccount == 1000000) printf("Should not get here\n");
     return ccount==period;
@@ -88,12 +72,8 @@ VOID RareNoinline()
 UINT32 bcount = 0;
 UINT32 qcount = 0;
 
-VOID Noinline(THREADID threadId)
+VOID Noinline()
 {
-    if (!IfMyThread(threadId))
-    {
-        return;
-    }
     ++bcount;
 
     if (bcount==period)
@@ -105,12 +85,8 @@ VOID Noinline(THREADID threadId)
 
 static UINT32 mcount;
 
-ADDRINT ReadAlways(THREADID threadId)
+ADDRINT ReadAlways()
 {
-    if (!IfMyThread(threadId))
-    {
-        return false;
-    }
     mcount++;
     return mcount == 1000;
 }
@@ -137,21 +113,21 @@ VOID Trace(TRACE trace, VOID *v)
         {
             if (INS_IsMemoryRead(ins))
             {
-                INS_InsertIfCall(ins, IPOINT_BEFORE, (AFUNPTR)ReadAlways, IARG_THREAD_ID, IARG_END);
-                INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)ReadRare, IARG_END);
+                INS_InsertIfCall(ins, IPOINT_BEFORE, (AFUNPTR)ReadAlways, IARG_MEMORYREAD_EA, IARG_END);
+                INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)ReadRare, IARG_MEMORYREAD_EA, IARG_END);
             }
         }
-
+            
         // Always()->Rare() are partially inlined
-        BBL_InsertIfCall(bbl,   IPOINT_BEFORE, (AFUNPTR)Always, IARG_THREAD_ID, IARG_END);
+        BBL_InsertIfCall(bbl,   IPOINT_BEFORE, (AFUNPTR)Always, IARG_END);
         BBL_InsertThenCall(bbl, IPOINT_BEFORE, (AFUNPTR)Rare, IARG_END);
 
         // Always()->Rare() are partially inlined
-        BBL_InsertIfCall(bbl,   IPOINT_BEFORE, (AFUNPTR)AlwaysNoinline, IARG_THREAD_ID, IARG_END);
+        BBL_InsertIfCall(bbl,   IPOINT_BEFORE, (AFUNPTR)AlwaysNoinline, IARG_END);
         BBL_InsertThenCall(bbl, IPOINT_BEFORE, (AFUNPTR)RareNoinline, IARG_END);
 
         // Noinline() is not inlined
-        BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR)Noinline, IARG_THREAD_ID, IARG_END);
+        BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR)Noinline, IARG_END);
     }
 }
 
@@ -172,14 +148,6 @@ VOID Fini(INT32 code, VOID *v)
     }
 }
 
-VOID ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, VOID *v)
-{
-    if (INVALID_THREADID == myThread)
-    {
-        myThread = threadid;
-    }
-}
-
 // argc, argv are the entire command line, including pin -t <toolname> -- ...
 int main(int argc, char * argv[])
 {
@@ -187,15 +155,13 @@ int main(int argc, char * argv[])
     PIN_Init(argc, argv);
 
     // Register Instruction to be called to instrument instructions
-    TRACE_AddInstrumentFunction(Trace, NULL);
+    TRACE_AddInstrumentFunction(Trace, 0);
 
     // Register Fini to be called when the application exits
-    PIN_AddFiniFunction(Fini, NULL);
-
-    PIN_AddThreadStartFunction(ThreadStart, NULL);
-
+    PIN_AddFiniFunction(Fini, 0);
+    
     // Start the program, never returns
     PIN_StartProgram();
-
-    return 1;
+    
+    return 0;
 }

@@ -1,42 +1,10 @@
-/*BEGIN_LEGAL 
-Intel Open Source License 
-
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
- 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer.  Redistributions
-in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or
-other materials provided with the distribution.  Neither the name of
-the Intel Corporation nor the names of its contributors may be used to
-endorse or promote products derived from this software without
-specific prior written permission.
- 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE INTEL OR
-ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-END_LEGAL */
-#include <asm_macros.h>
-
 # this routine should generate an error because the target of a local branch
 # is within the probe space.
 #
-.global NAME(do_nothing)
-DECLARE_FUNCTION(do_nothing)
+.global do_nothing
+.type do_nothing, function
 
-NAME(do_nothing):
+do_nothing:
     xor %eax, %eax
 lab1:
     xor %eax, %eax
@@ -58,11 +26,11 @@ lab2:
 # is less than the size of the probe, and when relocated, the 
 # push of the original IP will cause a branch into the probe.
 #
-.global NAME(call_function)
-DECLARE_FUNCTION(call_function)
+.global call_function
+.type call_function, function
 
-NAME(call_function):
-    call NAME(do_nothing)
+call_function:
+    call do_nothing
     push %ebx
     pop %ebx
     ret
@@ -70,10 +38,10 @@ NAME(call_function):
 
 # Test an unconditional jump in the middle of the probe area.
 #	
-.global NAME(good_jump)
-DECLARE_FUNCTION(good_jump)
+.global good_jump
+.type good_jump, function
 
-NAME(good_jump):
+good_jump:
     xchg %eax, %eax
     jmp lab3
 
@@ -91,10 +59,10 @@ lab3:
 # This code should not be able to be relocated because of the
 # conditional jump as the last instruction.
 #	
-.global NAME(fall_thru)
-DECLARE_FUNCTION(fall_thru)
+.global fall_thru
+.type fall_thru, function
 
-NAME(fall_thru):
+fall_thru:
     xchg %eax, %eax
     jmp lab5
 
@@ -113,10 +81,10 @@ lab5:
 # This code should not be able to be relocated because of the
 # jump outside of the function.
 #	
-.global NAME(bad_jump)
-DECLARE_FUNCTION(bad_jump)
+.global bad_jump
+.type bad_jump, function
 
-NAME(bad_jump):
+bad_jump:
     xchg %eax, %eax
     jmp lab6
 
@@ -124,7 +92,7 @@ NAME(bad_jump):
     pop %ebx
 
 lab6:
-    jmp NAME(do_nothing)	
+    jmp do_nothing	
     xor %eax, %eax
     xor %eax, %eax
     ret
@@ -134,10 +102,10 @@ lab6:
 # This code should not be able to be relocated because of the
 # call function.
 #	
-.global NAME(bad_call)
-DECLARE_FUNCTION(bad_call)
+.global bad_call
+.type bad_call, function
 
-NAME(bad_call):
+bad_call:
     xchg %eax, %eax
     jmp lab7
 
@@ -145,7 +113,7 @@ NAME(bad_call):
     pop %ebx
 
 lab7:
-    call NAME(do_nothing)
+    call do_nothing	
     xor %eax, %eax
     xor %eax, %eax
     ret
@@ -155,10 +123,10 @@ lab7:
 # This code should not be able to be relocated because of the
 # target after the last instruction.
 #	
-.global NAME(high_target)
-DECLARE_FUNCTION(high_target)
+.global high_target
+.type high_target, function
 
-NAME(high_target):
+high_target:
     xchg %eax, %eax
     jmp lab8
 

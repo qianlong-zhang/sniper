@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -53,13 +53,12 @@ END_LEGAL */
 
 using std::stringstream;
 
-extern "C" EXPORT_SYM volatile void* DoNewThread(void* scenarioPtr);
 
 /**************************************************
  * Secondary thread's main functions              *
  **************************************************/
 // The secondary thread simply exits, the tool will do the rest.
-volatile void* DoNewThread(void* scenarioPtr) {
+static void* DoNewThread(void* scenarioPtr) {
     IncThreads();
 
     int scenario = *((int*)scenarioPtr);

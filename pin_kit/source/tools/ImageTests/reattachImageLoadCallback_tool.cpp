@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -60,7 +60,7 @@ KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
 
 ofstream TraceFile;
 
-PIN_LOCK pinLock;
+PIN_LOCK lock;
 /* ===================================================================== */
 
 
@@ -166,9 +166,9 @@ VOID DETACH_SESSION::ImageLoad(IMG img,  VOID *v)
         }
     }
 
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     TraceFile <<"Load image " << IMG_Name(img) << "in iteration " << iteration << endl;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
     size_t found;
     found= IMG_Name(img).find(FIRST_DLL_NAME);
     if ( found!=string::npos )
@@ -213,9 +213,9 @@ VOID REATTACH_SESSION::ImageLoad(IMG img,  VOID *v)
         }
     }
 
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     TraceFile <<"Load image " << IMG_Name(img) <<" in iteration" << iteration  <<endl;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 
     size_t found;
     found= IMG_Name(img).find(SECOND_DLL_NAME);
@@ -234,7 +234,7 @@ int main(int argc, CHAR *argv[])
 
     PIN_Init(argc,argv);
 
-    PIN_InitLock(&pinLock);
+    PIN_InitLock(&lock);
     TraceFile.open(KnobOutputFile.Value().c_str());
     IMG_AddInstrumentFunction(DETACH_SESSION::ImageLoad, 0);
     PIN_AddDetachFunctionProbed(DETACH_SESSION::DetachCompleted, 0);

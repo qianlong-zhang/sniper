@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -34,15 +34,7 @@ END_LEGAL */
 
 #include "pin.H"
 #include <iostream>
-#include "tool_macros.h"
-
 using namespace std;
-
-#if defined(TARGET_MAC) && defined(TARGET_IA32)
-# define SLEEP_SUFFIX "$UNIX2003"
-#else
-# define SLEEP_SUFFIX
-#endif
 
 /* ===================================================================== */
 /* Global Variables */
@@ -99,10 +91,10 @@ VOID ImageLoad(IMG img, VOID *v)
     // Look for Sleep only in kernel32.dll
     if (MatchedImageName(IMG_Name(img), "kernel32.dll"))
     {
-        sleepRtn = RTN_FindByName(img, C_MANGLE("Sleep"));
+        sleepRtn = RTN_FindByName(img, "Sleep");
     }
 #else
-    RTN sleepRtn = RTN_FindByName(img, C_MANGLE("sleep") SLEEP_SUFFIX);
+    RTN sleepRtn = RTN_FindByName(img, "sleep");
 #endif
 
     if (RTN_Valid(sleepRtn))

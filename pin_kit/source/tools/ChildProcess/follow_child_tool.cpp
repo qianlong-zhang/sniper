@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -64,6 +64,12 @@ VOID ImageUnload(IMG img, VOID *v)
 VOID AppStart(VOID *v)
 {
     cout << "Application started" << endl << flush;
+
+    if(! PIN_IsProbeMode())
+    {
+        //Verify that PIN_SafeCopy() is already available in this callback
+        PIN_SafeCopy(0, 0, 10);
+    }
 }
 
 int main(INT32 argc, CHAR **argv)
@@ -81,7 +87,7 @@ int main(INT32 argc, CHAR **argv)
 
     IMG_AddUnloadFunction(ImageUnload, 0);
     
-
+       
     if(KnobLoadSystemDlls)
     {
         WIND::HMODULE h1 = WIND::LoadLibrary("RPCRT4.dll");
@@ -89,7 +95,7 @@ int main(INT32 argc, CHAR **argv)
         {
             cout << "Failed to load RPCRT4" << endl << flush;
             exit(-1);
-        }
+        }     
         WIND::HMODULE h2 = WIND::LoadLibrary("advapi32.dll");
         if(h1 == NULL)
         {
@@ -107,7 +113,7 @@ int main(INT32 argc, CHAR **argv)
         {
             cout << "Failed to load user32" << endl << flush;
             exit(-1);
-        }
+        }       
     }
  
     // Never returns

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -52,12 +52,7 @@ enum
     VERSION_2
 };
 
-// A knob for defining the output file name
-KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o", "special_case_aoti1.out",
-                            "specify file name for special case output");
-
-// ofstream object for handling the output.
-ofstream outstream;
+static ofstream outstream("special_case_aoti1.out");
     
 
 static int select_version(int arg, ADDRINT version_reg_value)
@@ -162,8 +157,6 @@ int main(int argc, char * argv[])
 {
     PIN_InitSymbols();
     PIN_Init(argc, argv);
-
-    outstream.open(KnobOutputFile.Value().c_str());
 
     // Scratch register used to select
     // instrumentation version.

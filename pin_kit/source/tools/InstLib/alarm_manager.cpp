@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -51,10 +51,6 @@ map<string, ALARM_TYPE> ALARM_MANAGER::InitAlarms(){
     alarm_map["interactive"] = ALARM_TYPE_INTERACTIVE;
     alarm_map["enter_func"] = ALARM_TYPE_ENTER_FUNC;
     alarm_map["exit_func"] = ALARM_TYPE_EXIT_FUNC;
-    alarm_map["cpuid"] = ALARM_TYPE_CPUID;
-    alarm_map["magic"] = ALARM_TYPE_MAGIC;
-    alarm_map["pcontrol"] = ALARM_TYPE_PCONTROL;
-    alarm_map["timeout"] = ALARM_TYPE_TIMEOUT;
 
     return alarm_map;
 }
@@ -70,8 +66,7 @@ ALARM_TYPE ALARM_MANAGER::GetAlarmType(const string& alarm_name){
 
 ALARM_MANAGER::ALARM_MANAGER(const string& control_str,
                              CONTROL_CHAIN* control_chain,
-                             UINT32 id,
-                             BOOL late_handler){
+                             UINT32 id){
     _bcast = FALSE;
     _tid = ALL_THREADS;
     _count = 1;
@@ -81,7 +76,6 @@ ALARM_MANAGER::ALARM_MANAGER(const string& control_str,
     _arm_next = TRUE;
     _id = id;
     _alarm_map = InitAlarms();
-    _late_handler = late_handler;
     
     vector<string> control_tokens;
     
@@ -151,28 +145,19 @@ IALARM* ALARM_MANAGER::GenerateAlarm(){
     case ALARM_TYPE_INT3: return new ALARM_INT3(_alarm_value,_tid,_count,ctxt,
                                                 this);
     case ALARM_TYPE_INTERACTIVE: return new ALARM_INTERACTIVE(_tid,ctxt,this);
-    case ALARM_TYPE_ENTER_FUNC: return new ALARM_ENTER_FUNC(_alarm_value,_tid,
-                                                            _count,ctxt,this);
-    case ALARM_TYPE_EXIT_FUNC: return new ALARM_EXIT_FUNC(_alarm_value,_tid,
-                                                          _count,ctxt,this);
+    case ALARM_TYPE_ENTER_FUNC: return new ALARM_ENTER_FUNC(_alarm_value,_tid,_count,ctxt,
+                                                            this);
+    case ALARM_TYPE_EXIT_FUNC: return new ALARM_EXIT_FUNC(_alarm_value,_tid,_count,ctxt,
+                                                          this);
 
-    case ALARM_TYPE_CPUID: return new ALARM_CPUID(_alarm_value,_tid,_count,
-                                                  ctxt,this);
-    case ALARM_TYPE_MAGIC: return new ALARM_MAGIC(_alarm_value,_tid,_count,
-                                                  ctxt,this);
-    case ALARM_TYPE_PCONTROL: return new ALARM_PCONTROL(_alarm_value,_tid,
-                                                        _count,ctxt,this);
-    case ALARM_TYPE_TIMEOUT: return new ALARM_TIMEOUT(_alarm_value,_tid,
-                                                       _count,ctxt,this);
     default: ASSERT(FALSE,"Unexcpected alarm");
     }
     return NULL; //pacify the compiler 
 }
 
 VOID ALARM_MANAGER::ParseUniform(vector<string>& control_tokens){
-    ASSERT(control_tokens.size() > 3,"usage uniform:<period>:<length>:<count>[:<tid>]");
+    ASSERT(control_tokens.size() > 3,"usage uniform:<period>:<length>:<count>");
 
-    UINT32 uniform_tokens_num = 4;
     _event_name = "uniform";
     _event_type = EVENT_START;
     _uniform_type = TRUE;
@@ -181,16 +166,7 @@ VOID ALARM_MANAGER::ParseUniform(vector<string>& control_tokens){
     _uniform_period = PARSER::StringToUint64(control_tokens[1]);
     _uniform_length = PARSER::StringToUint64(control_tokens[2]);
     _uniform_count  = PARSER::StringToUint64(control_tokens[3]);
-
-    // Check if the next token is thread id
-    if (control_tokens.size() > 4 && control_tokens[4].substr(0,3) == "tid")
-    {
-        // We found thread id
-        _tid = PARSER::StringToUint32(control_tokens[4].substr(3,control_tokens[4].length()));
-        uniform_tokens_num = 5;
-    }
-
-    control_tokens.erase(control_tokens.begin(),control_tokens.begin()+uniform_tokens_num);
+    control_tokens.erase(control_tokens.begin(),control_tokens.begin()+4);
 
     ASSERT(_uniform_period >= _uniform_length,"uniform period must be "
                                               "larger than uniform length");
@@ -278,11 +254,6 @@ VOID ALARM_MANAGER::Fire(CONTEXT* ctx, VOID * ip, THREADID tid){
     }
     
     _control_chain->Fire(ev,ctx,ip,tid,bcast, _id);
-}
-
-// Late fire
-VOID ALARM_MANAGER::LateFire(CONTEXT* ctx, VOID * ip, THREADID tid){
-    _control_chain->LateFire(_event_type,ctx,ip,tid,_bcast, _id);
 }
 
 BOOL ALARM_MANAGER::HasStartEvent(){

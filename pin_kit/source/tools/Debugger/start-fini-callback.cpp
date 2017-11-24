@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -36,29 +36,9 @@ KNOB<std::string> KnobOut(KNOB_MODE_WRITEONCE, "pintool", "o",
 
 std::ofstream Out;
 
-THREADID myThread = INVALID_THREADID;
-
-static void OnThreadStart(THREADID tid, CONTEXT *, INT32, VOID *)
-{
-    if (INVALID_THREADID == myThread)
-    {
-        myThread = tid;
-        Out << "OnThreadStart for thread " << tid << std::endl;
-    }
-}
-
-static void OnThreadFini(THREADID tid, const CONTEXT *, INT32, VOID *)
-{
-    if (tid == myThread)
-    {
-        Out << "OnThreadFini for thread " << tid << std::endl;
-    }
-}
-
-static void OnExit(INT32, VOID *)
-{
-    Out << "OnExit" << std::endl;
-}
+static void OnThreadStart(THREADID, CONTEXT *, INT32, VOID *);
+static void OnThreadFini(THREADID, const CONTEXT *, INT32, VOID *);
+static void OnExit(INT32, VOID *);
 
 
 int main(int argc, char * argv[])
@@ -67,9 +47,25 @@ int main(int argc, char * argv[])
 
     Out.open(KnobOut.Value().c_str());
 
-    PIN_AddThreadStartFunction(OnThreadStart, NULL);
-    PIN_AddThreadFiniFunction(OnThreadFini, NULL);
-    PIN_AddFiniFunction(OnExit, NULL);
+    PIN_AddThreadStartFunction(OnThreadStart, 0);
+    PIN_AddThreadFiniFunction(OnThreadFini, 0);
+    PIN_AddFiniFunction(OnExit, 0);
     PIN_StartProgram();
-    return 1;
+    return 0;
+}
+
+
+static void OnThreadStart(THREADID tid, CONTEXT *, INT32, VOID *)
+{
+    Out << "OnThreadStart for thread " << tid << std::endl;
+}
+
+static void OnThreadFini(THREADID tid, const CONTEXT *, INT32, VOID *)
+{
+    Out << "OnThreadFini for thread " << tid << std::endl;
+}
+
+static void OnExit(INT32, VOID *)
+{
+    Out << "OnExit" << std::endl;
 }

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -32,39 +32,23 @@ END_LEGAL */
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <iostream>
 
 /*
   The tool validates stopping threads API called in internal thread.
 */
 
+#define MAX_NUM_THREADS 5
 // Number of times to stop application threads
 #define TIMES 3
 // Interval in instructions to repeat PIN_StopApplicationThreads() calls.
 #define PAUSE_INTERVAL 10000000
 
+// Instruction counters per thread
+long long unsigned int icounter[MAX_NUM_THREADS];
+
 volatile bool stopFlag = false;
 
 THREADID intTid;
-
-// Instruction counter per thread
-struct tdata
-{
-    long long unsigned int icount;
-} THREAD_DATA;
-
-static TLS_KEY tls_key = INVALID_TLS_KEY;
-
-tdata* get_tls(THREADID threadid)
-{
-    tdata * data = static_cast<tdata*>(PIN_GetThreadData(tls_key, threadid));
-    if (!data)
-    {
-        cerr << "specified key is invalid or the given thread is not yet registered in the pin thread database" << endl;
-        PIN_ExitProcess(1);
-    }
-    return data;
-}
 
 VOID doPause(VOID * arg)
 {
@@ -88,10 +72,9 @@ VOID doPause(VOID * arg)
             for (UINT32 index = 0; index < nThreads; index++)
             {
                 THREADID tid = PIN_GetStoppedThreadId(index);
-                tdata* data = get_tls(tid);
                 const CONTEXT * ctxt = PIN_GetStoppedThreadContext(tid);
                 printf("  Thread %u, IP = %llx, icount = %llu\n", tid,
-                       (long long unsigned int)PIN_GetContextReg(ctxt, REG_INST_PTR), data->icount);
+                       (long long unsigned int)PIN_GetContextReg(ctxt, REG_INST_PTR), icounter[tid]);
             }
             PIN_ResumeApplicationThreads(intTid);
             printf("Threads resumed by internal thread %u\n", intTid);
@@ -103,8 +86,7 @@ VOID doPause(VOID * arg)
 
 VOID iCount(THREADID threadid)
 {
-    tdata* data = get_tls(threadid);
-    if ((++data->icount % PAUSE_INTERVAL) == 0)
+    if ((++icounter[threadid] % PAUSE_INTERVAL) == 0)
     {
         stopFlag = true;
     }
@@ -118,42 +100,14 @@ VOID insCallback(INS ins, void *v)
         IARG_END);
 }
 
-VOID ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, VOID *v)
-{
-    tdata* data = new tdata;
-    data->icount = 0;
-    if (PIN_SetThreadData(tls_key, data, threadid) == FALSE)
-    {
-        cerr << "PIN_SetThreadData failed" << endl;
-        PIN_ExitProcess(1);
-    }
-}
-
-VOID ThreadFini(THREADID threadid, const CONTEXT *ctxt, INT32 code, VOID *v)
-{
-    tdata* data = get_tls(threadid);
-    delete data;
-}
-
 int main(int argc, char **argv)
 {
     PIN_Init(argc,argv);
+    INS_AddInstrumentFunction(insCallback, 0);
 
-    INS_AddInstrumentFunction(insCallback, NULL);
-
-    intTid = PIN_SpawnInternalThread(doPause, NULL, 0, NULL);
+    intTid = PIN_SpawnInternalThread(doPause, 0, 0, 0);
     ASSERT(intTid != INVALID_THREADID, "Fail to spawn internal thread");
 
-    tls_key = PIN_CreateThreadDataKey(NULL);
-    if (tls_key == INVALID_TLS_KEY)
-    {
-        cerr << "number of already allocated keys reached the MAX_CLIENT_TLS_KEYS limit" << endl;
-        PIN_ExitProcess(1);
-    }
-
-    PIN_AddThreadStartFunction(ThreadStart, NULL);
-    PIN_AddThreadFiniFunction(ThreadFini, NULL);
-
     PIN_StartProgram();
-    return 1;
+    return 0;
 }

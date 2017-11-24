@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -57,21 +57,21 @@ INT32 Usage()
 
 
 pid_t parent_pid;
-PIN_LOCK pinLock;
+PIN_LOCK lock;
 
 VOID BeforeFork(THREADID threadid, const CONTEXT* ctxt, VOID * arg)
 {
-    PIN_GetLock(&pinLock, threadid+1);
+    PIN_GetLock(&lock, threadid+1);
     cerr << "TOOL: Before fork." << endl;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
     parent_pid = PIN_GetPid();
 }
 
 VOID AfterForkInParent(THREADID threadid, const CONTEXT* ctxt, VOID * arg)
 {
-    PIN_GetLock(&pinLock, threadid+1);
+    PIN_GetLock(&lock, threadid+1);
     cerr << "TOOL: After fork in parent." << endl;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 
     if (PIN_GetPid() != parent_pid)
     {
@@ -82,9 +82,9 @@ VOID AfterForkInParent(THREADID threadid, const CONTEXT* ctxt, VOID * arg)
 
 VOID AfterForkInChild(THREADID threadid, const CONTEXT* ctxt, VOID * arg)
 {
-    PIN_GetLock(&pinLock, threadid+1);
+    PIN_GetLock(&lock, threadid+1);
     cerr << "TOOL: After fork in child." << endl;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
     
     if ((PIN_GetPid() == parent_pid) || (getppid() != parent_pid))
     {
@@ -102,7 +102,7 @@ int main(INT32 argc, CHAR **argv)
     }
     
     // Initialize the pin lock
-    PIN_InitLock(&pinLock);
+    PIN_InitLock(&lock);
     
     // Register a notification handler that is called when the application
     // forks a new process.

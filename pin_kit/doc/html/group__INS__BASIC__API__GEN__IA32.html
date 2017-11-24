@@ -45,8 +45,6 @@
 <br>
 &nbsp;&nbsp;<a class="el" href="group__INS__BASIC__API__GEN__IA32.html#gg3b24ec17730bcf65f7ff170f7ff49fba1fc4076892e5c730b07dcb663cd453ee">LEVEL_CORE::SYSCALL_STANDARD_IA32_LINUX</a>, 
 <br>
-&nbsp;&nbsp;<a class="el" href="group__INS__BASIC__API__GEN__IA32.html#gg3b24ec17730bcf65f7ff170f7ff49fbaabda039adbb617e31721ad94ca44ab18">LEVEL_CORE::SYSCALL_STANDARD_IA32_LINUX_SYSENTER</a>, 
-<br>
 &nbsp;&nbsp;<a class="el" href="group__INS__BASIC__API__GEN__IA32.html#gg3b24ec17730bcf65f7ff170f7ff49fba56faa6ffdb28600d35f668d78c9f3d80">LEVEL_CORE::SYSCALL_STANDARD_IA32E_LINUX</a>, 
 <br>
 &nbsp;&nbsp;<a class="el" href="group__INS__BASIC__API__GEN__IA32.html#gg3b24ec17730bcf65f7ff170f7ff49fbae87fe7b58d7227c0d35d31a28b144a46">LEVEL_CORE::SYSCALL_STANDARD_IA32_MAC</a>, 
@@ -275,8 +273,6 @@ Calling standard of the system call instruction. <dl compact><dt><b>Enumerator: 
 Invalid value; the instruction is not a system call. </td></tr>
 <tr><td valign="top"><em><a class="anchor" name="gg3b24ec17730bcf65f7ff170f7ff49fba1fc4076892e5c730b07dcb663cd453ee"></a><!-- doxytag: member="SYSCALL_STANDARD_IA32_LINUX" ref="gg3b24ec17730bcf65f7ff170f7ff49fba1fc4076892e5c730b07dcb663cd453ee" args="" -->SYSCALL_STANDARD_IA32_LINUX</em>&nbsp;</td><td>
 Linux system call on IA-32 architecture. </td></tr>
-<tr><td valign="top"><em><a class="anchor" name="gg3b24ec17730bcf65f7ff170f7ff49fbaabda039adbb617e31721ad94ca44ab18"></a><!-- doxytag: member="SYSCALL_STANDARD_IA32_LINUX_SYSENTER" ref="gg3b24ec17730bcf65f7ff170f7ff49fbaabda039adbb617e31721ad94ca44ab18" args="" -->SYSCALL_STANDARD_IA32_LINUX_SYSENTER</em>&nbsp;</td><td>
-Linux system call via 'sysenter' on IA-32 architecture. </td></tr>
 <tr><td valign="top"><em><a class="anchor" name="gg3b24ec17730bcf65f7ff170f7ff49fba56faa6ffdb28600d35f668d78c9f3d80"></a><!-- doxytag: member="SYSCALL_STANDARD_IA32E_LINUX" ref="gg3b24ec17730bcf65f7ff170f7ff49fba56faa6ffdb28600d35f668d78c9f3d80" args="" -->SYSCALL_STANDARD_IA32E_LINUX</em>&nbsp;</td><td>
 Linux system call on Intel(R) 64 architecture. </td></tr>
 <tr><td valign="top"><em><a class="anchor" name="gg3b24ec17730bcf65f7ff170f7ff49fbae87fe7b58d7227c0d35d31a28b144a46"></a><!-- doxytag: member="SYSCALL_STANDARD_IA32_MAC" ref="gg3b24ec17730bcf65f7ff170f7ff49fbae87fe7b58d7227c0d35d31a28b144a46" args="" -->SYSCALL_STANDARD_IA32_MAC</em>&nbsp;</td><td>
@@ -416,7 +412,7 @@ Software interruption (INT n) in Windows. </td></tr>
 
 <p>
 The category of an instruction is a higher level semantic description of an instruction than its opcode (<a class="el" href="group__INS__BASIC__API__GEN__IA32.html#g82b583eb54370b90eb16013b9ceccb0a">INS_Opcode</a>). So, for instance, you can test for a conditional branch by using INS_Category(ins) == XED_CATEGORY_COND_BR, whereas using INS_Opcode(ins) would require that you enumerate all twenty conditional branch opcodes.<p>
-The full mapping of opcodes to categories can be found in the idata.txt file in the Intel(R) X86 Encoder Decoder distribution (which is distributed as part of the Pin kit). The category enumeration can be found in the file "xed-category-enum.h".<p>
+The full mapping of opcodes to categories can be found in the idata.txt file in the XED distribution (which is distributed as part of the Pin kit). The category enumeration can be found in the file "xed-category-enum.h".<p>
 A category can be converted into a string by using <a class="el" href="group__INS__BASIC__API__GEN__IA32.html#gb11cc4f8c36cdfe05660e261aee9ae1e">CATEGORY_StringShort</a>.<p>
 <dl compact><dt><b>Returns:</b></dt><dd>Instruction category </dd></dl>
     </td>
@@ -685,8 +681,7 @@ Note that an unconditional branch or call to the next instruction still doesn't 
     <td>
 
 <p>
-<dl compact><dt><b>Returns:</b></dt><dd>true if this instruction performs an atomic update of memory. </dd></dl>
-<dl compact><dt><b>Note:</b></dt><dd>An XCHG instruction accessing memory is atomic with or without a LOCK prefix. </dd></dl>
+<dl compact><dt><b>Returns:</b></dt><dd>true if this instruction may do an atomic update of memory. On IA-32 architectures, this is xchg, or any instruction with the lock prefix set. </dd></dl>
     </td>
   </tr>
 </table>
@@ -1710,7 +1705,7 @@ Get the address of the next instruction. <dl compact><dt><b>Returns:</b></dt><dd
     <td>
 
 <p>
-On ia-32 and Intel64 the opcodes are constants of the form XED_ICLASS_name. The full list of valid opcodes can be found in the idata.txt file in the Intel(R) X86 Encoder Decoder distribution (which is distributed as part of the Pin kit), and the enum definitions are in the file "xed-iclass-enum.h".<p>
+On ia-32 and Intel64 the opcodes are constants of the form XED_ICLASS_name. The full list of valid opcodes can be found in the idata.txt file in the XED distribution (which is distributed as part of the Pin kit), and the enum definitions are in the file "xed-iclass-enum.h".<p>
 Use <a class="el" href="group__INS__BASIC__API__GEN__IA32.html#ga2c2565ca8aab605d7fb3178adb137f5">INS_Mnemonic</a> if you want a string.<p>
 <dl compact><dt><b>Returns:</b></dt><dd>Opcode of instruction </dd></dl>
     </td>
@@ -2117,7 +2112,7 @@ Check to see if the given instruction is a system call and return corresponding 
     <td>
 
 <p>
-<dl compact><dt><b>Returns:</b></dt><dd>This provides the pointer to the decoded Intel(R) X86 Encoder Decoder instruction. </dd></dl>
+<dl compact><dt><b>Returns:</b></dt><dd>This provides the pointer to the decoded xed instruction. </dd></dl>
     </td>
   </tr>
 </table>
@@ -2146,7 +2141,7 @@ Check to see if the given instruction is a system call and return corresponding 
     <td>
 
 <p>
-Convert a Intel(R) X86 Encoder Decoder xed_reg_enum_t register to a Pin REG type. <dl compact><dt><b>Returns:</b></dt><dd>a valid pin register, but never an invalid one. Asserts if there is no exact map. </dd></dl>
+Convert a XED xed_reg_enum_t register to a Pin REG type. <dl compact><dt><b>Returns:</b></dt><dd>a valid pin register, but never an invalid one. Asserts if there is no exact map. </dd></dl>
     </td>
   </tr>
 </table>
@@ -2207,7 +2202,7 @@ To handle the case of zero iteration REP prefixed instructions (which used to dy
 Note that this is the same behavior as for CMOVcc instructions which can also have conditional memory accesses, but have never generated a zero memory size operand.     </td>
   </tr>
 </table>
-<hr size="1"><address style="align: right;"><small>Generated on Sat Nov 4 23:35:52 2017 for Pin by&nbsp;
+<hr size="1"><address style="align: right;"><small>Generated on Wed Jan 21 02:16:16 2015 for Pin by&nbsp;
 <a href="http://www.doxygen.org/index.html">
 <img src="doxygen.png" alt="doxygen" align="middle" border="0"></a> 1.4.6 </small></address>
 </body>

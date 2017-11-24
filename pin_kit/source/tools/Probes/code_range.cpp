@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,12 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Gail Lyons
+*/
+
+/* ===================================================================== */
 /*! @file
    Demonstrate a way for a tool to present a stack walk when a tool calls
    nested replaced functions.
@@ -37,7 +43,6 @@ END_LEGAL */
 #include "pin.H"
 #include <iostream>
 #include <stdlib.h>
-#include "tool_macros.h"
 
 using namespace std;
 
@@ -107,9 +112,9 @@ VOID ImageLoad(IMG img, VOID *v)
 
     int index=0;
     
-    Replace( img, C_MANGLE("first"),  AFUNPTR( First ),  index++ );
-    Replace( img, C_MANGLE("second"), AFUNPTR( Second ), index++ );
-    Replace( img, C_MANGLE("third"),  AFUNPTR( Third ),  index++ );
+    Replace( img, "first",  AFUNPTR( First ),  index++ );
+    Replace( img, "second", AFUNPTR( Second ), index++ );
+    Replace( img, "third",  AFUNPTR( Third ),  index++ );
 }
 
 
@@ -157,11 +162,11 @@ VOID ProbesInserted( IMG img, VOID *v )
 
     int index = 0;
     
-    BOOL stat = Report( img, C_MANGLE("first"),  index++ );
+    BOOL stat = Report( img, "first",  index++ );
     if ( stat == TRUE )
-         stat = Report( img, C_MANGLE("second"), index++ );
+         stat = Report( img, "second", index++ );
     if ( stat == TRUE )
-         stat = Report( img, C_MANGLE("third"),  index++ );
+         stat = Report( img, "third",  index++ );
 
     if ( stat == TRUE )
         cout << "Success!!" << endl;

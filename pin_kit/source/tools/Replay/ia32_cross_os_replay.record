@@ -1,7 +1,7 @@
-L '/disk/PinTools/Utils/obj-ia32/cp-pin' 8048ad8 781 0 1 
+L '/disk/PinTools/Utils/obj-ia32/cp-pin' 8048ad8 780 0 1 
 	'main' 8048d90
 END_RTN_LIST
-L '/lib/ld-linux.so.2' 555557c0 157ab 55555000 0 
+L '/lib/ld-linux.so.2' 555557c0 157aa 55555000 0 
 	'rtld_lock_default_unlock_recursive' 555558c0
 	'relocate_doit' 55556770
 	'fillin_rpath' 5555a3c0
@@ -21,7 +21,7 @@ L '/lib/ld-linux.so.2' 555557c0 157ab 55555000 0
 	'strlen' 5556a270
 	'__i686.get_pc_thunk.cx' 5556ae47
 END_RTN_LIST
-L '/usr/lib/libstdc++.so.6' 56d7182c 7c6b5 56d37000 0 
+L '/usr/lib/libstdc++.so.6' 56d7182c 7c6b4 56d37000 0 
 	'_ZN9__gnu_cxx17__pool_alloc_base12_M_get_mutexEv' 56d760f0
 	'_ZN9__gnu_cxx6__poolILb1EE13_M_initializeEPFvPvE' 56d774d0
 	'_ZNKSt7codecvtIwc11__mbstate_tE16do_always_noconvEv' 56d78800
@@ -238,7 +238,7 @@ L '/usr/lib/libstdc++.so.6' 56d7182c 7c6b5 56d37000 0
 	'_ZNK10__cxxabiv119__pointer_type_info15__pointer_catchEPKNS_17__pbase_type_infoEPPvj' 56de8ef0
 	'__cxa_vec_new' 56de95e0
 END_RTN_LIST
-L '/lib/libm.so.6' 56e2e314 1a5dd 56e2b000 0 
+L '/lib/libm.so.6' 56e2e314 1a5dc 56e2b000 0 
 	'__i686.get_pc_thunk.bx' 56e2e4c7
 	'fegetenv' 56e30a90
 	'__ieee754_asin' 56e30db0
@@ -282,7 +282,7 @@ L '/lib/libm.so.6' 56e2e314 1a5dd 56e2b000 0
 	'copysignl' 56e46ae0
 	'__divdc3' 56e48190
 END_RTN_LIST
-L '/lib/libgcc_s.so.1' 56e5a4fc 7c25 56e59000 0 
+L '/lib/libgcc_s.so.1' 56e5a4fc 7c24 56e59000 0 
 	'__ashldi3' 56e5a8e0
 	'__subvsi3' 56e5abe0
 	'__ctzdi2' 56e5b030
@@ -293,7 +293,7 @@ L '/lib/libgcc_s.so.1' 56e5a4fc 7c25 56e59000 0
 	'__register_frame_info' 56e60260
 	'.fini' 56e62104
 END_RTN_LIST
-L '/lib/libc.so.6' 56e795d8 e5747 56e64000 0 
+L '/lib/libc.so.6' 56e795d8 e5746 56e64000 0 
 	'gnu_get_libc_version' 56e79980
 	'__divdi3' 56e79ee0
 	'__gconv_close' 56e7adc0

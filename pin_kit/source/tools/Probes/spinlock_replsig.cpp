@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -46,10 +46,7 @@ using namespace std;
 /* Global Variables */
 /* ===================================================================== */
 
-// Don't use pthread_spinlock_t* in pthread_spin_lock signature since
-// our pthread_spin_lock type may be different than the application's libc
-// pthread_spin_lock.
-typedef int (*FUNCPTR)(void *);
+typedef int (*FUNCPTR)(pthread_spinlock_t *);
 
 
 /* ===================================================================== */
@@ -69,9 +66,11 @@ INT32 Usage()
 
 int SpinLock( FUNCPTR orgFuncptr, void * lock)
 {
+    pthread_spinlock_t * spinlock = reinterpret_cast<pthread_spinlock_t *>(lock);
+    
     cout << "SpinLock: calling pthread_spin_lock() at address " << hex << (ADDRINT)orgFuncptr << dec << endl;
 
-    int locked = orgFuncptr(lock);
+    int locked = orgFuncptr(spinlock);
 
     cout << "Spinlock: returned from pthread_spin_lock()." << endl;
 

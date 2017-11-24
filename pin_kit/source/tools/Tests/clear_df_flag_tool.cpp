@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,14 +28,23 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
-// This tool inserts the cld instruction before each instruction.
-
+#include <iostream>
+#include <fstream>
 #include "pin.H"
+// This tool inserts the std instruction before each instruction
 
+// The running count of instructions is kept here
+// make it static to help the compiler optimize docount
+static UINT64 icount = 0;
 
-extern "C"
+// This function is called before every instruction
+// Use the fast linkage for calls
+VOID PIN_FAST_ANALYSIS_CALL cleardf()
 {
-    extern void cleardf();
+    __asm
+    {
+        cld
+    }
 }
 
 
@@ -44,6 +53,7 @@ VOID Instruction(INS ins, VOID *v)
     
     INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)cleardf, IARG_FAST_ANALYSIS_CALL, IARG_END);
 }
+
 
 
 // argc, argv are the entire command line, including pin -t <toolname> -- ...

@@ -21,7 +21,7 @@
 TESTS := $(TEST_TOOL_ROOTS:%=%.wrap) $(TEST_ROOTS:%=%.wrap)
 SANITY := $(SANITY_SUBSET:%=%.wrap)
 TOOLS := $(TEST_TOOL_ROOTS:%=$(OBJDIR)%$(PINTOOL_SUFFIX)) $(TOOL_ROOTS:%=$(OBJDIR)%$(PINTOOL_SUFFIX))
-SA_TOOLS := $(SA_TOOL_ROOTS:%=$(OBJDIR)%$(SATOOL_SUFFIX))
+SA_TOOLS := $(SA_TOOL_ROOTS:%=$(OBJDIR)%)
 APPS := $(APP_ROOTS:%=$(OBJDIR)%$(EXE_SUFFIX))
 OBJECTS := $(OBJECT_ROOTS:%=$(OBJDIR)%$(OBJ_SUFFIX))
 DLLS := $(DLL_ROOTS:%=$(OBJDIR)$(DLL_PREFIX)%$(DLL_SUFFIX))
@@ -40,7 +40,6 @@ obj-%:
 # These dependencies do not mandate rebuilding the target if the dependency changed,
 # only that the dependended-on file exists.
 # In this case, we require that $(OBJDIR) exist, but we don't care if it has changed.
-$(TEST_TOOL_ROOTS:%=%.test) $(TEST_ROOTS:%=%.test): %: | dir
 $(TESTS) $(SANITY): %: | dir
 $(TOOLS) $(TOOLS:%$(PINTOOL_SUFFIX)=%$(OBJ_SUFFIX)) $(SA_TOOLS) $(SA_TOOLS:%=%$(OBJ_SUFFIX)): %: | dir
 $(APPS) $(OBJECTS) $(DLLS) $(LIBS): %: | dir
@@ -71,12 +70,9 @@ avx2check: $(CHECKAVX2)
 # Build the program which checks the hardware for tsx support.
 tsxcheck: $(CHECKTSX)
 
-# Build the program which checks the hardware for avx512f support.
-avx512fcheck: $(CHECKAVX512F)
-
 ###### Install ######
 
-# Build all and run a predefined installer where applicable.
+# On certain machines (e.g. mic, android), this would also copy the binaries to the remote target.
 install: all
 	$(INSTALLER) $(INSTALL_FLAGS)
 	@echo install complete!
@@ -118,9 +114,6 @@ $(DISABLE_ASLR):
 $(ATTACH_LAUNCHER):
 	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)attachLauncher$(EXE_SUFFIX)
 
-$(THREAD_APP):
-	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)thread_app$(EXE_SUFFIX)
-
 $(CHECKAVX):
 	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)avx_check$(EXE_SUFFIX)
 
@@ -130,20 +123,8 @@ $(CHECKAVX2):
 $(CHECKTSX):
 	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)tsx_check$(EXE_SUFFIX)
 
-$(CHECKAVX512F):
-	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)avx512f_check$(EXE_SUFFIX)
-
 $(THREADLIB):
 	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)threadlib$(OBJ_SUFFIX)
-  
-$(RUNNABLE):
-	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)runnable$(OBJ_SUFFIX)
-  
-$(THREADPOOL):
-	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)thread_pool$(OBJ_SUFFIX)
-  
-$(SYSMEMORY):
-	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)sys_memory$(OBJ_SUFFIX)
 
 $(REGVALLIB):
 	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)regvallib$(LIB_SUFFIX)
@@ -157,12 +138,6 @@ $(SUPPORTS_AVX_OBJ):
 $(SUPPORTS_AVX2_OBJ):
 	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)supports_avx2$(OBJ_SUFFIX)
 
-$(SUPPORTS_AVX512F_OBJ):
-	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)supports_avx512f$(OBJ_SUFFIX)
-
-$(SET_XMM_SCRATCHES_OBJ):
-	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)set_xmm_scratches_asm$(OBJ_SUFFIX)
-
 ###### Automated testing utilities - for internal use ######
 
 $(OBJDIR)%.tested:
@@ -175,10 +150,9 @@ $(OBJDIR)%.failed:
 .PRECIOUS: $(OBJDIR)%.tested $(OBJDIR)%.failed
 
 # Don't delete the files generated in the Utils directory.
-.PRECIOUS: $(TESTAPP) $(HELLO_APP) $(HELLO_APP_DWARF4) $(DISABLE_ASLR) $(ATTACH_LAUNCHER) $(THREAD_APP)
-.PRECIOUS: $(CHECKAVX) $(CHECKAVX2) $(CHECKTSX) $(CHECKAVX512F)
-.PRECIOUS: $(THREADLIB) $(SUPPORTS_AVX_OBJ) $(SUPPORTS_AVX2_OBJ) $(SUPPORTS_AVX512F_OBJ) $(SET_XMM_SCRATCHES_OBJ)
-.PRECIOUS: $(RUNNABLE) $(THREADPOOL) $(SYSMEMORY)
+.PRECIOUS: $(TESTAPP) $(HELLO_APP) $(HELLO_APP_DWARF4) $(DISABLE_ASLR) $(ATTACH_LAUNCHER)
+.PRECIOUS: $(CHECKAVX) $(CHECKAVX2) $(CHECKTSX)
+.PRECIOUS: $(THREADLIB) $(SUPPORTS_AVX_OBJ) $(SUPPORTS_AVX2_OBJ)
 
 # Accelerate the make process and prevent errors.
 .PHONY: tools apps objects dlls libs avxcheck tsxcheck install test sanity summary clean %.test %.wrap
@@ -197,15 +171,15 @@ $(OBJDIR)%$(OBJ_SUFFIX): %.cpp
 
 # Build the intermediate object file.
 $(OBJDIR)%$(OBJ_SUFFIX): %.c
-	$(CC) $(TOOL_CFLAGS) $(COMP_OBJ)$@ $<
+	$(CC) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $<
 
 # Build the tool as a dll (shared object).
 $(OBJDIR)%$(PINTOOL_SUFFIX): $(OBJDIR)%$(OBJ_SUFFIX)
 	$(LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $< $(TOOL_LPATHS) $(TOOL_LIBS)
 
 # Build the static analysis tools.
-$(SA_TOOLS): %$(SATOOL_SUFFIX): %$(OBJ_SUFFIX)
-	$(LINKER) $(SATOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(SATOOL_LPATHS) $(SATOOL_LIBS)
+$(SA_TOOLS): %: %$(OBJ_SUFFIX)
+	$(LINKER) $(SATOOL_LDFLAGS) $(LINK_EXE)$@ $< $(SATOOL_LPATHS) $(SATOOL_LIBS)
 
 # Don't delete the object files and dlls.
 .PRECIOUS: $(OBJDIR)%$(OBJ_SUFFIX) $(OBJDIR)%$(PINTOOL_SUFFIX)

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,37 +28,16 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
-/*! @file
- * In addition to what this test checks, we also check these:
- * - In case 'ParentEnv' environment variable was set by the application (after Pin tool over)
- *   which executed the current application we print it here so we can check it from the makefile (by using GREP)
- */
-
 //Child process application
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 #include <string>
 #include <iostream>
 
 using namespace std;
 
-int main(int argc, char * argv[], char * envp[])
+int main(int argc, char * argv[])
 {
-
-    int i = 0;
-
-    // In case 'ParentEnv' environment variable was set by the application (after Pin tool over)
-    // which executed the current application we print it here so we can check it from the makefile (by using GREP)
-    while (envp[i] != 0)
-    {
-        if (string(envp[i]).compare(string("ParentEnv=1")) == 0)
-        {
-            cout << envp[i] << endl;
-        }
-        i++;
-    }
-
     if (argc != 3)
     {
         cout << "Child report: expected 2 parameters, received " << argc-1 << endl;

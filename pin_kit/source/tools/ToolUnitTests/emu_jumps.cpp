@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -34,8 +34,6 @@ END_LEGAL */
  *     call and return
  */
 #include <stdio.h>
-#include <iostream>
-#include <set>
 #include "pin.H"
 
 KNOB<UINT32> KnobDetach(KNOB_MODE_WRITEONCE, "pintool", "d", "-1", "stop tracing at this point");
@@ -43,7 +41,6 @@ KNOB<BOOL> KnobLog(KNOB_MODE_WRITEONCE, "pintool", "l", "0", "log all instructio
 
 static UINT32 scount = 0;
 static REG scratchReg;
-static std::set<ADDRINT> branchTakenIns;
 FILE *out = 0;
 
 VOID PrintIns(void *p, const char *s)
@@ -58,19 +55,6 @@ VOID PrintIns(void *p, const char *s)
 ADDRINT EmuIndJmp(ADDRINT tgtip)
 {
     return tgtip;
-}
-
-VOID BranchBefore(THREADID tid, ADDRINT pc)
-{
-    if (0 != tid) return;
-    branchTakenIns.insert(pc);
-}
-
-VOID BranchTaken(THREADID tid, ADDRINT pc, ADDRINT expected)
-{
-    if (0 != tid) return;
-    ASSERT(pc == expected, "pc = " + hexstr(pc) + "INS_Address() = " + hexstr(expected));
-    branchTakenIns.erase(pc);
 }
 
 VOID Ins( INS ins, VOID *v )
@@ -100,8 +84,6 @@ VOID Ins( INS ins, VOID *v )
             IARG_RETURN_REGS, scratchReg, IARG_END);
 
         INS_InsertIndirectJump(ins, IPOINT_AFTER, scratchReg);
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)BranchBefore, IARG_THREAD_ID, IARG_INST_PTR, IARG_END);
-        INS_InsertCall(ins, IPOINT_TAKEN_BRANCH, (AFUNPTR)BranchTaken, IARG_THREAD_ID, IARG_INST_PTR, IARG_ADDRINT, INS_Address(ins), IARG_END);
 
         INS_Delete(ins);
     }
@@ -110,8 +92,6 @@ VOID Ins( INS ins, VOID *v )
         ADDRINT tgt = INS_DirectBranchOrCallTargetAddress(ins);
 
         INS_InsertDirectJump(ins, IPOINT_AFTER, tgt);
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)BranchBefore, IARG_THREAD_ID, IARG_INST_PTR, IARG_END);
-        INS_InsertCall(ins, IPOINT_TAKEN_BRANCH, (AFUNPTR)BranchTaken, IARG_THREAD_ID, IARG_INST_PTR, IARG_ADDRINT, INS_Address(ins), IARG_END);
 
         INS_Delete(ins);
     }
@@ -119,14 +99,6 @@ VOID Ins( INS ins, VOID *v )
 
 VOID Fini(INT32 code, VOID *v)
 {
-    if (!branchTakenIns.empty())
-    {
-        for (std::set<ADDRINT>::iterator it = branchTakenIns.begin(); it != branchTakenIns.end(); it++)
-        {
-            std::cerr << "Instrumentation for IPOINT_TAKEN_BRANCH for instruction at " << hex << *it << " wasn't executed" << endl;
-        }
-        ASSERTX(FALSE);
-    }
     if (out)
         fclose(out);
 }
@@ -139,9 +111,9 @@ int main(int argc, char * argv[])
 
     if (KnobLog)
     {
-        out = fopen("emu_jumps.txt", "w");
+        out = fopen("emu_stack.txt", "w");
         if (!out)
-            fprintf(stderr, "Can't open log file emu_jumps.txt\n");
+            fprintf(stderr, "Can't open log file emu_stack.txt\n");
     }
 
     scratchReg = PIN_ClaimToolRegister();

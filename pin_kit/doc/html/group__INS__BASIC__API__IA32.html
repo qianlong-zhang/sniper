@@ -118,6 +118,8 @@
 
 <tr><td class="memItemLeft" nowrap align="right" valign="top">BOOL&nbsp;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__INS__BASIC__API__IA32.html#gd9b4a4123efc4821324e7b2a5be35fab">LEVEL_CORE::INS_IsMaskMov</a> (const INS ins)</td></tr>
 
+<tr><td class="memItemLeft" nowrap align="right" valign="top">BOOL&nbsp;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__INS__BASIC__API__IA32.html#gdfbd3d4ff8e148fd19f36ebb52e816f6">LEVEL_CORE::INS_IsMaskedJump</a> (const INS ins)</td></tr>
+
 <tr><td class="memItemLeft" nowrap align="right" valign="top"><a class="el" href="group__REG__CPU__IA32.html#g3b77029a2a445f70f0206dbad1e4e641">REG</a>&nbsp;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__INS__BASIC__API__IA32.html#gfe90cae5c2dead027c67ac7945ac6917">LEVEL_CORE::INS_RepCountRegister</a> (INS ins)</td></tr>
 
 <tr><td class="memItemLeft" nowrap align="right" valign="top"><a class="el" href="group__REG__CPU__IA32.html#g3b77029a2a445f70f0206dbad1e4e641">REG</a>&nbsp;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__INS__BASIC__API__IA32.html#g811c4ea416da8336369f5757ea303db1">LEVEL_CORE::INS_SegmentRegPrefix</a> (INS ins)</td></tr>
@@ -170,8 +172,6 @@
 
 <tr><td class="memItemLeft" nowrap align="right" valign="top">BOOL&nbsp;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__INS__BASIC__API__IA32.html#g2bfb17c6ec47cfc44627d3b6b09a5c63">LEVEL_CORE::INS_IsStandardMemop</a> (INS ins)</td></tr>
 
-<tr><td class="memItemLeft" nowrap align="right" valign="top">BOOL&nbsp;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__INS__BASIC__API__IA32.html#g85cb9c5ff5698028d85b66c5130ad77e">LEVEL_CORE::INS_hasKnownMemorySize</a> (INS ins)</td></tr>
-
 <tr><td class="memItemLeft" nowrap align="right" valign="top">BOOL&nbsp;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__INS__BASIC__API__IA32.html#g1bc6a9f51e41f3c7a8e184e4461b235e">LEVEL_CORE::INS_ChangeReg</a> (const INS ins, const <a class="el" href="group__REG__CPU__IA32.html#g3b77029a2a445f70f0206dbad1e4e641">REG</a> old_reg, const <a class="el" href="group__REG__CPU__IA32.html#g3b77029a2a445f70f0206dbad1e4e641">REG</a> new_reg, const BOOL as_read)</td></tr>
 
 <tr><td class="memItemLeft" nowrap align="right" valign="top">UINT32&nbsp;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__INS__BASIC__API__IA32.html#g47aa176a6a8f0decdb381c81d7623601">LEVEL_CORE::INS_OperandCount</a> (INS ins)</td></tr>
@@ -207,8 +207,6 @@ VOID&nbsp;</td><td class="memItemRight" valign="bottom"><b>LEVEL_CORE::GetNumber
 <tr><td class="memItemLeft" nowrap align="right" valign="top">UINT64&nbsp;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__INS__BASIC__API__IA32.html#g68fda87a9490dd959ad0c1587d158966">LEVEL_CORE::INS_OperandImmediate</a> (INS ins, UINT32 n)</td></tr>
 
 <tr><td class="memItemLeft" nowrap align="right" valign="top">BOOL&nbsp;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__INS__BASIC__API__IA32.html#g36d5954fee1ad0fb67c6e79aafbb4933">LEVEL_CORE::INS_OperandIsImplicit</a> (INS ins, UINT32 n)</td></tr>
-
-<tr><td class="memItemLeft" nowrap align="right" valign="top">BOOL&nbsp;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__INS__BASIC__API__IA32.html#g845e07f136ca7cdcc4749ca82d8aad47">LEVEL_CORE::INS_RegIsImplicit</a> (INS ins, <a class="el" href="group__REG__CPU__IA32.html#g3b77029a2a445f70f0206dbad1e4e641">REG</a> reg)</td></tr>
 
 <tr><td class="memItemLeft" nowrap align="right" valign="top">UINT32&nbsp;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__INS__BASIC__API__IA32.html#g00521d05ac2927f6e234b5642624436b">LEVEL_CORE::INS_OperandWidth</a> (INS ins, UINT32 n)</td></tr>
 
@@ -589,35 +587,6 @@ Change all occurrences of old_reg to new_reg in the r/w sets of the ins. Return 
     </td>
   </tr>
 </table>
-<a class="anchor" name="g85cb9c5ff5698028d85b66c5130ad77e"></a><!-- doxytag: member="LEVEL_CORE::INS_hasKnownMemorySize" ref="g85cb9c5ff5698028d85b66c5130ad77e" args="(INS ins)" --><p>
-<table class="mdTable" cellpadding="2" cellspacing="0">
-  <tr>
-    <td class="mdRow">
-      <table cellpadding="0" cellspacing="0" border="0">
-        <tr>
-          <td class="md" nowrap valign="top">BOOL LEVEL_CORE::INS_hasKnownMemorySize           </td>
-          <td class="md" valign="top">(&nbsp;</td>
-          <td class="md" nowrap valign="top">INS&nbsp;</td>
-          <td class="mdname1" valign="top" nowrap> <em>ins</em>          </td>
-          <td class="md" valign="top">&nbsp;)&nbsp;</td>
-          <td class="md" nowrap></td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
-<table cellspacing="5" cellpadding="0" border="0">
-  <tr>
-    <td>
-      &nbsp;
-    </td>
-    <td>
-
-<p>
-<dl compact><dt><b>Returns:</b></dt><dd>false if this instruction has a memory operand for which <a class="el" href="group__INST__ARGS.html#gg7e2c955c99fa84246bb2bce1525b5681f5ef4896ff6c308b74bfa144bd8a29be">IARG_MEMORYREAD_SIZE</a> or <a class="el" href="group__INST__ARGS.html#gg7e2c955c99fa84246bb2bce1525b568110179298ed2320c07b41e3733d45712b">IARG_MEMORYWRITE_SIZE</a> cannot be used (e.g. vectorized memory reference of the GATHER/SCATTER instructions). </dd></dl>
-    </td>
-  </tr>
-</table>
 <a class="anchor" name="g56a84169084f4ba2a6c07d881acb165c"></a><!-- doxytag: member="LEVEL_CORE::INS_HasMemoryVector" ref="g56a84169084f4ba2a6c07d881acb165c" args="(INS ins)" --><p>
 <table class="mdTable" cellpadding="2" cellspacing="0">
   <tr>
@@ -878,6 +847,35 @@ Note that IRET instructions also pass the INS_IsRet test, since they are RETs. <
     </td>
   </tr>
 </table>
+<a class="anchor" name="gdfbd3d4ff8e148fd19f36ebb52e816f6"></a><!-- doxytag: member="LEVEL_CORE::INS_IsMaskedJump" ref="gdfbd3d4ff8e148fd19f36ebb52e816f6" args="(const INS ins)" --><p>
+<table class="mdTable" cellpadding="2" cellspacing="0">
+  <tr>
+    <td class="mdRow">
+      <table cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td class="md" nowrap valign="top">BOOL LEVEL_CORE::INS_IsMaskedJump           </td>
+          <td class="md" valign="top">(&nbsp;</td>
+          <td class="md" nowrap valign="top">const INS&nbsp;</td>
+          <td class="mdname1" valign="top" nowrap> <em>ins</em>          </td>
+          <td class="md" valign="top">&nbsp;)&nbsp;</td>
+          <td class="md" nowrap></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+<table cellspacing="5" cellpadding="0" border="0">
+  <tr>
+    <td>
+      &nbsp;
+    </td>
+    <td>
+
+<p>
+<dl compact><dt><b>Returns:</b></dt><dd>true if this instruction is a masked jump instruction. </dd></dl>
+    </td>
+  </tr>
+</table>
 <a class="anchor" name="gd9b4a4123efc4821324e7b2a5be35fab"></a><!-- doxytag: member="LEVEL_CORE::INS_IsMaskMov" ref="gd9b4a4123efc4821324e7b2a5be35fab" args="(const INS ins)" --><p>
 <table class="mdTable" cellpadding="2" cellspacing="0">
   <tr>
@@ -1046,7 +1044,7 @@ returns true if this instruction is a mov reg1, reg1. And reg1 is a full reg    
     <td>
 
 <p>
-<dl compact><dt><b>Returns:</b></dt><dd>false if this instruction has a memory operand which has unconventional meaning (e.g. vectorized memory reference of the GATHER/SCATTER instructions or some of the XSAVE instructions). </dd></dl>
+<dl compact><dt><b>Returns:</b></dt><dd>false if this instruction has a memory operand which has unconventional meaning (e.g. vectorized memory reference of the GATHER/SCATTER instructions). </dd></dl>
     </td>
   </tr>
 </table>
@@ -2294,44 +2292,6 @@ Tells if an instruction operand is just a destination (and not a source).<p>
     </td>
   </tr>
 </table>
-<a class="anchor" name="g845e07f136ca7cdcc4749ca82d8aad47"></a><!-- doxytag: member="LEVEL_CORE::INS_RegIsImplicit" ref="g845e07f136ca7cdcc4749ca82d8aad47" args="(INS ins, REG reg)" --><p>
-<table class="mdTable" cellpadding="2" cellspacing="0">
-  <tr>
-    <td class="mdRow">
-      <table cellpadding="0" cellspacing="0" border="0">
-        <tr>
-          <td class="md" nowrap valign="top">BOOL LEVEL_CORE::INS_RegIsImplicit           </td>
-          <td class="md" valign="top">(&nbsp;</td>
-          <td class="md" nowrap valign="top">INS&nbsp;</td>
-          <td class="mdname" nowrap> <em>ins</em>, </td>
-        </tr>
-        <tr>
-          <td class="md" nowrap align="right"></td>
-          <td class="md"></td>
-          <td class="md" nowrap><a class="el" href="group__REG__CPU__IA32.html#g3b77029a2a445f70f0206dbad1e4e641">REG</a>&nbsp;</td>
-          <td class="mdname" nowrap> <em>reg</em></td>
-        </tr>
-        <tr>
-          <td class="md"></td>
-          <td class="md">)&nbsp;</td>
-          <td class="md" colspan="2"></td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
-<table cellspacing="5" cellpadding="0" border="0">
-  <tr>
-    <td>
-      &nbsp;
-    </td>
-    <td>
-
-<p>
-Assumes that reg is a PIN register <dl compact><dt><b>Returns:</b></dt><dd>true if the ins has </dd></dl>
-    </td>
-  </tr>
-</table>
 <a class="anchor" name="gfe90cae5c2dead027c67ac7945ac6917"></a><!-- doxytag: member="LEVEL_CORE::INS_RepCountRegister" ref="gfe90cae5c2dead027c67ac7945ac6917" args="(INS ins)" --><p>
 <table class="mdTable" cellpadding="2" cellspacing="0">
   <tr>
@@ -2613,10 +2573,10 @@ Sets the disassembly syntax to Intel format. (Destination on the left)     </td>
     <td>
 
 <p>
-Sets the disassembly syntax to Intel(R) X86 Encoder Decoder detailed format which lists all resources read and written.     </td>
+Sets the disassembly syntax to XED detailed format which lists all resources read and written.     </td>
   </tr>
 </table>
-<hr size="1"><address style="align: right;"><small>Generated on Sat Nov 4 23:35:52 2017 for Pin by&nbsp;
+<hr size="1"><address style="align: right;"><small>Generated on Wed Jan 21 02:16:16 2015 for Pin by&nbsp;
 <a href="http://www.doxygen.org/index.html">
 <img src="doxygen.png" alt="doxygen" align="middle" border="0"></a> 1.4.6 </small></address>
 </body>

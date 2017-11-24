@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,16 +28,22 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Yael Weiss
+*/
+
+/* ===================================================================== */
 /*! @file
  */
 
 #include "pin.H"
-#include "tool_macros.h"
 #include <iostream>
 #include <fstream>
 #include <cstdio>
+#include <linux/unistd.h>
 #include <signal.h>
-#include <sched.h>
 
 BOOL changeSigmask = FALSE;
 
@@ -47,7 +53,7 @@ INT32 Usage()
 {
     cerr <<
         "This pin tool examines the correctness of the retrieve and alteration of the thread sigmask"
-            "when the tool registers a THREAD_ATTACH_PROBED_CALLBACK callback.\n";
+            "when the tool register to the calback: THREAD_ATTACH_PROBED_CALLBACK .\n";
     cerr << KNOB_BASE::StringKnobSummary();
     cerr << endl;
     return -1;
@@ -83,7 +89,7 @@ VOID ImageLoad(IMG img,  VOID *v)
 {
     if ( IMG_IsMainExecutable(img))
     {
-        RTN rtn = RTN_FindByName(img, C_MANGLE("WaitChangeSigmask"));
+        RTN rtn = RTN_FindByName(img, "WaitChangeSigmask");
 
         // Relevant only in the attach scenario.
         if (RTN_Valid(rtn))
@@ -99,11 +105,11 @@ VOID ImageLoad(IMG img,  VOID *v)
 
 int main(int argc, CHAR *argv[])
 {
+
     if( PIN_Init(argc,argv) )
     {
         return Usage();
     }
-    PIN_InitSymbols();
     IMG_AddInstrumentFunction(ImageLoad, 0);
     PIN_AddThreadAttachProbedFunction(AttachedThreadStart, 0);
     PIN_StartProgramProbed();

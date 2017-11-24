@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+// <ORIGINAL-AUTHOR>: Greg Lueck
 // <COMPONENT>: util
 // <FILE-TYPE>: component public header
 
@@ -119,7 +120,7 @@ private:
     {
         if (_quoted.find_first_of(whitespace) != STRING::npos)
         {
-            _quoted.insert((size_t)0, (size_t)1, '"');
+            _quoted.insert(0, 1, '"');
             _quoted.append(1, '"');
 
             // If the last character (prior to adding the quotes) was a backslash,
@@ -158,6 +159,9 @@ public:
 };
 
 
+// In Android ndk7 wstring is not defined. We may be able to remove this when we will build with newer versions of the NDK.
+# if !defined(FUND_TARGET_ANDROID)
+
 /*!
  * A wide-character version of QUOTE_ARGUMENT_MS.  Adds quoting to a string, allowing
  * it to be passed as an argument to a C/C++ program on Microsoft Windows.
@@ -176,6 +180,8 @@ public:
      */
     std::wstring Get() {return QUOTE_ARGUMENT_MS_BASE<wchar_t>::Get();}
 };
+
+#endif
 
 } // namespace
 #endif // file guard

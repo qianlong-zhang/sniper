@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,14 +28,20 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Robert Muth
+*/
+
+/* ===================================================================== */
 /*! @file
  *  This file contains an ISA-portable PIN tool for tracing instructions
  */
+#include "pin.H"
+#include "portability.H"
 #include <iostream>
 #include <fstream>
 #include <map>
-#include <unistd.h>
-#include "pin.H"
 
 
 /* ===================================================================== */
@@ -59,7 +65,7 @@ static INT32 Usage()
     cerr << "The edge profile is partial as it only considers control flow changes (taken\n";
     cerr << "branch edges, etc.). It is the left to the profile consumer to compute the missing counts.\n";
     cerr << "\n";
-
+    
     cerr << "The pin tool *does* keep track of edges from indirect jumps within, out of, and into\n";
     cerr << "the application. Traps to the OS a recorded with a target of -1.\n";
 
@@ -98,15 +104,15 @@ class EDGE
     ADDRINT _dst;
     ADDRINT _next_ins;
     ETYPE   _type; // must be integer to make stl happy
-
+    
     EDGE(ADDRINT s, ADDRINT d, ADDRINT n, ETYPE t) :
         _src(s),_dst(d), _next_ins(n),_type(t)  {}
 
-    bool operator <(const EDGE& edge) const
+    bool operator <(const EDGE& edge) const 
     {
         return _src < edge._src || (_src == edge._src && _dst < edge._dst);
     }
-
+    
 };
 
 string StringFromEtype( ETYPE etype)
@@ -130,7 +136,7 @@ string StringFromEtype( ETYPE etype)
         return "INVALID";
     }
 }
-
+                
 typedef map< EDGE, COUNTER*> EDG_HASH_SET;
 
 static EDG_HASH_SET EdgeSet;
@@ -164,14 +170,14 @@ VOID docount( COUNTER *pedg )
 
 /* ===================================================================== */
 // for indirect control flow we do not know the edge in advance and
-// therefore must look it up
+// therefore must look it up 
 
 VOID docount2( ADDRINT src, ADDRINT dst, ADDRINT n, ETYPE type, INT32 taken )
 {
     if(!taken) return;
     COUNTER *pedg = Lookup( EDGE(src,dst,n,type) );
     pedg->_count++;
-}
+} 
 
 /* ===================================================================== */
 
@@ -184,12 +190,12 @@ VOID Instruction(INS ins, void *v)
         // static targets can map here once
         COUNTER *pedg = Lookup( EDGE(INS_Address(ins),  INS_DirectBranchOrCallTargetAddress(ins),
                                      INS_NextAddress(ins), type) );
-        INS_InsertCall(ins, IPOINT_TAKEN_BRANCH, (AFUNPTR) docount, IARG_ADDRINT, pedg, IARG_END);
+        INS_InsertCall(ins, IPOINT_TAKEN_BRANCH, (AFUNPTR) docount, IARG_ADDRINT, pedg, IARG_END);            
     }
     else if( INS_IsIndirectBranchOrCall(ins) )
     {
         ETYPE type = ETYPE_IBRANCH;
-
+        
         if( INS_IsRet(ins) )
         {
             type = ETYPE_RETURN;
@@ -198,7 +204,7 @@ VOID Instruction(INS ins, void *v)
         {
             type = ETYPE_ICALL;
         }
-
+        
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR) docount2,
                        IARG_INST_PTR,
                        IARG_BRANCH_TARGET_ADDR,
@@ -210,7 +216,7 @@ VOID Instruction(INS ins, void *v)
     else if( INS_IsSyscall(ins) )
     {
         COUNTER *pedg = Lookup( EDGE(INS_Address(ins),  ADDRINT(~0),INS_NextAddress(ins) ,ETYPE_SYSCALL) );
-        INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR) docount, IARG_ADDRINT, pedg, IARG_END);
+        INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR) docount, IARG_ADDRINT, pedg, IARG_END);            
     }
 }
 
@@ -219,7 +225,7 @@ VOID Instruction(INS ins, void *v)
 inline INT32 AddressHighNibble(ADDRINT addr)
 {
     return  0xf & (addr >> (sizeof(ADDRINT)* 8 - 4));
-}
+} 
 
 /* ===================================================================== */
 static std::ofstream* out = 0;
@@ -227,12 +233,12 @@ static std::ofstream* out = 0;
 VOID Fini(int n, void *v)
 {
     SetAddress0x(1);
-
+         
     const INT32 nibble = KnobFilterByHighNibble.Value();
 
-    *out << "EDGCOUNT        4.0         0\n";  // profile header, no md5sum
+    *out << "EDGCOUNT        4.0         0\n";  // profile header, no md5sum 
     UINT32 count = 0;
-
+    
     for( EDG_HASH_SET::const_iterator it = EdgeSet.begin(); it !=  EdgeSet.end(); it++ )
     {
         const pair<EDGE, COUNTER*> tuple = *it;
@@ -243,17 +249,17 @@ VOID Fini(int n, void *v)
         {
             continue;
         }
-
+        
         if( tuple.second->_count == 0 ) continue;
-
+        
         count++;
     }
-
+    
     *out << "EDGs " << count << endl;
     *out << "# src          dst        type    count     next-ins\n";
     *out << "DATA:START" << endl;
-
-
+    
+    
     for( EDG_HASH_SET::const_iterator it = EdgeSet.begin(); it !=  EdgeSet.end(); it++ )
     {
         const pair<EDGE, COUNTER*> tuple = *it;
@@ -274,7 +280,7 @@ VOID Fini(int n, void *v)
             StringFromEtype(tuple.first._type) << " " <<
             decstr(tuple.second->_count,12) << " " <<
             StringFromAddrint( tuple.first._next_ins)  <<         endl;
-
+        
     }
 
     *out << "DATA:END" << endl;
@@ -288,17 +294,17 @@ VOID Fini(int n, void *v)
 
 int main(int argc, char *argv[])
 {
-
+    
     if( PIN_Init(argc,argv) )
     {
         return Usage();
     }
-
-
+    
+        
     string filename =  KnobOutputFile.Value();
-    if (KnobPid)
+    if( KnobPid )
     {
-        filename += "." + decstr(getpid());
+        filename += "." + decstr( getpid_portable() );
     }
     out = new std::ofstream(filename.c_str());
 
@@ -308,7 +314,7 @@ int main(int argc, char *argv[])
     // Never returns
 
     PIN_StartProgram();
-
+    
     return 0;
 }
 

@@ -4,13 +4,6 @@
 /* THIS FILE IS AUTOMAGICALLY GENERATED - DO NOT CHANGE DIRECTLY*/
 
 
-enum REPLAY_IMAGE_TYPE {
-    REPLAY_IMAGE_TYPE_REGULAR     = 0,  ///< Regular image
-    REPLAY_IMAGE_TYPE_MAIN_EXE    = 1,  ///< Main executable image
-    REPLAY_IMAGE_TYPE_INTERPRETER = 2   ///< The image of the interpreter (loader)
-};
-
-                                                                  /* DO NOT EDIT */
 extern VOID PIN_ReplaySyscallEntry(THREADID tid, CONTEXT *ctxt, SYSCALL_STANDARD std);
 
                                                                   /* DO NOT EDIT */
@@ -23,7 +16,7 @@ extern NORETURN VOID PIN_ExitApplication(INT32 status);
 extern VOID PIN_ReplayContextChange(THREADID tid, const CONTEXT *from, CONTEXT *to, CONTEXT_CHANGE_REASON reason, INT32 info);
 
                                                                   /* DO NOT EDIT */
-extern IMG PIN_ReplayImageLoad(const char *imageName, const char * fileName, ADDRINT loadOffset, REPLAY_IMAGE_TYPE imageType);
+extern IMG PIN_ReplayImageLoad(const char *imageName, const char * fileName, ADDRINT loadOffset, BOOL mainImage);
 
                                                                   /* DO NOT EDIT */
 extern VOID PIN_ReplayImageUnload(IMG img);

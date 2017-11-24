@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,7 +28,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
-// This tool is used to test passing the IARG_TSC argument to an analysis function in probe mode.
+// This tool is used to test performance affects of inserting a call in probe mode
 
 
 #include <stdio.h>
@@ -37,45 +37,47 @@ END_LEGAL */
 #include <fstream>
 #include "pin.H"
 
-#if defined(TARGET_MAC)
-    const char* FACTORIAL_NAME="_factorial";
-#else
-    const char* FACTORIAL_NAME="factorial";
-#endif
-
-std::ostream* OutFile = 0;
-
-/* ===================================================================== */
-/* Command line switches                                                 */
-/* ===================================================================== */
-
-KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE,  "pintool",
-    "o", "", "Specify file name for the tool's output. If no filename is specified, the output will be directed to stdout.");
+ofstream OutFile;
 
 
-VOID AtRtn(VOID* name, ADDRINT arg1, UINT64 tsc)
+VOID AtRtn(VOID* name, UINT64 tsc)
 {
-    *OutFile << reinterpret_cast<CHAR *>(name) << "(" << arg1 << ")" << "\tTime Stamp Counter is: " << hex << tsc << dec << endl;
+    OutFile << std::left << std::setw(32) << reinterpret_cast<CHAR *>(name) << "," << hex << tsc << endl;
 }
 
 VOID Image(IMG img, VOID * v)
 {
-    if ( ! IMG_IsMainExecutable(img)) {
-        return;        
-    }
+    if ( (IMG_Name(img).find("ntdll.dll") != string::npos) ||
+       (IMG_Name(img).find("NTDLL.DLL") != string::npos) ||
+       (IMG_Name(img).find("NTDLL.dll") != string::npos) ) 
 
-    RTN rtn = RTN_FindByName(img, FACTORIAL_NAME);
-    if (RTN_Valid(rtn))
     {
-        if ( ! RTN_IsSafeForProbedInsertion( rtn ) )
-        {
-            *OutFile << "It is not safe to insert a call before " << RTN_Name(rtn) << " in " << IMG_Name(img) << endl;
-            return;
-        }
+        return;
+    }
+    if ( (IMG_Name(img).find("MSVCR") != string::npos) ||
+       (IMG_Name(img).find("msvcr") != string::npos) ) 
 
-        RTN_InsertCallProbed( rtn, IPOINT_BEFORE,  AFUNPTR(AtRtn), IARG_PTR, RTN_Name(rtn).c_str(), IARG_FUNCARG_ENTRYPOINT_VALUE, 0, IARG_TSC, IARG_END);
-    } else {
-        *OutFile << FACTORIAL_NAME << " wasn't found." << endl;
+    { // _NLG_Return2 causes problems
+        return;
+    }
+   
+    for (SEC sec = IMG_SecHead(img); SEC_Valid(sec); sec = SEC_Next(sec))
+    {
+        for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn))
+        {
+
+
+            if (RTN_Name(rtn).find(".text") != string::npos) 
+            {
+                continue;
+            }
+
+            BOOL canBeProbed = RTN_IsSafeForProbedInsertion(rtn);
+            if (canBeProbed && RTN_Name(rtn)[0] != '_' && RTN_Name(rtn)[0] != '.')
+            {
+                RTN_InsertCallProbed( rtn, IPOINT_BEFORE,  AFUNPTR(AtRtn), IARG_PTR, RTN_Name(rtn).c_str(), IARG_TSC, IARG_END);
+            }
+        }
     }
 }
 
@@ -84,7 +86,7 @@ int main(int argc, char **argv)
     PIN_Init(argc, argv);
     PIN_InitSymbols();
 
-    OutFile = KnobOutputFile.Value().empty() ? &cout : new std::ofstream(KnobOutputFile.Value().c_str());
+    OutFile.open("iarg_tsc_probed1.out");
 
     IMG_AddInstrumentFunction(Image, 0);
 

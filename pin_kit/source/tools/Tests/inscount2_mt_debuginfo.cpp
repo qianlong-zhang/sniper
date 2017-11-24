@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -36,17 +36,17 @@ END_LEGAL */
 #include "pin.H"
 
 KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
-    "o", "", "specify output file name");
+    "o", "inscountmt.out", "specify output file name");
 
 KNOB<UINT64> KnobSampleRate(KNOB_MODE_WRITEONCE, "pintool",
     "sample_rate", "100000", "number of executed instructions in thread per sample");
 
+PIN_LOCK lock;
 
 INT32 numThreads = 0;
 const INT32 MaxNumThreads = 10000;
 // Number of executed instructions in thread per sample
 UINT64 sampleRate = 100000;
-ostream* OutFile = NULL;
 
 // The running count of instructions is kept here
 // We let each thread's count be in its own data cache line so that
@@ -62,32 +62,19 @@ struct THREAD_DATA
     string _file_name;
     string _rtn_name;
     UINT8 _pad[PADSIZE];
-    THREAD_DATA() :    _count(0),
-                       _prev_count(0),
-                       _line_number(0),
-                       _file_name(""),
-                       _rtn_name("") {}
 };
 
-// key for accessing TLS storage in the threads. initialized once in main()
-static  TLS_KEY tls_key;
+THREAD_DATA icount[MaxNumThreads];
 
-// function to access thread-specific data
-THREAD_DATA* get_tls(THREADID threadid)
-{
-    THREAD_DATA* tdata = static_cast<THREAD_DATA*>(PIN_GetThreadData(tls_key, threadid));
-    return tdata;
-}
 
 // This function is called before every block
 VOID PIN_FAST_ANALYSIS_CALL docount(UINT32 c, THREADID tid, ADDRINT iAddr)
 {
-    THREAD_DATA* tdata = get_tls(tid);
-    tdata->_count += c;
+    icount[tid]._count += c;
 
-    if ((tdata->_count - tdata->_prev_count) >= sampleRate)
+    if ((icount[tid]._count - icount[tid]._prev_count) >= sampleRate)
     {   // Arbitrary sample point
-        tdata->_prev_count += sampleRate;
+        icount[tid]._prev_count += sampleRate;
 
         // Get Pin client lock according to description of PIN_GetSourceLocation()
         PIN_LockClient();
@@ -102,19 +89,20 @@ VOID PIN_FAST_ANALYSIS_CALL docount(UINT32 c, THREADID tid, ADDRINT iAddr)
 
         if (lineNumber != 0)
         {
-            tdata->_line_number = lineNumber;
-            tdata->_file_name = fileName;
-            tdata->_rtn_name = rtnName;
+            icount[tid]._line_number = lineNumber;
+            icount[tid]._file_name = fileName;
+            icount[tid]._rtn_name = rtnName;
         }
     }
 }
 
 VOID ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, VOID *v)
 {
+    PIN_GetLock(&lock, threadid+1);
     numThreads++;
+    PIN_ReleaseLock(&lock);
+    
     ASSERT(numThreads <= MaxNumThreads, "Maximum number of threads exceeded\n");
-    THREAD_DATA* tdata = new THREAD_DATA();
-    PIN_SetThreadData(tls_key, tdata, threadid); 
 }
 
 // Pin calls this function every time a new basic block is encountered
@@ -132,20 +120,23 @@ VOID Trace(TRACE trace, VOID *v)
     }
 }
 
-// This function is called when the thread exits
-VOID ThreadFini(THREADID threadIndex, const CONTEXT *ctxt, INT32 code, VOID *v)
-{
-    THREAD_DATA* tdata = get_tls(threadIndex);
-    *OutFile << "Count[" << decstr(threadIndex) << "] = " << tdata->_count << ", samples = "
-        << tdata->_prev_count / sampleRate << endl;
-    *OutFile << "Routine = " << tdata->_rtn_name << ", line = " << tdata->_line_number
-        << ", source file = " << tdata->_file_name << endl;
-}
-
 // This function is called when the application exits
 VOID Fini(INT32 code, VOID *v)
 {
-    *OutFile << "Number of threads ever exist = " << numThreads << endl;
+    // Write to a file since cout and cerr maybe closed by the application
+    ofstream OutFile;
+    OutFile.open(KnobOutputFile.Value().c_str());
+    OutFile << "Number of threads ever exist = " << numThreads << endl;
+    
+    for (INT32 t = 0; t < numThreads; t++)
+    {
+        OutFile << "Count[" << decstr(t) << "] = " << icount[t]._count << ", samples = "
+                << icount[t]._prev_count / sampleRate << endl;
+        OutFile << "Routine = " << icount[t]._rtn_name << ", line = " << icount[t]._line_number
+                << ", source file = " << icount[t]._file_name << endl;
+    }
+
+    OutFile.close();
 }
 
 // argc, argv are the entire command line, including pin -t <toolname> -- ...
@@ -157,31 +148,29 @@ int main(int argc, char * argv[])
     // Initialize pin
     PIN_Init(argc, argv);
 
-    sampleRate = KnobSampleRate.Value();
-    
-    OutFile = KnobOutputFile.Value().empty() ? &cout : new std::ofstream(KnobOutputFile.Value().c_str());
-    
-    // Obtain  a key for TLS storage.
-    tls_key = PIN_CreateThreadDataKey(NULL);
-    if (-1 == tls_key)
-    {
-        printf ("number of already allocated keys reached the MAX_CLIENT_TLS_KEYS limit\n");
-        PIN_ExitProcess(1);
-    }
+    PIN_InitLock(&lock);
 
-    PIN_AddThreadStartFunction(ThreadStart, NULL);
+    // Initialize icount[]
+    for (INT32 t = 0; t < MaxNumThreads; t++)
+    {
+        icount[t]._count = 0;
+        icount[t]._prev_count = 0;
+        icount[t]._line_number = 0;
+        icount[t]._file_name = "";
+        icount[t]._rtn_name = "";
+    }
+    sampleRate = KnobSampleRate.Value();
+
+    PIN_AddThreadStartFunction(ThreadStart, 0);
 
     // Register Instruction to be called to instrument instructions
-    TRACE_AddInstrumentFunction(Trace, NULL);
+    TRACE_AddInstrumentFunction(Trace, 0);
 
-    // Register Fini to be called when thread exits.
-    PIN_AddThreadFiniFunction(ThreadFini, NULL);
-    
-    // Register Fini to be called when the application exits.
-    PIN_AddFiniFunction(Fini, NULL);
+    // Register Fini to be called when the application exits
+    PIN_AddFiniFunction(Fini, 0);
 
     // Start the program, never returns
     PIN_StartProgram();
     
-    return 1;
+    return 0;
 }

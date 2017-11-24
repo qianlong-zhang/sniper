@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -41,7 +41,7 @@ END_LEGAL */
  * pre-determined offset in the buffer. If there are early exits from a trace,
  * then MEMREF records will not be placed in the buffer for INSs that follow the
  * early exit - We recognize these by initializing the buffer to EMPTY_ENTRY - so that the
- * entries in the buffer which were not filled in will have invalid values for both
+ * entries in the buffer which were not filled in will have invalid values for both 
  * pc and ea of any MEMREF
  *
  * We check if the buffer is full at the top of the trace. If it is full, we
@@ -51,22 +51,28 @@ END_LEGAL */
  * block each other on buffer accesses
  *
  */
-
-#include <cstdio>
+#include <assert.h>
+#include <stdio.h>
+#include <map>
 #include <set>
 #include <list>
-#include <iostream>
-#include <fstream>
-#include "pin.H"
 
+#include "pin.H"
+#include "portability.H"
 namespace WIND
 {
 #include <windows.h>
 }
-using WIND::DWORD;
+
 
 /*
+ *
+ *
+ *
  * Knobs for tool
+ *
+ *
+ *
  */
 
 /*
@@ -81,10 +87,8 @@ KNOB<UINT32> KnobNumProcessingThreads(KNOB_MODE_OVERWRITE, "pintool", "num_proce
 KNOB<BOOL> KnobStatistics(KNOB_MODE_WRITEONCE, "pintool", "statistics", "0", "gather statistics");
 KNOB<BOOL> KnobLiteStatistics(KNOB_MODE_WRITEONCE, "pintool", "lite_statistics", "0", "gather lite statistics");
 KNOB<string> KnobStatisticsOutputFile(KNOB_MODE_WRITEONCE, "pintool", "stat_file", "memtrace_threadpoolstats.out", "output file");
-KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o", "", "specify trace file name");
 extern "C" UINT64 ReadProcessorCycleCounter();
 
-std::ostream* TraceFile = 0;
 
 /* Struct of memory reference written to the buffer
  */
@@ -93,17 +97,21 @@ struct MEMREF
     ADDRINT pc;  // pc (ip) of the instruction doing the memory reference
     ADDRINT ea;  // the address of the memory being referenced
 };
+// Set of UIDs of all internal-tool threads
+// We use std::set to verify that each thread has a unique UID
+set<PIN_THREAD_UID> uidSet; 
+
+const int MAX_BUFFER_PROCESSING_THREADS = 16;
+  
+const int EMPTY_ENTRY = 0;
 
 // the Pin TLS slot that an application-thread will use to hold the APP_THREAD_BUFFER_HANDLER
 // object that it owns
 TLS_KEY appThreadRepresentitiveKey;
 
-// Set of UIDs of all internal-tool threads
-// We use std::set to verify that each thread has a unique UID
-set<PIN_THREAD_UID> uidSet;
-set<PIN_THREAD_UID> uidThreadStartedSet;
+BOOL doExit = FALSE;
 
-const int EMPTY_ENTRY = 0;
+BOOL processingThreadRunning = FALSE; // is any processing thread running
 
 
 /* Pin registers that this tool allocates (per-thread) to manage the writing
@@ -115,6 +123,8 @@ REG endOfBufferReg;
 #include "threadpool_statistics.h"
 
 
+class BUFFER_LISTS_MANAGER;
+class PROCESSING_THREAD_REPRESENTITVE;
 /*
  * APP_THREAD_REPRESENTITVE
  * Each application thread, creates an object of this class and saves it in it's Pin TLS
@@ -122,12 +132,12 @@ REG endOfBufferReg;
  * This object is used when the BufferFull function is called. It provides the functionality
  * of:
  * 1) Allocating the buffers to be used
- * 2) Enquening a full buffer on the global full buffers list (fullBuffersListManager) so it
- *    will be processed by one of the internal-tool buffer processing threads.
+ * 2) Enquening a full buffer on the global full buffers list (fullBuffersListManager) so it 
+ *    will be processed by one of the internal-tool buffer processing threads. 
  * 3) If there is no internal-tool buffer processing thread running yet
  *    then the ProcessBuffer is used to process the buffer by the application
  *    thread. It cannot wait for processing thread to start running
- *    because this may cause deadlock - because this app thread may be holding some OS
+ *    because this may cause deadlock - because this app thread may be holding some OS 
  *    resource that the processing thread needs in order to start running - e.g. the LoaderLock
  */
 class APP_THREAD_REPRESENTITVE
@@ -145,12 +155,27 @@ class APP_THREAD_REPRESENTITVE
     /*
      * Pointer to end of the buffer
      */
-    VOID * CurBufferEnd() { return ((CHAR *)_curBuffer) + KnobNumBytesInBuffer.Value(); }
+    VOID * CurBufferEnd() { return ((char *)_curBuffer) + KnobNumBytesInBuffer.Value(); }
 
-    VOID * EnqueueFullAndGetNextToFill(VOID *endOfTraceInBuffer, ADDRINT *endOfBuffer);
+    VOID SetCurBuffer (VOID *buf) {_curBuffer = buf;}
 
-    VOID * GetFreeBuffer();
-    VOID ReturnFreeBuffer(VOID *buf, THREADID tid);
+    VOID * EnqueFullAndGetNextToFill(VOID *endOfTraceInBuffer, ADDRINT *endOfBuffer);
+
+    VOID IncrementNumOutstandingBuffers(THREADID tid) 
+    { 
+        PIN_GetLock(&_numOutstandingBuffersLock, tid+1);
+        _numOutstandingBuffers++; 
+        PIN_ReleaseLock(&_numOutstandingBuffersLock);
+    }
+
+    VOID DecrementNumOutstandingBuffers(THREADID tid) 
+    { 
+        PIN_GetLock(&_numOutstandingBuffersLock, tid+1);
+        _numOutstandingBuffers--; 
+        PIN_ReleaseLock(&_numOutstandingBuffersLock);
+    }
+
+    BOOL AllBuffersProcessed() {return (_numOutstandingBuffers==0);}
 
     /*
      * Analysis routine to record a MEMREF (pc, ea) in the buffer
@@ -165,53 +190,54 @@ class APP_THREAD_REPRESENTITVE
      * @param[in]   bufferEnd                      Pointer to end of the buffer
      * @param[in]   sizeNeededForThisTraceInBuffer Number of bytes required by this TRACE
      */
-    static ADDRINT PIN_FAST_ANALYSIS_CALL CheckIfNoSpaceForTraceInBuffer(CHAR * endOfPreviousTraceInBuffer, CHAR * bufferEnd, ADDRINT sizeNeededForThisTraceInBuffer);
-
+    static ADDRINT PIN_FAST_ANALYSIS_CALL CheckIfNoSpaceForTraceInBuffer(char * endOfPreviousTraceInBuffer, char * bufferEnd, ADDRINT sizeNeededForThisTraceInBuffer);
+    
 
     /*
      * Analysis routine called when the above IF part returns 1 - this the THEN part
      * The buffer does not have room for this trace, enques the buffer for processing
      * and gets a buffer from the free list to be used as the next buffer to fill
      */
-    static VOID * PIN_FAST_ANALYSIS_CALL BufferFull(VOID *endOfTraceInBuffer, ADDRINT *endOfBuffer, ADDRINT tid);
+    static void * PIN_FAST_ANALYSIS_CALL BufferFull(VOID *endOfTraceInBuffer, ADDRINT *endOfBuffer, ADDRINT tid);
 
     /*
-     * Analysis routine called at beginning of each trace (after the IF-THEN)-
+     * Analysis routine called at beginning of each trace (after the IF-THEN)- 
      * moves the endOfPreviousTraceInBuffer further down in the buffer to allocate space for all
      * the possible MEMREF elements that may be written by this trace
      */
-    static VOID * PIN_FAST_ANALYSIS_CALL  AllocateSpaceForTraceInBuffer(CHAR * endOfPreviousTraceInBuffer,
+    static void * PIN_FAST_ANALYSIS_CALL  AllocateSpaceForTraceInBuffer(char * endOfPreviousTraceInBuffer, 
                                                                         ADDRINT sizeNeededForThisTraceInBuffer);
+
 
     APP_THREAD_STATISTICS * Statistics() { return (&_appThreadStatistics);}
 
 
   private:
 
-    static CHAR *AllocateBuffer();
-
-    VOID AllocateFreeBuffers();
-    VOID ReclaimFreeBuffers();
+    char *AllocateBuffer();
 
     /*
      * Return true if position in the buffer is empty
      */
-    static BOOL EmptyEntry(CHAR * curMEMREFElement)
+    static BOOL EmptyEntry(char * curMEMREFElement)
     {
         return *reinterpret_cast<ADDRINT *>(curMEMREFElement) == EMPTY_ENTRY;
     }
 
-
+    
     VOID * _curBuffer;  // this is the current buffer being filled
     THREADID _myTid;
 
-    WIND::HANDLE _freeBufferSem;
+    char * _pointerToEndOfTraceInBuffer;
+
+    PIN_LOCK _numOutstandingBuffersLock;
+    int _numOutstandingBuffers;
 
     APP_THREAD_STATISTICS _appThreadStatistics;
 };
 
 /*
- * ANALYSIS_CALL_INFO
+ * ANALYSIS_CALL_INFO 
  *
  * Analysis calls that must be inserted at an INS in the trace are recorded in an
  * ANALYSIS_CALL_INFO object
@@ -220,8 +246,8 @@ class APP_THREAD_REPRESENTITVE
 class ANALYSIS_CALL_INFO
 {
   public:
-      ANALYSIS_CALL_INFO(INS ins, UINT32 offsetFromTraceStartInBuffer, UINT32 memop) :
-      _ins(ins),
+      ANALYSIS_CALL_INFO(INS ins, UINT32 offsetFromTraceStartInBuffer, UINT32 memop) : 
+      _ins(ins), 
      _offsetFromTraceStartInBuffer(offsetFromTraceStartInBuffer),
      _memop (memop)
     {
@@ -233,15 +259,15 @@ class ANALYSIS_CALL_INFO
            computed by: (the value in endOfTraceInBufferReg)
                         -sizeofTraceInBuffer +  _offsetFromTraceStartInBuffer(of this _ins)
         */
-        INS_InsertCall(_ins, IPOINT_BEFORE, AFUNPTR(APP_THREAD_REPRESENTITVE::RecordMEMREFInBuffer),
-                       IARG_FAST_ANALYSIS_CALL,
-                       IARG_REG_VALUE, endOfTraceInBufferReg,
-                       IARG_ADDRINT, ADDRINT(_offsetFromTraceStartInBuffer - sizeofTraceInBuffer),
-                       IARG_INST_PTR,
-                       IARG_MEMORYOP_EA, _memop,
+        INS_InsertCall(_ins, IPOINT_BEFORE, AFUNPTR(APP_THREAD_REPRESENTITVE::RecordMEMREFInBuffer), 
+                       IARG_FAST_ANALYSIS_CALL, 
+                       IARG_REG_VALUE, endOfTraceInBufferReg, 
+                       IARG_ADDRINT, ADDRINT(_offsetFromTraceStartInBuffer - sizeofTraceInBuffer), 
+                       IARG_INST_PTR, 
+                       IARG_MEMORYOP_EA, _memop, 
                        IARG_END);
     }
-
+    
   private:
     INS _ins;
     INT32 _offsetFromTraceStartInBuffer;
@@ -250,7 +276,7 @@ class ANALYSIS_CALL_INFO
 
 
 
-
+    
 /*
  * TRACE_ANALYSIS_CALLS_NEEDED
  *
@@ -264,7 +290,7 @@ class TRACE_ANALYSIS_CALLS_NEEDED
   public:
     TRACE_ANALYSIS_CALLS_NEEDED() : _currentOffsetFromTraceStartInBuffer(0),  _numAnalysisCallsNeeded(0)
     {}
-
+    
     UINT32 NumAnalysisCallsNeeded() const { return _numAnalysisCallsNeeded; }
 
     UINT32 TotalSizeOccupiedByTraceInBuffer() const { return _currentOffsetFromTraceStartInBuffer; }
@@ -281,9 +307,9 @@ class TRACE_ANALYSIS_CALLS_NEEDED
     VOID InsertAnalysisCalls();
 
 
-
+    
     private:
-
+    
     INT32 _currentOffsetFromTraceStartInBuffer;
     INT32 _numAnalysisCallsNeeded;
     vector<ANALYSIS_CALL_INFO> _analysisCalls;
@@ -298,48 +324,34 @@ class TRACE_ANALYSIS_CALLS_NEEDED
 class BUFFER_LIST_MANAGER
 {
   public:
-    BUFFER_LIST_MANAGER(BOOL notifyExitRequired = FALSE);
-    ~BUFFER_LIST_MANAGER();
-
-    BOOL   PutBufferOnList(VOID *buf, VOID *endOfLastTraceInfBuffer,
-                           // the application thread that puts this buffer on the list
+    BUFFER_LIST_MANAGER();
+    VOID   PutBufferOnList(VOID *buf, VOID *endOfLastTraceInfBuffer,
+                           // the application thread that put this buffer on the list 
                            APP_THREAD_REPRESENTITVE *appThreadRepresentitive,
                            /* thread Id of the thread making the call */
                            THREADID tid);
-    VOID * GetBufferFromList(VOID **endOfLastTraceInfBuffer,
-                             // the application thread that puts this buffer on the list
+    VOID   GetBufferFromList(VOID **buf,
+                             VOID **endOfLastTraceInfBuffer,
+                             // the application thread that put this buffer on the list 
                              APP_THREAD_REPRESENTITVE **appThreadRepresentitive,
                              /* thread Id of the thread making the call */
                              THREADID tid);
-    VOID NotifyExit();
+    VOID   SignalBufferSem();
+    UINT32 NumBuffersOnList () { return (_bufferList.size());}
     BUFFER_LIST_STATISTICS *Statistics() {return &_bufferListStatistics;}
 
-  private:
+  private:       
 
     // structure of an element of the buffer list
     struct BUFFER_LIST_ELEMENT
     {
         VOID *buf;
         VOID *endOfLastTraceInfBuffer;
-        // the application thread that puts this buffer on the list
+        // the application thread that put this buffer on the list 
+        // used in statistics gathering
         APP_THREAD_REPRESENTITVE *appThreadRepresentitive;
     };
 
-    class SCOPED_LOCK {
-        PIN_LOCK * _lock;
-      public:
-        SCOPED_LOCK(PIN_LOCK * lock, THREADID tid) : _lock(lock)
-        {
-            ASSERTX(_lock != NULL);
-            PIN_GetLock(_lock, tid + 1);
-        }
-        ~SCOPED_LOCK()
-        {
-            PIN_ReleaseLock(_lock);
-        }
-    };
-
-    WIND::HANDLE _exitEvent;
     WIND::HANDLE _bufferSem;
     PIN_LOCK _bufferListLock;
     list<BUFFER_LIST_ELEMENT> _bufferList;
@@ -350,42 +362,34 @@ class BUFFER_LIST_MANAGER
 // all full buffers are placed on this list by the app threads.
 // the internal-tool threads pick them up from here,
 // process them, and put them on the free list
-BUFFER_LIST_MANAGER * fullBuffersListManager = NULL;
+BUFFER_LIST_MANAGER fullBuffersListManager;
 
-// all free buffers are placed on this list
+// all free buffers are placed on this list 
 // the app threads pick them up from here, set them as the buffer to be filled and when they become full
 // process them on the full list
 BUFFER_LIST_MANAGER freeBuffersListManager;
-
-/*
- * Returns single instance of global buffer list manager that supports synchronization
- * and notified on process exit
- */
-BUFFER_LIST_MANAGER * GetFullBuffersListManager()
-{
-    static BUFFER_LIST_MANAGER buffersListManager(TRUE);
-    return &buffersListManager;
-}
 
 /*
  * Process the buffer
  */
 VOID ProcessBuffer(VOID *curBuf, VOID *endOfTraceInBuffer, APP_THREAD_REPRESENTITVE *associatedAppThread)
 {
+    
+    //printf ("ProcessBuffer %x\n", curBuf);
+    //fflush (stdout);
     if (!KnobProcessBuffer)
     {
         return;
     }
-
+    UINT32 i=0;
+    struct MEMREF * memref =reinterpret_cast<struct MEMREF*>(curBuf);
+    struct MEMREF * firstMemref = memref;
+    
     if (KnobStatistics)
     {
         associatedAppThread->Statistics()->StartCyclesProcessingBuffer();
     }
-
-    struct MEMREF * memref = reinterpret_cast<struct MEMREF*>(curBuf);
-    struct MEMREF * firstMemref = memref;
-    UINT32 i = 0;
-    while (memref < reinterpret_cast<struct MEMREF*>(endOfTraceInBuffer))
+    while(memref < reinterpret_cast<struct MEMREF*>(endOfTraceInBuffer))
     {
         if (memref->pc!=0)
         {
@@ -405,15 +409,14 @@ VOID ProcessBuffer(VOID *curBuf, VOID *endOfTraceInBuffer, APP_THREAD_REPRESENTI
 
 /*********** APP_THREAD_REPRESENTITVE implementation *******/
 
-APP_THREAD_REPRESENTITVE::APP_THREAD_REPRESENTITVE(THREADID myTid)
-    : _curBuffer(NULL), _myTid(myTid), _freeBufferSem(NULL)
+APP_THREAD_REPRESENTITVE::APP_THREAD_REPRESENTITVE(THREADID myTid) : _curBuffer(AllocateBuffer()), _myTid(myTid), _pointerToEndOfTraceInBuffer(NULL), _numOutstandingBuffers(0)
 {
-    AllocateFreeBuffers();
+    PIN_InitLock(&_numOutstandingBuffersLock);
+    memset (_curBuffer, EMPTY_ENTRY, KnobNumBytesInBuffer.Value());
 }
 
 APP_THREAD_REPRESENTITVE::~APP_THREAD_REPRESENTITVE()
-{
-    ReclaimFreeBuffers();
+{   
 }
 
 
@@ -423,41 +426,38 @@ VOID PIN_FAST_ANALYSIS_CALL APP_THREAD_REPRESENTITVE::RecordMEMREFInBuffer(CHAR 
     *reinterpret_cast<ADDRINT*>(endOfTraceInBuffer+offsetFromEndOfTrace+sizeof(ADDRINT)) = ea;
 }
 
-ADDRINT PIN_FAST_ANALYSIS_CALL APP_THREAD_REPRESENTITVE::CheckIfNoSpaceForTraceInBuffer(CHAR * endOfPreviousTraceInBuffer, CHAR * bufferEnd, ADDRINT sizeNeededForThisTraceInBuffer)
+ADDRINT PIN_FAST_ANALYSIS_CALL APP_THREAD_REPRESENTITVE::CheckIfNoSpaceForTraceInBuffer(char * endOfPreviousTraceInBuffer, char * bufferEnd, ADDRINT sizeNeededForThisTraceInBuffer)
 {
     return (endOfPreviousTraceInBuffer + sizeNeededForThisTraceInBuffer >= bufferEnd);
 }
 
 void * PIN_FAST_ANALYSIS_CALL  APP_THREAD_REPRESENTITVE::BufferFull(VOID *endOfTraceInBuffer, ADDRINT *endOfBuffer, ADDRINT tid)
 {
-    APP_THREAD_REPRESENTITVE * appThreadRepresentitive
+    APP_THREAD_REPRESENTITVE * appThreadRepresentitive 
         = static_cast<APP_THREAD_REPRESENTITVE*>(PIN_GetThreadData(appThreadRepresentitiveKey, tid));
-    ASSERTX(appThreadRepresentitive != NULL);
-    return (appThreadRepresentitive->EnqueueFullAndGetNextToFill(endOfTraceInBuffer, endOfBuffer));
+    return (appThreadRepresentitive->EnqueFullAndGetNextToFill(endOfTraceInBuffer, endOfBuffer));
 }
 
-void * PIN_FAST_ANALYSIS_CALL  APP_THREAD_REPRESENTITVE::AllocateSpaceForTraceInBuffer(CHAR * endOfPreviousTraceInBuffer,
+void * PIN_FAST_ANALYSIS_CALL  APP_THREAD_REPRESENTITVE::AllocateSpaceForTraceInBuffer(char * endOfPreviousTraceInBuffer, 
                                                                         ADDRINT sizeNeededForThisTraceInBuffer)
 {
     return (endOfPreviousTraceInBuffer + sizeNeededForThisTraceInBuffer);
 }
 
-VOID * APP_THREAD_REPRESENTITVE::EnqueueFullAndGetNextToFill(VOID *endOfTraceInBuffer, ADDRINT *endOfBuffer)
+VOID * APP_THREAD_REPRESENTITVE::EnqueFullAndGetNextToFill(VOID *endOfTraceInBuffer, ADDRINT *endOfBuffer)
 {
+    //printf ("BufferFilled %x\n", _curBuffer);
+    //fflush (stdout);       
     _appThreadStatistics.IncrementNumBuffersFilled();
 
     // under some conditions the buffer is processed in this app thread
-    if ( (fullBuffersListManager == NULL) // cannot wait for processing thread to start running
+    if ( !processingThreadRunning // cannot wait for processing thread to start running
                                    // this may cause deadlock - because this app thread
                                    // may be holding some OS resource that the processing
                                    // needs to obtain in order to start - e.g. the LoaderLock
         // heuristic - no available free buffer, so process by this app thread
-
-         // Otherwise put the fullBuf on the full buffers list, one the internal-tool processing
-         // threads will pick it from there, process it, and then put it on this app-thread's
-         // free buffer list
-         || !fullBuffersListManager->PutBufferOnList(_curBuffer, endOfTraceInBuffer, this, _myTid)
-         // Full buffers manager may not take the buffer if process exit is started.
+        /*|| (processingThreadRunning
+            && freeBuffersListManager->NumBuffersOnList()==0)*/
        )
     { // process buffer in this app thread
         _appThreadStatistics.IncrementNumBuffersProcessedInAppThread();
@@ -465,129 +465,54 @@ VOID * APP_THREAD_REPRESENTITVE::EnqueueFullAndGetNextToFill(VOID *endOfTraceInB
         return _curBuffer;
     }
 
-    _curBuffer = GetFreeBuffer();
-    ASSERTX(_curBuffer != NULL);
+    IncrementNumOutstandingBuffers(_myTid);
+    fullBuffersListManager.PutBufferOnList(_curBuffer, endOfTraceInBuffer, this, _myTid);
+    VOID *endOfTraceInBufferDummy;
+    APP_THREAD_REPRESENTITVE *appThreadRepresentitiveDummy;
+    freeBuffersListManager.GetBufferFromList(&_curBuffer, &endOfTraceInBufferDummy, &appThreadRepresentitiveDummy, _myTid);
     *endOfBuffer = (ADDRINT)CurBufferEnd();
-
+    
     return _curBuffer;
 }
 
 
-CHAR * APP_THREAD_REPRESENTITVE::AllocateBuffer()
+
+
+char *  APP_THREAD_REPRESENTITVE::AllocateBuffer()
 {
-    return (new CHAR[KnobNumBytesInBuffer.Value()]);
-}
-
-VOID * APP_THREAD_REPRESENTITVE::GetFreeBuffer()
-{
-    WIND::DWORD status = WIND::WaitForSingleObject (_freeBufferSem, 10000);
-    ASSERTX(status == WAIT_OBJECT_0);
-
-    VOID *endOfTraceInBufferDummy;
-    APP_THREAD_REPRESENTITVE *appThreadRepresentitiveDummy;
-    VOID * buf = freeBuffersListManager.GetBufferFromList(&endOfTraceInBufferDummy, &appThreadRepresentitiveDummy, _myTid);
-    ASSERTX(buf != NULL);
-    return buf;
-}
-
-VOID APP_THREAD_REPRESENTITVE::ReturnFreeBuffer(VOID *buf, THREADID tid)
-{
-    freeBuffersListManager.PutBufferOnList(buf, NULL, this, tid);
-    WIND::ReleaseSemaphore(_freeBufferSem, 1, NULL);
-}
-
-VOID APP_THREAD_REPRESENTITVE::AllocateFreeBuffers()
-{
-    // First allocate and assign initial buffer.
-    _curBuffer = AllocateBuffer();
-
-    // Now allocate rest of the KnobNumBuffersPerAppThread buffers and put them on the global free list
-    for (int i = 0; i < KnobNumBuffersPerAppThread - 1; i++)
-    {
-        freeBuffersListManager.PutBufferOnList(AllocateBuffer(), NULL, this, _myTid);
-    }
-    _freeBufferSem = WIND::CreateSemaphore (NULL, KnobNumBuffersPerAppThread - 1, 0x7fffffff, NULL);
-}
-
-VOID APP_THREAD_REPRESENTITVE::ReclaimFreeBuffers()
-{
-    // Reclaim allocated buffers from global free list
-    for (int i = 0; i < KnobNumBuffersPerAppThread - 1; i++)
-    {
-        VOID *endOfTraceInBufferDummy;
-        APP_THREAD_REPRESENTITVE *appThreadRepresentitiveDummy;
-        VOID * buf = freeBuffersListManager.GetBufferFromList(&endOfTraceInBufferDummy, &appThreadRepresentitiveDummy, _myTid);
-        ASSERTX(buf != NULL);
-        delete [] buf;
-
-        WIND::DWORD status = WIND::WaitForSingleObject (_freeBufferSem, 10000);
-        ASSERTX(status == WAIT_OBJECT_0);
-    }
-    WIND::CloseHandle(_freeBufferSem);
-    _freeBufferSem = NULL;
-
-    // Free current buffer.
-    delete [] _curBuffer;
-    _curBuffer = NULL;
+    return(new char[KnobNumBytesInBuffer.Value()]);
 }
 
 
-/*********** BUFFER_LIST_MANAGER implementation *******/
+/*********** BUFFER_LISTS_MANAGER implementation *******/
 
-BUFFER_LIST_MANAGER::BUFFER_LIST_MANAGER(BOOL notifyExitRequired) :
-    _exitEvent(NULL)
+BUFFER_LIST_MANAGER::BUFFER_LIST_MANAGER()
 {
-    PIN_InitLock(&_bufferListLock);
+     PIN_InitLock(&_bufferListLock);
     _bufferSem = WIND::CreateSemaphore (NULL, 0, 0x7fffffff, NULL);
-    ASSERTX(_bufferSem != NULL);
-    if (notifyExitRequired)
-    {
-        // Create manually reset event in non-signaled state.
-        _exitEvent = WIND::CreateEvent(NULL, TRUE, FALSE, NULL);
-        ASSERTX(_exitEvent != NULL);
-    }
-}
-
-BUFFER_LIST_MANAGER::~BUFFER_LIST_MANAGER()
-{
-    if (_exitEvent != NULL)
-    {
-        WIND::CloseHandle(_exitEvent);
-    }
-    WIND::CloseHandle(_bufferSem);
 }
 
 
-BOOL  BUFFER_LIST_MANAGER::PutBufferOnList(VOID *buf, VOID *endOfLastTraceInfBuffer,
+
+VOID   BUFFER_LIST_MANAGER::PutBufferOnList(VOID *buf, VOID *endOfLastTraceInfBuffer,
                                              /* the app thread that is placing the buffer on the list */
                                              APP_THREAD_REPRESENTITVE *appThreadRepresentitive,
                                              /* thread Id of the thread making the call */
                                              THREADID tid)
 {
-    if ((_exitEvent != NULL) &&
-        (WIND::WaitForSingleObject(_exitEvent, 0) == WAIT_OBJECT_0))
-    {
-        // Exit event signaled. Do not add new buffers.
-        return FALSE;
-    }
-
     BUFFER_LIST_ELEMENT bufferListElement;
 
     bufferListElement.buf = buf;
     bufferListElement.endOfLastTraceInfBuffer = endOfLastTraceInfBuffer;
     bufferListElement.appThreadRepresentitive = appThreadRepresentitive;
 
-    {
-        SCOPED_LOCK lock(&_bufferListLock, tid);
-        _bufferList.push_back(bufferListElement);
-    }
-
+    PIN_GetLock(&_bufferListLock, tid+1);
+    _bufferList.push_back(bufferListElement);
+    PIN_ReleaseLock(&_bufferListLock);
     BOOL success = WIND::ReleaseSemaphore(_bufferSem, 1, NULL);
-
-    return TRUE;
 }
 
-VOID *  BUFFER_LIST_MANAGER::GetBufferFromList(VOID **endOfLastTraceInfBuffer,
+VOID  BUFFER_LIST_MANAGER::GetBufferFromList(VOID **buf, VOID **endOfLastTraceInfBuffer,
                                                /* the app thread that placed the buffer on the list */
                                                APP_THREAD_REPRESENTITVE **appThreadRepresentitive,
                                                /* thread Id of the thread making the call */
@@ -601,56 +526,34 @@ VOID *  BUFFER_LIST_MANAGER::GetBufferFromList(VOID **endOfLastTraceInfBuffer,
         }
         _bufferListStatistics.StartCyclesWaitingForBuffer();
     }
+    
+    WIND::WaitForSingleObject (_bufferSem, INFINITE);
 
-    WIND::DWORD status;
-    if (_exitEvent != NULL)
-    {
-        // Process buffers even after exit notification until the list is empty.
-        WIND::HANDLE handles[2] = { _bufferSem, _exitEvent };
-        status = WIND::WaitForMultipleObjects (2, handles, FALSE, INFINITE);
-        if (status == (WAIT_OBJECT_0 + 1))
-        {
-            // Process exit flow started and there is no pending buffers to process.
-            return NULL;
-        }
-    }
-    else
-    {
-        status = WIND::WaitForSingleObject (_bufferSem, INFINITE);
-    }
-    // Otherwise wait should exit due to semaphore.
-    if (status != WAIT_OBJECT_0)
-    {
-        *TraceFile << " WAIT returned " << status << ", last error " << WIND::GetLastError() << endl << flush;
-        ASSERTX(status == WAIT_OBJECT_0);
-    }
-
-    if (KnobStatistics)
+    if (KnobStatistics )
     {
         _bufferListStatistics.UpdateCyclesWaitingForBuffer();
     }
 
+	if (_bufferList.empty()) {
+		// Clear the buffer pointer for start
+		*buf = NULL;
+	}
+	else
     {
-        SCOPED_LOCK lock(&_bufferListLock, tid);
-        ASSERTX(!_bufferList.empty());
-        const BUFFER_LIST_ELEMENT &bufferListElement = (_bufferList.front());
-        VOID* buf = bufferListElement.buf;
+        PIN_GetLock(&_bufferListLock, tid+1);
+        BUFFER_LIST_ELEMENT &bufferListElement = (_bufferList.front());
+        *buf = bufferListElement.buf;
         *endOfLastTraceInfBuffer = bufferListElement.endOfLastTraceInfBuffer;
         *appThreadRepresentitive = bufferListElement.appThreadRepresentitive;
         _bufferList.pop_front();
-        return buf;
+        PIN_ReleaseLock(&_bufferListLock);
     }
 }
 
-VOID BUFFER_LIST_MANAGER::NotifyExit()
+VOID BUFFER_LIST_MANAGER::SignalBufferSem()
 {
-    if (_exitEvent != NULL)
-    {
-        WIND::SetEvent(_exitEvent);
-    }
+    BOOL success = WIND::ReleaseSemaphore(_bufferSem, 1, NULL);
 }
-
-/*********** BUFFER_LIST_MANAGER implementation END *******/
 
 
 /*********** TRACE_ANALYSIS_CALLS_NEEDED implementation *******/
@@ -660,8 +563,8 @@ VOID BUFFER_LIST_MANAGER::NotifyExit()
  */
 VOID TRACE_ANALYSIS_CALLS_NEEDED::InsertAnalysisCalls()
 {
-    for (vector<ANALYSIS_CALL_INFO>::iterator c = _analysisCalls.begin();
-         c != _analysisCalls.end();
+    for (vector<ANALYSIS_CALL_INFO>::iterator c = _analysisCalls.begin(); 
+         c != _analysisCalls.end(); 
          c++)
     {
         c->InsertAnalysisCall(TotalSizeOccupiedByTraceInBuffer());
@@ -677,7 +580,7 @@ void TRACE_ANALYSIS_CALLS_NEEDED::RecordAnalysisCallNeeded(INS ins, UINT32 memop
     _currentOffsetFromTraceStartInBuffer += sizeof(MEMREF);
     _numAnalysisCallsNeeded++;
 }
-
+    
 
 /*
   Called by the Trace instrumentation routine
@@ -685,7 +588,7 @@ void TRACE_ANALYSIS_CALLS_NEEDED::RecordAnalysisCallNeeded(INS ins, UINT32 memop
 VOID DetermineBBLAnalysisCalls(BBL bbl, TRACE_ANALYSIS_CALLS_NEEDED * traceAnalysisCallsNeeded)
 {
     // Log every memory references of the instruction
-    for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins))
+    for(INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins=INS_Next(ins))
     {
         UINT32 memOperands = INS_MemoryOperandCount(ins);
 
@@ -716,10 +619,10 @@ VOID TraceAnalysisCalls(TRACE trace, VOID *)
     {
         return;
     }
-
+    
     // Now we know how bytes the analysis calls of this trace will insert into the buffer
     //   Each analysis call inserts a MEMREF into the buffer
-
+ 
     // APP_THREAD_REPRESENTITVE::CheckIfNoSpaceForTraceInBuffer will determine if there are NOT enough available bytes in the buffer.
     // If there are NOT then it returns TRUE and the BufferFull function is called
     TRACE_InsertIfCall(trace, IPOINT_BEFORE, AFUNPTR(APP_THREAD_REPRESENTITVE::CheckIfNoSpaceForTraceInBuffer),
@@ -751,25 +654,39 @@ VOID ThreadStart(THREADID tid, CONTEXT *ctxt, INT32 flags, VOID *v)
 {
     // There is a new APP_THREAD_REPRESENTITVE for every thread
     APP_THREAD_REPRESENTITVE * appThreadRepresentitive = new APP_THREAD_REPRESENTITVE(tid);
-    // All free buffers were allocated
 
     // A thread will need to look up its APP_THREAD_REPRESENTITVE, so save pointer in TLS
     PIN_SetThreadData(appThreadRepresentitiveKey, appThreadRepresentitive, tid);
 
+    // allocate the buffer to be used by this thread initially
+    appThreadRepresentitive->SetCurBuffer(new char[KnobNumBytesInBuffer] );
+
+    // now allocate rest of the KnobNumBuffersPerAppThread buffers and put them on the global free list
+    for (int i=0; i<KnobNumBuffersPerAppThread-1; i++)
+    {
+        //printf ("    Allocated buffer\n");
+        freeBuffersListManager.PutBufferOnList(new char[KnobNumBytesInBuffer], NULL, appThreadRepresentitive, tid);
+    }
+        
     // Initialize endOfTraceInBufferReg to point at beginning of buffer
     PIN_SetContextReg(ctxt, endOfTraceInBufferReg, reinterpret_cast<ADDRINT>(appThreadRepresentitive->CurBuffer()));
 
     // Initialize endOfBufferReg to point at end of buffer
     PIN_SetContextReg(ctxt, endOfBufferReg, reinterpret_cast<ADDRINT>(appThreadRepresentitive->CurBufferEnd()));
-
-    *TraceFile << "Thread " << tid << "started" << endl << flush;
 }
 
 VOID ThreadFini(THREADID tid, const CONTEXT *ctxt, INT32 code, VOID *v)
 {
-    APP_THREAD_REPRESENTITVE * appThreadRepresentitive
+    APP_THREAD_REPRESENTITVE * appThreadRepresentitive 
         = static_cast<APP_THREAD_REPRESENTITVE*>(PIN_GetThreadData(appThreadRepresentitiveKey, tid));
-    ASSERTX(appThreadRepresentitive != NULL);
+
+    // wait for all my buffers to be processed
+    while(!appThreadRepresentitive->AllBuffersProcessed())
+    {
+        PIN_Sleep(1);
+    }
+
+  
 
     appThreadRepresentitive->Statistics()->DumpNumBuffersFilled();
     overallStatistics.AccumulateAppThreadStatistics(appThreadRepresentitive->Statistics(), FALSE);
@@ -781,47 +698,35 @@ VOID ThreadFini(THREADID tid, const CONTEXT *ctxt, INT32 code, VOID *v)
     delete appThreadRepresentitive;
 
     PIN_SetThreadData(appThreadRepresentitiveKey, 0, tid);
-
-    *TraceFile << "Thread " << tid << "finished" << endl << flush;
 }
 
 /*!
  * Process exit callback (unlocked).
  */
-static VOID PrepareForFini(VOID *v)
+static VOID FiniUnlocked(INT32 code, VOID *v)
 {
-    *TraceFile << "PrepareForFini" << endl << flush;
 
-    if (fullBuffersListManager == NULL)
+    BOOL waitStatus;
+    INT32 threadExitCode;
+    
+    printf ("FiniUnlocked\n");
+    fflush (stdout);
+    doExit = TRUE;
+
+    // signal all the internal threads to wake up and recognize the exit
+    for (int i=0; i<KnobNumProcessingThreads; i++)
     {
-        *TraceFile << "Internal threads were not yet started." << endl << flush;
-        // Ensure that global buffer manager exists on process exit,
-        // otherwise it could be created later without exit notification.
-        fullBuffersListManager = GetFullBuffersListManager();
+        fullBuffersListManager.SignalBufferSem();
     }
-    // Notify full buffers manager of application exit.
-    // It will cause all internal threads to exit once they finish processing of pending buffers.
-    fullBuffersListManager->NotifyExit();
 
     // Wait until all internal threads exit
     for (set<PIN_THREAD_UID>::iterator it = uidSet.begin(); it != uidSet.end(); ++it)
     {
-        if (uidThreadStartedSet.find(*it) == uidThreadStartedSet.end())
-        {
-            *TraceFile << "Tool's thread " << *it << " did not started" << endl << flush;
-            continue;
-        }
-        *TraceFile << "Waiting for exit of thread uid " << *it << " ." << endl << flush;
-        INT32 threadExitCode;
-        BOOL waitStatus = PIN_WaitForThreadTermination(*it, PIN_INFINITE_TIMEOUT, &threadExitCode);
+        waitStatus = PIN_WaitForThreadTermination(*it, PIN_INFINITE_TIMEOUT, &threadExitCode);
         if (!waitStatus)
         {
-            *TraceFile << "PIN_WaitForThreadTermination(secondary thread) failed" << endl << flush;
+            fprintf (stderr, "PIN_WaitForThreadTermination(secondary thread) failed");
         }
-        if (threadExitCode != 0)
-        {
-            *TraceFile << "Tool's thread exited abnormally" << endl << flush;
-       }
     }
 }
 
@@ -829,11 +734,8 @@ static VOID PrepareForFini(VOID *v)
 VOID Fini(INT32 code, VOID *v)
 {
     overallStatistics.DumpNumBuffersFilled();
-    if (fullBuffersListManager != NULL)
-    {
-        overallStatistics.IncorporateBufferStatistics(fullBuffersListManager->Statistics(), TRUE);
-        overallStatistics.IncorporateBufferStatistics(fullBuffersListManager->Statistics(), FALSE);
-    }
+    overallStatistics.IncorporateBufferStatistics(fullBuffersListManager.Statistics(), TRUE);
+    overallStatistics.IncorporateBufferStatistics(fullBuffersListManager.Statistics(), FALSE);
     if (KnobStatistics)
     {
         overallStatistics.Dump();
@@ -846,11 +748,11 @@ VOID Fini(INT32 code, VOID *v)
 static VOID RecordToolThreadCreated(PIN_THREAD_UID threadUid)
 {
     BOOL insertStatus;
-    insertStatus  =  (uidSet.insert(threadUid)).second;
+    insertStatus =  (uidSet.insert(threadUid)).second;
     if (!insertStatus)
     {
-        std::cerr << "UID is not unique" << endl << flush;
-        PIN_ExitProcess(-1);
+        fprintf (stderr, "UID is not unique");
+        exit (-1);
     }
 }
 
@@ -860,50 +762,47 @@ static VOID RecordToolThreadCreated(PIN_THREAD_UID threadUid)
 */
 static VOID BufferProcessingThread(VOID * arg)
 {
+    processingThreadRunning = TRUE;
     THREADID myThreadId = PIN_ThreadId();
-
-    BOOL insertStatus;
-    insertStatus = (uidThreadStartedSet.insert(myThreadId)).second;
-    if (!insertStatus)
+   
+    while (!doExit)
     {
-        std::cerr << "UID is not unique" << endl << flush;
-        PIN_ExitProcess(-1);
-    }
-
-    fullBuffersListManager = GetFullBuffersListManager();
-
-    for (;;)
-    {
+        VOID *buf;
         VOID *endOfLastTraceInBuffer;
         APP_THREAD_REPRESENTITVE *appThreadRepresentitive;
-        *TraceFile << "BufferProcessingThread tid " << myThreadId << "  GetBufferFromList" << endl << flush;
-        VOID *buf = fullBuffersListManager->GetBufferFromList(&endOfLastTraceInBuffer,
+        //printf ("BufferProcessingThread tid %d  GetBufferFromList\n", myThreadId);
+        //fflush (stdout);
+        fullBuffersListManager.GetBufferFromList(&buf ,&endOfLastTraceInBuffer, 
                                                   &appThreadRepresentitive, myThreadId);
         if (buf == NULL)
         {
-            *TraceFile << "BufferProcessingThread tid " << myThreadId << "  is exiting" << endl << flush;
-            PIN_ExitThread(0);  // Doesn't return
-            return;
+            printf ("BufferProcessingThread tid %d is exiting\n", myThreadId);
+            ASSERTX(doExit);
+            break;
         }
-        *TraceFile << "BufferProcessingThread tid " << myThreadId << "  ProcessBuffer " << buf  << endl << flush;
+        //printf ("BufferProcessingThread tid %d  ProcessBuffer %x\n", myThreadId, buf);
+        //fflush (stdout);
         ProcessBuffer(buf, endOfLastTraceInBuffer, appThreadRepresentitive);
-        *TraceFile << "BufferProcessingThread tid " << myThreadId << "  return buffer " << buf << " to appThreadRepresentitive " << appThreadRepresentitive  << endl << flush;
-
-        appThreadRepresentitive->ReturnFreeBuffer(buf, myThreadId);
+        //printf ("BufferProcessingThread tid %d  return buffer %x to appThreadRepresentitive %x\n", myThreadId, buf, appThreadRepresentitive);
+        //fflush (stdout);
+        freeBuffersListManager.PutBufferOnList(buf, NULL, appThreadRepresentitive, myThreadId);
+        appThreadRepresentitive->DecrementNumOutstandingBuffers(myThreadId);
+        //printf ("BufferProcessingThread tid %d appThreadRepresentitive %x now has %d buffers on it free list\n",
+        //        myThreadId, appThreadRepresentitive, appThreadRepresentitive->FreeBufferListManager()->NumBuffersOnList());
     }
 }
 
 
 INT32 Usage()
 {
-    std::cerr << "This tool demonstrates advanced pin-tool buffer managing in conjunction with internal-tool threads" << endl << flush;
-    std::cerr << "The following command line options are available:" << endl << flush;
-    std::cerr << "-num_buffers_per_app_thread <num>  :number of buffers to allocate per application thread,        default       3" << endl << flush;
-    std::cerr << "-num_bytes_in_buffer <num>         :number of bytes allocated for each buffer,                   default 1048576n" << endl << flush;
-    std::cerr << "-process_buffs <0 or 1>            :specify 0 to disable processing of the buffers,              default       1" << endl << flush;
-    std::cerr << "-num_processing_threads <num>      :number of internal-tool buffer processing threads to create, default       3" << endl << flush;
-    std::cerr << "-lite_statistics  <0 or 1>         :specify 1 to enable lite statistics gathering,               default       0" << endl << flush;
-    std::cerr << "-heavy_statistics <0 or 1>         :specify 1 to enable heavy statistics gathering,              default       0" << endl << flush;
+    printf( "This tool demonstrates advanced pin-tool buffer managing in conjunction \nwith internal-tool threads\n");
+    printf ("The following command line options are available:\n");
+    printf ("-num_buffers_per_app_thread <num>  :number of buffers to allocate per application thread,        default       3\n");
+    printf ("-num_bytes_in_buffer <num>         :number of bytes allocated for each buffer,                   default 1048576\n");
+    printf ("-process_buffs <0 or 1>            :specify 0 to disable processing of the buffers,              default       1\n");
+    printf ("-num_processing_threads <num>      :number of internal-tool buffer processing threads to create, default       3\n");
+    printf ("-lite_statistics  <0 or 1>         :specify 1 to enable lite statistics gathering,               default       0\n");
+    printf ("-heavy_statistics <0 or 1>         :specify 1 to enable heavy statistics gathering,              default       0\n");
 
     return -1;
 }
@@ -917,15 +816,6 @@ int main(int argc, char * argv[])
         return Usage();
     }
 
-    if (KnobNumBuffersPerAppThread < 2)
-    {
-        *TraceFile << "Value of knob num_buffers_per_app_thread should be greater than 1" << endl << flush;
-        return 2;
-    }
-
-    // Write to a file since cout and cerr maybe closed by the application
-    TraceFile = KnobOutputFile.Value().empty() ? &cout : new std::ofstream(KnobOutputFile.Value().c_str());
-
     appThreadRepresentitiveKey = PIN_CreateThreadDataKey(0);
 
     // get the registers to be used in each thread for managing the
@@ -935,7 +825,7 @@ int main(int argc, char * argv[])
 
     if (! (REG_valid(endOfTraceInBufferReg) && REG_valid(endOfBufferReg)) )
     {
-        *TraceFile << "Cannot allocate a scratch register." << endl << flush;
+        printf("Cannot allocate a scratch register.\n");
         return 1;
     }
 
@@ -943,34 +833,38 @@ int main(int argc, char * argv[])
     PIN_AddThreadStartFunction(ThreadStart, 0);
     PIN_AddThreadFiniFunction(ThreadFini, 0);
     PIN_AddFiniFunction(Fini, 0);
-    PIN_AddPrepareForFiniFunction(PrepareForFini, 0);
+    PIN_AddFiniUnlockedFunction(FiniUnlocked, 0);
+
 
     /* It is safe to create internal threads in the tool's main procedure and spawn new
-     * internal threads from existing ones. All other places, like Pin callbacks and
+     * internal threads from existing ones. All other places, like Pin callbacks and 
      * analysis routines in application threads, are not safe for creating internal threads.
     */
     // Spawn the tool's internal threads.
-    for (int i = 0; i < KnobNumProcessingThreads; i++)
+    for (int i=0; i<KnobNumProcessingThreads; i++)
     {
+
+        THREADID threadId;
         PIN_THREAD_UID threadUid;
-        THREADID threadId
-            = PIN_SpawnInternalThread(BufferProcessingThread,
-                                      NULL,
-                                      0,
+        
+        threadId 
+            = PIN_SpawnInternalThread(BufferProcessingThread, 
+                                      NULL, 
+                                      0, 
                                       &threadUid);
         if (threadId == INVALID_THREADID)
         {
-            std:cerr << "PIN_SpawnInternalThread(BufferProcessingThread) failed" << endl << flush;
-            PIN_ExitProcess(-1);
+            fprintf (stderr, "PIN_SpawnInternalThread(BufferProcessingThread) failed");
+            exit (-1);
         }
-        *TraceFile << "created internal-tool BufferProcessingThread" << threadId << ", uid =  " << threadUid  << endl << flush;
+        printf ("created internal-tool BufferProcessingThread\n");
+        fflush (stdout);
         RecordToolThreadCreated(threadUid);
     }
 
-    *TraceFile << "buffer size " << KnobNumBytesInBuffer.Value() << endl << flush;
+    printf ("buffer size in bytes 0x%x\n", KnobNumBytesInBuffer.Value());
     overallStatistics.Init();
-
-    // Start the program, never returns
+    fflush (stdout);
     PIN_StartProgram();
 
     return 0;

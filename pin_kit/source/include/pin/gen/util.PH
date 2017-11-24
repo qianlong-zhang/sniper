@@ -17,17 +17,17 @@ class COMMAND_LINE_ARGUMENTS
 
    /*!
     * Constructor. Construct an object from argc, argv and delimiter
-    * Example1: argc = 6, argv = {ab bc cd de ef de}, delimiter = "de"
+    * Example1: argc = 6, argv = {ab bc cd de ef de}, delimiter = "de"  
     *          => the object will contain:
     *          argc = 4, argv = {ab bc cd de}
-    * Example2: argc = 6, argv = {ab bc cd de ef de}, delimiter = NULL
+    * Example2: argc = 6, argv = {ab bc cd de ef de}, delimiter = NULL  
     *          => the object will contain:
     *          argc = 6, argv = {ab bc cd de ef de}
-    * Example3: argc = 6, argv = {ab bc cd de ef de}, delimiter = "fg"
+    * Example3: argc = 6, argv = {ab bc cd de ef de}, delimiter = "fg"  
     *          => the object will contain:
     *          argc = 6, argv = {ab bc cd de ef de}
     *
-    * @param[in]   argc        argc for the command line arguments object
+    * @param[in]   argc        argc for the command line arguments object 
     * @param[in]   argv        argv for the command line arguments object
     * @param[in]   delimiter   remove any argv argument AFTER the delimiter.
     *                          If it was not found, nothing will be removed
@@ -42,7 +42,7 @@ class COMMAND_LINE_ARGUMENTS
     * (For more details see GetCmdArg() documentation)
     *
     * NOTE: Use this function only for original application's command line
-    *
+    *      
     * @param[in]   commandLine     original application's command line represented as string
     */
     COMMAND_LINE_ARGUMENTS(const string & commandLine)
@@ -52,7 +52,7 @@ class COMMAND_LINE_ARGUMENTS
 
    /*!
     * Copy Constructor. Construct an object from another object
-    *
+    *      
     * @param[in]   source       source object
     */
     COMMAND_LINE_ARGUMENTS(const COMMAND_LINE_ARGUMENTS & source)
@@ -62,7 +62,7 @@ class COMMAND_LINE_ARGUMENTS
 
    /*!
     * Assignment operator
-    *
+    *      
     * @param[in]   source       source object
     *
     * @return  reference to current object
@@ -80,7 +80,7 @@ class COMMAND_LINE_ARGUMENTS
 
    /*!
     * Insert a set of command line arguments into this set of arguments.
-    *
+    *      
     * @param[in]   args     Arguments to be inserted.
     * @param[in]   pos      Arguments are inserted before the argument with this position.
     *                        If \a pos is -1, they are appended to the end.
@@ -91,7 +91,7 @@ class COMMAND_LINE_ARGUMENTS
 
     /*!
      * Insert a single argument into this set of arguments.
-     *
+     *      
      * @param[in]   arg     Argument to be inserted.
      * @param[in]   pos     The argument is inserted before the argument with this position.
      *                       If \a pos is -1, it is appended to the end.
@@ -101,20 +101,8 @@ class COMMAND_LINE_ARGUMENTS
     COMMAND_LINE_ARGUMENTS & Insert (const string & arg, INT pos = -1);
 
     /*!
-     * Insert a single argument into this set of arguments.
-     * Don't try to tokenize (split) the added argument to several arguments.
-     *
-     * @param[in]   arg     Argument to be inserted.
-     * @param[in]   pos     The argument is inserted before the argument with this position.
-     *                       If \a pos is -1, it is appended to the end.
-     *
-     * @return  reference to current object
-     */
-    COMMAND_LINE_ARGUMENTS & InsertAsOneToken (const string & arg, INT pos = -1);
-
-    /*!
     * Find an argument by name
-    *
+    * 
     * @param[in]   argStr - argument to be found
     *
     * @return index of argument or -1 if not found
@@ -123,8 +111,8 @@ class COMMAND_LINE_ARGUMENTS
 
     /*!
     * Looks for argument equal to argStr; remove "numOfArgs" arguments starting from the found argument
-    *
-    * @param[in]   argStr - argument to be found,
+    *      
+    * @param[in]   argStr - argument to be found, 
     * @param[in]   numOfArgs - numer of arguments that should be removed starting from the found argument
     *
     * @return  TRUE if numOfArgs were removed from the list
@@ -134,7 +122,7 @@ class COMMAND_LINE_ARGUMENTS
    /*!
     * @return  Argc of current object
     *          the value life time is as long as the object was not changed
-    *          (using operator=(), Insert() or ~COMMAND_LINE_ARGUMENTS() will invalidate this data)
+    *          (using operator=(), Insert() or ~COMMAND_LINE_ARGUMENTS() will invalidate this data) 
     */
     INT  Argc() const
     {
@@ -142,9 +130,9 @@ class COMMAND_LINE_ARGUMENTS
     }
 
    /*!
-    * @return  Argv of current object,
+    * @return  Argv of current object, 
     *          the pointer life time is as long as the object was not changed
-    *          (using operator=(), Insert() or  ~COMMAND_LINE_ARGUMENTS() will invalidate this data)
+    *          (using operator=(), Insert() or  ~COMMAND_LINE_ARGUMENTS() will invalidate this data) 
     */
     const CHAR * const * Argv() const
     {
@@ -211,9 +199,6 @@ extern string ptrstr(const VOID *val );
 extern string StringFromAddrint( ADDRINT l);
 
                                                                   /* DO NOT EDIT */
-extern string StringFromUint64( UINT64 l);
-
-                                                                  /* DO NOT EDIT */
 extern string StringDec( UINT64 l, UINT32 digits, CHAR padding);
 
                                                                   /* DO NOT EDIT */
@@ -242,9 +227,6 @@ extern INT32 Int32FromString(const string& s);
 
                                                                   /* DO NOT EDIT */
 extern UINT32 Uint32FromString(const string& s);
-
-                                                                  /* DO NOT EDIT */
-extern INT64 Int64FromString(const string& s);
 
                                                                   /* DO NOT EDIT */
 extern UINT64 Uint64FromString(const string& s);
@@ -325,25 +307,25 @@ inline string hexstr(UINT64 val, UINT32 width=0 )
                                                                   /* DO NOT EDIT */
 inline string hexstr(VOID *p, UINT32 width=0 )
 {
-#if defined(HOST_IA32E)
+#if defined(HOST_IA32E) || defined(HOST_MIC)
     UINT64 val = reinterpret_cast<UINT64>(p);
     return hexstr(val,width);
 #else
     UINT32 val = reinterpret_cast<UINT32>(p);
     return StringHex(val,width);
-#endif
+#endif    
 }
 
                                                                   /* DO NOT EDIT */
 inline string hexstr(const VOID *p, UINT32 width=0 )
 {
-#if defined(HOST_IA32E)
+#if defined(HOST_IA32E) || defined(HOST_MIC)
     UINT64 val = reinterpret_cast<UINT64>(p);
     return hexstr(val,width);
 #else
     UINT32 val = reinterpret_cast<UINT32>(p);
     return StringHex(val,width);
-#endif
+#endif    
 }
 
                                                                   /* DO NOT EDIT */
@@ -364,7 +346,7 @@ inline string ljstr(const string& s, UINT32 width, CHAR padding = ' ')
 }
 
                                                                   /* DO NOT EDIT */
-struct DECSTR
+struct DECSTR 
 {
     DECSTR(UINT32 width = 0) :_w(width){}
     template <typename T> string operator() (const T & t) const {return decstr(t,_w);}
@@ -372,7 +354,7 @@ struct DECSTR
 };
 
                                                                   /* DO NOT EDIT */
-struct HEXSTR
+struct HEXSTR 
 {
     HEXSTR(UINT32 width = 0) :_w(width){}
     template <typename T> string operator() (const T & t) const {return hexstr(t,_w);}
@@ -380,7 +362,7 @@ struct HEXSTR
 };
 
                                                                   /* DO NOT EDIT */
-struct FLTSTR
+struct FLTSTR 
 {
     FLTSTR(UINT32 prec=0,UINT32 width=0) :_p(prec), _w(width) {}
     template <typename T> string operator() (const T & t) const {return fltstr(t,_p,_w);}
@@ -389,8 +371,8 @@ struct FLTSTR
 };
 
                                                                   /* DO NOT EDIT */
-template <typename ITER, typename CONV>
-    string StringSequence(ITER begin, ITER end,
+template <typename ITER, typename CONV> 
+    string StringSequence(ITER begin, ITER end, 
                           const CONV & conv,
                           const string & delimiter = string(" "))
 {
@@ -407,18 +389,18 @@ template <typename ITER, typename CONV>
                                                                   /* DO NOT EDIT */
 inline VOID * Addrint2VoidStar(ADDRINT addr)
 {
-#if defined(HOST_IA32E) && defined(TARGET_IA32)
+#if (defined(HOST_IA32E) || defined(HOST_MIC)) && (defined(TARGET_IA32))
     ASSERT(false,"Should not be called in cross environment\n");
     return 0;
 #else
     return reinterpret_cast<VOID*>(addr);
-#endif
+#endif    
 }
 
                                                                   /* DO NOT EDIT */
 inline ADDRINT VoidStar2Addrint(const VOID * addr)
 {
-#if defined(HOST_IA32E) && defined(TARGET_IA32)
+#if (defined(HOST_IA32E) || defined(HOST_MIC)) && (defined(TARGET_IA32))
     ASSERT(false,"Should not be called in cross environment\n");
     return 0;
 #else
@@ -429,7 +411,7 @@ inline ADDRINT VoidStar2Addrint(const VOID * addr)
                                                                   /* DO NOT EDIT */
 inline ADDRINT VoidStar2Addrint(VOID * addr)
 {
-#if defined(HOST_IA32E) && defined(TARGET_IA32)
+#if (defined(HOST_IA32E) || defined(HOST_MIC)) && (defined(TARGET_IA32))
     ASSERT(false,"Should not be called in cross environment\n");
     return 0;
 #else
@@ -446,17 +428,17 @@ template <typename T> BOOL IsPowerOf2(T value)
                                                                   /* DO NOT EDIT */
 template <typename T> T RoundToNextPower2(T value)
 {
-    //This algorithm rounds up to the next power of 2 by setting all the significant digits
+    //This algorithm rounds up to the next power of 2 by setting all the significant digits 
     //of the number in binary representation to 1. The rest of the digits are set to be 0.
     //It increments the number, thus getting the next power of two. This handles all numbers
     //that aren't powers of two. To handle the case of powers of two, 1 is decremented from
-    //the number before the process begins. This makes no difference if the number is not a
+    //the number before the process begins. This makes no difference if the number is not a 
     //power of 2, and when it is it makes sure we get the same power of two we had before.
     //For details see "http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2"
-    T width = sizeof(T)*8; //bit width
+    T width = sizeof(T)*8; //bit width 
     --value;
-
-    for (T i=1; i < width; i <<= 1) //runs log2(width) times
+    
+    for (T i=1; i < width; i <<= 1) //runs log2(width) times 
     {
         value = (value | value >> i); //Turn i^2 bytes to 1.
     }
@@ -471,7 +453,7 @@ template <typename T> T RoundUp(T value, size_t alignment)
     {
         return value;
     }
-
+    
     value += alignment - 1;
     value /= alignment;
     value *= alignment;
@@ -489,7 +471,7 @@ template <typename T> T * RoundUp(T * ptr, size_t alignment)
 template <typename T> T RoundUpPowerOf2(T value, size_t alignment)
 {
     if (alignment == 0) return value;
-    T align_1 = static_cast<T>(alignment - 1);
+    T align_1 = static_cast<T>(alignment - 1); 
     ASSERTX((alignment & align_1) == 0);
     return ((value + align_1) & ~align_1);
 }
@@ -524,7 +506,7 @@ template <typename T> T * RoundDown(T * ptr, size_t alignment)
 template <typename T> T RoundDownPowerOf2(T value, size_t alignment)
 {
     if (alignment == 0) return value;
-    T align_1 = static_cast<T>(alignment - 1);
+    T align_1 = static_cast<T>(alignment - 1); 
     ASSERTX((alignment & align_1) == 0);
     return (value & ~align_1);
 }
@@ -538,7 +520,9 @@ template <typename T> T * RoundDownPowerOf2(T * ptr, size_t alignment)
                                                                   /* DO NOT EDIT */
 template<typename T> ADDRINT PointerToInt(const T *ptr)
 {
-#if (defined(HOST_IA32) && !defined(TARGET_IA32)) || (defined(HOST_IA32E) && !defined(TARGET_IA32E))
+#if (defined(HOST_IA32) && !defined(TARGET_IA32)) || (defined(HOST_IA32E) && !defined(TARGET_IA32E)) || \
+    (defined(HOST_MIC) && !defined(TARGET_MIC))
+
     ASSERT(false,"Should not be called in cross environment\n");
     return 0;
 
@@ -550,7 +534,9 @@ template<typename T> ADDRINT PointerToInt(const T *ptr)
                                                                   /* DO NOT EDIT */
 template<typename T> T *IntToPointer(ADDRINT addr)
 {
-#if (defined(HOST_IA32) && !defined(TARGET_IA32)) || (defined(HOST_IA32E) && !defined(TARGET_IA32E))
+#if (defined(HOST_IA32) && !defined(TARGET_IA32)) || (defined(HOST_IA32E) && !defined(TARGET_IA32E)) || \
+    (defined(HOST_MIC) && !defined(TARGET_MIC))
+
     ASSERT(false,"Should not be called in cross environment\n");
     return 0;
 
@@ -562,7 +548,7 @@ template<typename T> T *IntToPointer(ADDRINT addr)
                                                                   /* DO NOT EDIT */
 inline INT64 VoidStar2Int(VOID * addr)
 {
-#if defined(HOST_IA32E) && defined(TARGET_IA32)
+#if (defined(HOST_IA32E) || defined(HOST_MIC)) && defined(TARGET_IA32)
     ASSERT(false,"Should not be called in cross environment\n");
     return 0;
 #else
@@ -598,7 +584,7 @@ extern BOOL HasBaseName(const char *fileName, const char *baseNameToCheckFor);
                                                                   /* DO NOT EDIT */
 inline INT32 MEMORY_ReadInt32(ADDRINT  address)
 {
-    return *reinterpret_cast<INT32*>(address);
+    return *reinterpret_cast<INT32*>(address);    
 }
 
                                                                   /* DO NOT EDIT */
@@ -610,7 +596,7 @@ inline VOID MEMORY_WriteInt32(ADDRINT  address, INT32 value)
                                                                   /* DO NOT EDIT */
 inline UINT32 MEMORY_ReadUint32(ADDRINT  address)
 {
-    return *reinterpret_cast<UINT32*>(address);
+    return *reinterpret_cast<UINT32*>(address);    
 }
 
                                                                   /* DO NOT EDIT */
@@ -622,7 +608,7 @@ inline VOID MEMORY_WriteUint32(ADDRINT  address, UINT32 value)
                                                                   /* DO NOT EDIT */
 inline INT64 MEMORY_ReadInt64(ADDRINT  address)
 {
-    return *reinterpret_cast<INT64*>(address);
+    return *reinterpret_cast<INT64*>(address);    
 }
 
                                                                   /* DO NOT EDIT */
@@ -634,7 +620,7 @@ inline VOID MEMORY_WriteInt64(ADDRINT  address, INT64 value)
                                                                   /* DO NOT EDIT */
 inline UINT64 MEMORY_ReadUint64(ADDRINT  address)
 {
-    return *reinterpret_cast<UINT64*>(address);
+    return *reinterpret_cast<UINT64*>(address);    
 }
 
                                                                   /* DO NOT EDIT */
@@ -674,25 +660,7 @@ inline VOID * PtrAtOffset(VOID * ptr, size_t offset)
 }
 
                                                                   /* DO NOT EDIT */
-inline const VOID * PtrAtOffset(const VOID * ptr, size_t offset)
-{
-    return (reinterpret_cast<const INT8 *>(ptr) + offset);
-}
-
-                                                                  /* DO NOT EDIT */
-template <typename T> T * PtrAtOffset(VOID * ptr, size_t offset)
-{
-    return (reinterpret_cast<T *>(PtrAtOffset(ptr, offset)));
-}
-
-                                                                  /* DO NOT EDIT */
-template <typename T> const T * PtrAtOffset(const VOID * ptr, size_t offset)
-{
-    return (reinterpret_cast<const T *>(PtrAtOffset(ptr, offset)));
-}
-
-                                                                  /* DO NOT EDIT */
-template <typename T> VOID *
+template <typename T> VOID * 
  PushDataToStack(VOID * stack, const T * data, size_t alignment = 1, size_t size = sizeof(T))
 {
     stack = PtrAtOffset(stack, 0 - size);
@@ -710,13 +678,13 @@ inline VOID * PushAddrintToStack(VOID * stack, ADDRINT value)
 
                                                                   /* DO NOT EDIT */
 class MemRange
-{
+{ 
     public:
 
     //======= Constructors
 
     //Default constructor
-    MemRange() {}
+    MemRange() {} 
     //Construct range with a given base address and size
     MemRange(VOID * base, size_t size) : m_base(base), m_size(size) {}
     MemRange(ADDRINT base, size_t size) : m_base(Addrint2VoidStar(base)), m_size(size) {}
@@ -727,26 +695,26 @@ class MemRange
     //Default copy constructor and assignment operator
 
     //======= operators == and !=
-    BOOL operator == (const MemRange &  range) const
+    BOOL operator == (const MemRange &  range) const 
     {
         return ((m_base == range.m_base) && (m_size == range.m_size));
     }
     BOOL operator != (const MemRange &  range) const {return (!(*this == range));}
 
-    //======= Accessors
+    //======= Accessors 
 
-    //Get/set base address of the range.
+    //Get/set base address of the range. 
     VOID * Base() const {return m_base;}
     MemRange& Base(VOID * base) { m_base = base; return *this;}
 
-    //Get/set size, in bytes, of the range.
+    //Get/set size, in bytes, of the range. 
     size_t Size() const {return  m_size;}
     MemRange& Size(size_t size) { m_size = size; return *this;}
 
-    //Get end address of the range.
+    //Get end address of the range. 
     VOID * End() const {return  PtrAtOffset(m_base, m_size);}
 
-    //Get the last address of the non-empty range.
+    //Get the last address of the non-empty range. 
     VOID * Last() const {return PtrAtOffset(m_base, m_size - 1);}
 
     /*
@@ -759,10 +727,10 @@ class MemRange
     /*
     * Check to see whether this range contains the specified memory address
     *
-    * @param[in] addr       memory address, potentially contained in this range
+    * @param[in] addr       memory address, potentially contained in this range 
     *
-    * @return   true, if this range contains the specified address,
-    *           otherwise - false
+    * @return   true, if this range contains the specified address, 
+    *           otherwise - false 
     */
     BOOL Contains(const VOID * addr) const
     {
@@ -772,7 +740,7 @@ class MemRange
     /*
     * Check to see whether this range contains the specified memory range
     *
-    * @param[in] range      memory range, potentially contained in this range
+    * @param[in] range      memory range, potentially contained in this range 
     *
     * @return   true, if this range contains the specified range,
     *           otherwise - false.
@@ -784,47 +752,47 @@ class MemRange
 
     /* Check to see whether this range intersects with the specified memory range
     *
-    * @param[in] range      memory range, potentially intersecting with this range
+    * @param[in] range      memory range, potentially intersecting with this range 
     *
     * @return   true, if this range intersects with the specified range
     *           otherwise - false
     */
     BOOL Intersects(const MemRange & range) const
     {
-        return  (Contains(range.m_base) || range.Contains(m_base));
+        return  (Contains(range.m_base) || range.Contains(m_base)); 
     }
 
     /* Check to see whether this range is adjacent to the specified memory range
     *
-    * @param[in] range      memory range, potentially adjacent to this range
+    * @param[in] range      memory range, potentially adjacent to this range 
     *
     * @return   true, if this range is adjacent to the specified range
     *           otherwise - false
     */
     BOOL AdjacentTo(const MemRange & range) const
     {
-        return  (((range.m_base == End()) && (range.m_base != 0)) ||
-                 ((m_base == range.End()) && (m_base != 0)));
+        return  (((range.m_base == End()) && (range.m_base != 0)) || 
+                 ((m_base == range.End()) && (m_base != 0))); 
     }
 
-    /* Check to see whether the current stack pointer belongs to this range
+    /* Check to see whether the current stack pointer belongs to this range 
     *
     * @return   true, if current stack pointer belongs to this range
     *           otherwise - false
     */
     BOOL IsCurrentStack() const
     {
-        return  (Contains(GetSp()));
+        return  (Contains(GetSp())); 
     }
 
     /*
     * Round base/end address of the range down/up according to specified alignment
     *
-    * @param[in] alignment      alignment value. Must be power of two.
+    * @param[in] alignment      alignment value. Must be power of two. 
     *
-    * @return  reference to aligned range.
+    * @return  reference to aligned range. 
     */
-    MemRange& Align(UINT32 alignment)
+    MemRange& Align(UINT32 alignment) 
     {
         VOID * end  = RoundUp(End(), alignment);
         m_base = RoundDown(m_base, alignment);
@@ -835,10 +803,10 @@ class MemRange
     /*
     * Round both base and end address of the range up according to specified alignment.
     * The size of the updated range is at least size the range before update.
-    * @param[in] alignment      alignment value. Must be power of two.
+    * @param[in] alignment      alignment value. Must be power of two. 
     *  return  reference to aligned range
     */
-    MemRange& AlignUp(UINT32 alignment)
+    MemRange& AlignUp(UINT32 alignment) 
     {
         m_base = RoundUp(m_base, alignment);
         m_size = RoundUp(m_size, alignment);
@@ -848,10 +816,10 @@ class MemRange
     /*
     * Round both base and end address of the range down according to specified alignment.
     * The size of the updated range is at least size the range before update.
-    * @param[in] alignment      alignment value. Must be power of two.
+    * @param[in] alignment      alignment value. Must be power of two. 
     * @return  reference to aligned range
     */
-    MemRange& AlignDown(UINT32 alignment)
+    MemRange& AlignDown(UINT32 alignment) 
     {
         VOID * end  = RoundDown(End(), alignment);
         m_size = RoundUp(m_size, alignment);
@@ -860,11 +828,11 @@ class MemRange
     }
 
     /*
-    * Shift both base and end address of the range
-    * @param[in] offset         shift value.
+    * Shift both base and end address of the range 
+    * @param[in] offset         shift value. 
     * @return  reference to shifted range
     */
-    MemRange& Shift(size_t offset)
+    MemRange& Shift(size_t offset) 
     {
         m_base = PtrAtOffset(m_base, offset);
         return *this;
@@ -874,10 +842,10 @@ class MemRange
     * Shift base address of the range without changing the end address
     * If the base is shifted to be after the end address, then the region size
     * will be set to zero
-    * @param[in] offset         shift value.
+    * @param[in] offset         shift value. 
     * @return  reference to shifted range
     */
-    MemRange& ShiftBase(size_t offset)
+    MemRange& ShiftBase(size_t offset) 
     {
         VOID * end  = End();
         m_base = PtrAtOffset(m_base, offset);
@@ -894,10 +862,10 @@ class MemRange
 
     /*
     * Shift end address of the range without changing the base address
-    * @param[in] offset         shift value.
+    * @param[in] offset         shift value. 
     * @return  reference to shifted range
     */
-    MemRange& ShiftEnd(size_t offset)
+    MemRange& ShiftEnd(size_t offset) 
     {
         m_size += offset;
         return *this;
@@ -905,11 +873,11 @@ class MemRange
 
     /*
     * Extend boundaries of this range to include the specified range.
-    * The new range is the minimal range that contains both ranges.
-    * @param[in] range      memory range, to be combined with this range
+    * The new range is the minimal range that contains both ranges.  
+    * @param[in] range      memory range, to be combined with this range 
     * @return  reference to updated range
     */
-    MemRange& Combine(const MemRange & range)
+    MemRange& Combine(const MemRange & range) 
     {
         size_t size;
         if (range.m_base >= m_base)
@@ -931,16 +899,16 @@ class MemRange
     /*
     * Decompose this range into three ranges (each of them may be empty):
     * @param[out]  pIntersection - intersection of <this> range with specified <range>
-    * @param[out]  pLowDiff      - part of <this> range, that contains all addresses
+    * @param[out]  pLowDiff      - part of <this> range, that contains all addresses 
     *                              lower than any address in the specified <range>
-    * @param[out]  pHighDiff     - part of <this> range, that contains all addresses
+    * @param[out]  pHighDiff     - part of <this> range, that contains all addresses 
     *                              higher than any address in the specified <range>
-    * @param[in]   range         - range to be intersected with and subtracted from
+    * @param[in]   range         - range to be intersected with and subtracted from 
     *                              <this> range
-    * All three output paramters are optional - the range is not returned if the
+    * All three output paramters are optional - the range is not returned if the 
     * corresponding parameter is NULL.
     */
-    VOID Decompose(const MemRange & range,
+    VOID Decompose(const MemRange & range, 
                    MemRange * pIntersection,
                    MemRange * pLowDiff,
                    MemRange * pHighDiff) const
@@ -1010,7 +978,7 @@ class ONCE_STATE
 {
   private:
     // Function execution state
-    enum
+    enum 
     {
         NO_ONCE,            //!< initial state - function never executed
         ONCE_RUNNING,       //!< function is currently running
@@ -1023,19 +991,19 @@ class ONCE_STATE
     ONCE_STATE() : m_state(NO_ONCE) {}
 
     // Return FALSE if function is already executed. Otherwise, set state to ONCE_RUNNING
-    // and return TRUE.
-    BOOL Enter()
+    // and return TRUE. 
+    BOOL Enter() 
     {
         if (m_state == NO_ONCE)
         {
-            m_state = ONCE_RUNNING;
+            m_state = ONCE_RUNNING; 
             return TRUE;
         }
         return FALSE;
     }
 
     // Set and return exit state of the function just executed
-    BOOL Exit(BOOL result = TRUE)
+    BOOL Exit(BOOL result = TRUE) 
     {
         m_state = (result ? ONCE_SUCCESS : ONCE_FAILURE);
         return result;
@@ -1122,7 +1090,7 @@ template<typename T, typename D = OBJECT_DELETER, typename C = INT32> class COUN
 
   private:
 
-    struct CPTR
+    struct CPTR 
     {
         CPTR(T * p) : m_ptr(p), m_count(1) {}
         T *     m_ptr;
@@ -1148,7 +1116,7 @@ template<typename T, typename D = OBJECT_DELETER, typename C = INT32> class COUN
                                                                   /* DO NOT EDIT */
 template <typename T> struct OPTIONAL_VALUE
 {
-    BOOL m_hasValue;    ///< TRUE, if a value has been assigned to this object
+    BOOL m_hasValue;    ///< TRUE, if a value has been assigned to this object 
     T m_value;          ///< The value assigned to this object
 
     /*!
@@ -1185,7 +1153,7 @@ template <typename T> struct OPTIONAL_VALUE
 
     /*!
      * Get the value of this object, if previously assigned.
-     * @param[out] pValue   optional pointer to variable that receives the value assigned to
+     * @param[out] pValue   optional pointer to variable that receives the value assigned to 
      *                      this object, if any
      * @return TRUE if a value has been assigned to this object.
      */
@@ -1209,7 +1177,7 @@ template <typename T> struct OPTIONAL_VALUE
 
     /*!
      * Get a pointer to the value of this object, if the value has been assigned.
-     * @return pointer to the value kept in this object or NULL if no value has been
+     * @return pointer to the value kept in this object or NULL if no value has been 
      *         assigned to this object.
      */
     T * ValuePtr() {return ((m_hasValue) ? &m_value : 0);}
@@ -1221,6 +1189,9 @@ extern STAT_NORM StatRawMmapBytes;
 
                                                                   /* DO NOT EDIT */
 extern STAT_NORM StatReservedBytes;
+
+                                                                  /* DO NOT EDIT */
+extern USIZE GetRawMmapBytes();
 
                                                                   /* DO NOT EDIT */
 extern VOID UpdateRawMmapBytes();

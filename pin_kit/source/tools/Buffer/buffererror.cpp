@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -36,11 +36,6 @@ END_LEGAL */
 #include <iostream>
 #include <stdio.h>
 #include <stddef.h>
-
-/*
- * Name of the output file
- */
-KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o", "buffererror.out", "output file");
 
 /* Struct for holding memory references.  Rather than having two separate
  * buffers for loads and stores, we just use one struct that includes a
@@ -170,16 +165,14 @@ int main(int argc, char *argv[])
     bufId = PIN_DefineTraceBuffer(sizeof(struct MEMREF), NUM_BUF_PAGES,
                                   BufferFull, 0);
 
-    if (bufId == BUFFER_ID_INVALID)
-    {
+    if(bufId == BUFFER_ID_INVALID){
         cerr << "Error allocating initial buffer" << endl;
         return 1;
     }
 
-    outfile = fopen(KnobOutputFile.Value().c_str(), "w");
-    if (!outfile)
-    {
-        cerr << "Couldn't open buffererror.out" << endl;
+    outfile = fopen("bufferaddr.out", "w");
+    if(!outfile){
+        cerr << "Couldn't open bufferaddr.out" << endl;
         return 1;
     }
 

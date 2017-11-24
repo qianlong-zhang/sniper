@@ -6,11 +6,15 @@
 
 enum
 {
+    // The [0, TLS_KEY_RESERVED_LAST) range is reserved for keys, that can be used
+    // by glibc/libpinpthread without allocating them. Needed for OS X* only?
+    TLS_KEY_RESERVED_LAST = 140,
+
     // Reserved for internal exception handling
     TLS_KEY_INTERNAL_EXCEPTION,
 
-    TLS_KEY_CLIENT_FIRST,
-    // Keys in the [TLS_KEY_CLIENT_FIRST, TLS_KEY_CLIENT_LAST] range can be
+    TLS_KEY_CLIENT_FIRST,  
+    // Keys in the [TLS_KEY_CLIENT_FIRST, TTLS_KEY_CLIENT_LAST] range can be 
     // allocated by tool
     TLS_KEY_CLIENT_LAST = TLS_KEY_CLIENT_FIRST + 63
 };
@@ -36,19 +40,13 @@ class CLIENT_TLS
     BOOL FreeKey(TLS_KEY tlsKey);
 
     /*! @ingroup PIN_THREAD_PRIVATE
-     * Return TRUE if TLS key is allocated by a previous call to the CreateThreadDataKey() function,
-     * FALSE otherwise
-     */
-    BOOL IsKeyAllocated(TLS_KEY tlsKey);
-
-    /*! @ingroup PIN_THREAD_PRIVATE
      *  Get/Set the value of the specified TLS slot of the given thread.
      *  See PIN_GetThreadData() and PIN_SetThreadData() description.
      *  @param[in]  threadId    Thread ID assigned by pin of the thread for which
      *                          TLS access is desired, not necessarily the current
      *                          thread.
-     *                          This ID can be obtained by the PIN_ThreadId()
-     *                          function call or received as the value of the
+     *                          This ID can be obtained by the PIN_ThreadId() 
+     *                          function call or received as the value of the 
      *                          IARG_THREAD_ID argument.
      * @note The Get/SetData functions are defined as static to eliminate overhead of the
      *       Instance() function. These functions assume that the Instance() function is
@@ -73,7 +71,7 @@ class CLIENT_TLS
 
     /*! @ingroup PIN_THREAD_PRIVATE
      *  Zero-initialize all TLS slots in the current thread.
-     *  This function should be called on the thread start but before the client
+     *  This function should be called on the thread start but before the client 
      *  is notified about the new thread.
      *  @param[in] currentThreadId   ID of the new (current) thread assigned by pin.
      */
@@ -94,17 +92,6 @@ class CLIENT_TLS
     BOOL IsCurrentTlsAllocated(THREADID currentThreadId);
 
     /*! @ingroup PIN_THREAD_PRIVATE
-     *  Check whether the input TLS_KEY is valid.
-     * @param[in] tlsKey                The TLS key
-     * @param[in] currentThreadId   ID of the current thread assigned by pin.
-     * @return TRUE if TLS key is valid, FALSE otherwise
-     */
-    static BOOL IsValidTlsKey(TLS_KEY tlsKey, THREADID threadId)
-    {
-        return m_pSlots[threadId]->IsValidKey(tlsKey) && CLIENT_TLS::Instance()->IsKeyAllocated(tlsKey);
-    }
-
-    /*! @ingroup PIN_THREAD_PRIVATE
      *  Return single instance of this class.
      */
     static CLIENT_TLS * Instance();
@@ -118,7 +105,7 @@ class CLIENT_TLS
   private:
     // Private constructor
     CLIENT_TLS() {}
-    friend class DUMMY_GCC32; //dummy friend to appease gcc 3.2.X compiler. It does not understand
+    friend class DUMMY_GCC32; //dummy friend to appease gcc 3.2.X compiler. It does not understand 
                               //singleton idiom and reports warning for private constructor.
     //Disable copy constructor and assignment operator
     CLIENT_TLS(const CLIENT_TLS &);
@@ -130,7 +117,7 @@ class CLIENT_TLS
      * Pointer to a single instance of this class
      * This static member enforces initialization of CLIENT_TLS in the first (main) thread.
      */
-    static CLIENT_TLS * m_pInstance;
+    static CLIENT_TLS * m_pInstance; 
 
 };
 
@@ -143,10 +130,7 @@ inline TLS_KEY PIN_CreateThreadDataKey(DESTRUCTFUN destruct_func)
                                                                   /* DO NOT EDIT */
 inline BOOL PIN_DeleteThreadDataKey(TLS_KEY key)
 {
-    if (CLIENT_TLS::Instance()->IsKeyAllocated(key))
-        return CLIENT_TLS::Instance()->FreeKey(key);
-    else
-        return FALSE;
+    return CLIENT_TLS::Instance()->FreeKey(key);
 }
 
                                                                   /* DO NOT EDIT */
@@ -164,10 +148,7 @@ inline BOOL PIN_SetThreadData( TLS_KEY key, const VOID * data )
                                                                   /* DO NOT EDIT */
 inline BOOL PIN_SetThreadData( TLS_KEY key, const VOID * data , THREADID threadId)
 {
-    if (CLIENT_TLS::IsValidTlsKey(key, threadId))
-        return CLIENT_TLS::SetData( key, data, threadId );
-    else
-        return FALSE;
+    return CLIENT_TLS::SetData( key, data, threadId );
 }
 
                                                                   /* DO NOT EDIT */
@@ -185,10 +166,7 @@ inline VOID * PIN_GetThreadData( TLS_KEY key )
                                                                   /* DO NOT EDIT */
 inline VOID * PIN_GetThreadData( TLS_KEY key, THREADID threadId )
 {
-    if (CLIENT_TLS::IsValidTlsKey(key, threadId))
-        return CLIENT_TLS::GetData( key, threadId );
-    else
-        return NULL;
+    return CLIENT_TLS::GetData( key, threadId );
 }
 
                                                                   /* DO NOT EDIT */

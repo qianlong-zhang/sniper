@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -29,13 +29,12 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
 /*
- * This test causes and handles access violations/bus errors in
+ * This test causes and handles access violations/bus errors in 
    instructions that use the ebx register implicitly.
    The relevant instructions are cmpxchg8b and xlat (which uses ebx as
    a base register)
  */
 
-#define NEED_UCONTEXT_T
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -47,6 +46,9 @@ END_LEGAL */
 #include <iomanip>
 #include <fstream>
 #include <cstdlib>
+#ifdef TARGET_ANDROID
+#include "android_ucontext.h"
+#endif
 using namespace std;
 
 extern "C" unsigned int GetInstructionLenAndDisasm (unsigned char *ip, string *str);
@@ -67,11 +69,11 @@ void PrintSignalContext(int sig, const siginfo_t *info, void *vctxt)
     rip = (unsigned long)ctxt->uc_mcontext.gregs[REG_EIP];
     trapno = (long int)ctxt->uc_mcontext.gregs[REG_TRAPNO];
 #elif defined(TARGET_MAC) && defined(TARGET_IA32E)
-    rip = (unsigned long)ctxt->uc_mcontext->ss.rip;
-    trapno = (long int)ctxt->uc_mcontext->es.trapno;
+    rip = (unsigned long)ctxt->uc_mcontext->__ss.__rip;
+    trapno = (long int)ctxt->uc_mcontext->__es.__trapno;
 #elif defined(TARGET_MAC) && defined(TARGET_IA32)
-    rip = (unsigned long)ctxt->uc_mcontext->ss.eip;
-    trapno = (long int)ctxt->uc_mcontext->es.trapno;
+    rip = (unsigned long)ctxt->uc_mcontext->__ss.__eip;
+    trapno = (long int)ctxt->uc_mcontext->__es.__trapno;
 #endif
 
     fprintf(stderr, "  PrintSignal: sig %d, pc=0x%lx, si_errno=%d, trap_no=%ld",
@@ -99,9 +101,9 @@ static void Handle(int sig, siginfo_t *info, void *v)
 #elif defined(TARGET_LINUX) && defined(TARGET_IA32E)
         ctxt->uc_mcontext.gregs[REG_RIP];
 #elif defined(TARGET_MAC) && defined(TARGET_IA32)
-        ctxt->uc_mcontext->ss.eip;
+        ctxt->uc_mcontext->__ss.__eip;
 #elif defined(TARGET_MAC) && defined(TARGET_IA32E)
-        ctxt->uc_mcontext->ss.rip;
+        ctxt->uc_mcontext->__ss.__rip;
 #else
 #error "Undefined code"
 #endif
@@ -113,7 +115,7 @@ static void Handle(int sig, siginfo_t *info, void *v)
         exit (1);
     }
     fprintf (stderr,"segv at: %s\n", str.c_str());
-    ipToContinueAt
+    ipToContinueAt 
         = (unsigned int *)((unsigned char *)ipToContinueAt + instructionLen);
     fprintf (stderr, " setting resume ip to %p\n", ipToContinueAt);
     instructionLen = GetInstructionLenAndDisasm((unsigned char *)ipToContinueAt, &str);
@@ -128,9 +130,9 @@ static void Handle(int sig, siginfo_t *info, void *v)
 #elif defined(TARGET_LINUX) && defined(TARGET_IA32E)
         ctxt->uc_mcontext.gregs[REG_RIP] =
 #elif defined(TARGET_MAC) && defined(TARGET_IA32)
-        ctxt->uc_mcontext->ss.eip =
+        ctxt->uc_mcontext->__ss.__eip =
 #elif defined(TARGET_MAC) && defined(TARGET_IA32E)
-        ctxt->uc_mcontext->ss.rip =
+        ctxt->uc_mcontext->__ss.__rip =
 #else
 #error "Undefined code"
 #endif
@@ -143,7 +145,7 @@ static void Handle(int sig, siginfo_t *info, void *v)
 int main(int argc, char **argv)
 {
     struct sigaction sigact;
-
+ 
     InitXed();
     sigact.sa_sigaction = Handle;
     sigemptyset(&sigact.sa_mask);
@@ -167,7 +169,7 @@ int main(int argc, char **argv)
         fprintf (stderr, "***Error\n");
         exit (1);
     }
-
+    
 }
 
 

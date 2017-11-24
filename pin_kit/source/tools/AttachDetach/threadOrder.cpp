@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -41,15 +41,14 @@ int appToTool[2];
 
 void* doSecondaryThread(void* dummy) {
     close(appToTool[WRITE]); // This will release the parent and start Pin.
-    sleep(5*60); // Wait here for program termination.
+    while (true); // Wait here for program termination.
     return NULL;
 }
 
-int doMainAppThread() {
+void doMainAppThread() {
     pthread_t tid;
     pthread_create(&tid, 0, doSecondaryThread, 0);
     pthread_join(tid, 0); // Wait here for program termination.
-    return ETIME; // If we got here (instead of being terminated by Pin) this means we timed out.
 }
 
 /*

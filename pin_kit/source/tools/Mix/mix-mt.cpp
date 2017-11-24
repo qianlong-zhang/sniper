@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -32,7 +32,7 @@ END_LEGAL */
 /*! @file This file contains a static and dynamic opcode/ISA extension/ISA
  *  category mix profiler
  *
- * This is derived from mix.cpp. Handles an arbitrary number of threads
+ * This is derived from mix.cpp. Handles an arbitrary number of threads 
  * using TLS for data storage and avoids locking, except during I/O.
  */
 
@@ -40,6 +40,9 @@ END_LEGAL */
 #define strdup _strdup
 #endif
 
+#include "pin.H"
+#include "control_manager.H"
+#include "portability.H"
 #include <vector>
 #include <iostream>
 #include <sstream>
@@ -49,9 +52,6 @@ END_LEGAL */
 #include <map>
 #include <utility> /* for pair */
 #include <vector>
-#include <unistd.h>
-#include "pin.H"
-#include "control_manager.H"
 #include "mix-fp-state.H"
 using namespace CONTROLLER;
 
@@ -92,7 +92,7 @@ KNOB<BOOL> KnobInstructionLengthMix(KNOB_MODE_WRITEONCE,  "pintool:mix","ilen", 
 KNOB<BOOL> KnobCategoryMix(KNOB_MODE_WRITEONCE, "pintool:mix", "category", "0", "Compute ISA category mix");
 KNOB<BOOL> KnobIformMix(KNOB_MODE_WRITEONCE, "pintool:mix", "iform", "0", "Compute ISA iform mix");
 KNOB<BOOL> KnobMapToFile(KNOB_MODE_WRITEONCE, "pintool:mix", "mapaddr", "0", "Map Addresses to File/Line information");
-KNOB<BOOL> KnobEarlyOut(KNOB_MODE_WRITEONCE, "pintool:mix",
+KNOB<BOOL> KnobEarlyOut(KNOB_MODE_WRITEONCE, "pintool:mix", 
                         "early_out", "0" , "Exit after tracing the first region.");
 
 
@@ -119,7 +119,7 @@ INT32 Usage()
 
 const UINT32 INDEX_SPECIAL =  3000;
 const UINT32 MAX_MEM_SIZE = 520;
-const UINT32 MAX_EXTENSION = XED_EXTENSION_LAST+10;
+const UINT32 MAX_EXTENSION = 50;
 
 const UINT32 INDEX_TOTAL =          INDEX_SPECIAL + 0;
 const UINT32 INDEX_MEM_ATOMIC =     INDEX_SPECIAL + 1;
@@ -198,7 +198,7 @@ LOCALFUN UINT32 INS_GetIndex(INS ins)
       case measure_category:
         index = INS_Category(ins);
         break;
-      case measure_iform:
+      case measure_iform: 
         {
             xed_decoded_inst_t* xedd = INS_XedDec(ins);
             xed_iform_enum_t iform = xed_decoded_inst_get_iform_enum(xedd);
@@ -211,7 +211,7 @@ LOCALFUN UINT32 INS_GetIndex(INS ins)
 
 /* ===================================================================== */
 
-LOCALFUN bool IsScalarSimd(INS ins)
+LOCALFUN bool IsScalarSimd(INS ins) 
 {
     xed_decoded_inst_t* xedd = INS_XedDec(ins);
     return xed_decoded_inst_get_attribute(xedd, XED_ATTRIBUTE_SIMD_SCALAR);
@@ -223,7 +223,7 @@ LOCALFUN  UINT32 IndexStringLength(BBL bbl, BOOL memory_access_profile)
 
     for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins))
     {
-        count++; // one for the ins
+        count++; // one for the ins 
         if (measurement != measure_iform)
             count++;  // one for the ISA extension.
 
@@ -235,7 +235,7 @@ LOCALFUN  UINT32 IndexStringLength(BBL bbl, BOOL memory_access_profile)
 
             if( INS_IsIpRelRead(ins) ) count++;
 
-
+            
             if( INS_IsMemoryWrite(ins) ) count++; // for size
 
             if( INS_IsStackWrite(ins) ) count++;
@@ -247,7 +247,7 @@ LOCALFUN  UINT32 IndexStringLength(BBL bbl, BOOL memory_access_profile)
             if (IsScalarSimd(ins)) count++;
         }
     }
-
+    
     return count;
 }
 
@@ -269,15 +269,15 @@ LOCALFUN stat_index_t* INS_GenerateIndexString(INS ins, stat_index_t *stats, BOO
     {
         if( INS_IsMemoryRead(ins) )  *stats++ = MemsizeToIndex( INS_MemoryReadSize(ins), 0 );
         if( INS_IsMemoryWrite(ins) ) *stats++ = MemsizeToIndex( INS_MemoryWriteSize(ins), 1 );
-
+        
         if( INS_IsAtomicUpdate(ins) ) *stats++ = INDEX_MEM_ATOMIC;
-
+        
         if( INS_IsStackRead(ins) ) *stats++ = INDEX_STACK_READ;
         if( INS_IsStackWrite(ins) ) *stats++ = INDEX_STACK_WRITE;
-
+        
         if( INS_IsIpRelRead(ins) ) *stats++ = INDEX_IPREL_READ;
         if( INS_IsIpRelWrite(ins) ) *stats++ = INDEX_IPREL_WRITE;
-
+        
         if (IsScalarSimd(ins)) *stats++ = INDEX_SCALAR_SIMD;
     }
 
@@ -289,7 +289,7 @@ LOCALFUN stat_index_t* INS_GenerateIndexString(INS ins, stat_index_t *stats, BOO
 
 LOCALFUN string IndexToString( UINT32 index )
 {
-    if (measurement == measure_iform)
+    if (measurement == measure_iform) 
     {
         return xed_iform_enum_t2str(static_cast<xed_iform_enum_t>(index));
     }
@@ -305,7 +305,7 @@ LOCALFUN string IndexToString( UINT32 index )
         else if( index == INDEX_IPREL_READ )  return  "*iprel-read";
         else if( index == INDEX_IPREL_WRITE ) return  "*iprel-write";
         else if( index == INDEX_SCALAR_SIMD)  return  "*scalar-simd";
-        else if (index >= INDEX_EXTENSION && index < INDEX_EXTENSION + MAX_EXTENSION)
+        else if (index >= INDEX_EXTENSION && index < INDEX_EXTENSION + MAX_EXTENSION) 
             return "*isa-ext-" + EXTENSION_StringShort(index - INDEX_EXTENSION);
 
         else if ( index == INDEX_FMA         ) return "*FMA";
@@ -367,7 +367,7 @@ LOCALFUN string IndexToString( UINT32 index )
     }
     ASSERTX(0);
     return "";
-
+    
 }
 
 /* ===================================================================== */
@@ -406,7 +406,7 @@ class BBL_SORT_STATS
     UINT32  _rtn_num;
     COUNTER _icount;
     COUNTER _executions;
-    COUNTER _nbytes;
+    COUNTER _nbytes; 
 };
 
 CSTATS GlobalStatsStatic;  // summary stats for static analysis
@@ -423,9 +423,9 @@ class BBLSTATS
     const UINT32 _nbytes; // # of bytes in the block
     const UINT32 _rtn_num; // index of the routine address/function name information
     BBLSTATS(stat_index_t* stats, ADDRINT pc, UINT32 ninst, UINT32 nbytes, UINT32 rtn_number)
-        : _stats(stats),
-          _pc(pc),
-          _ninst(ninst),
+        : _stats(stats), 
+          _pc(pc), 
+          _ninst(ninst), 
           _nbytes(nbytes),
           _rtn_num(rtn_number) {};
 };
@@ -435,7 +435,7 @@ LOCALVAR vector<BBLSTATS*> statsList;
 /* ===================================================================== */
 
 #if defined(__GNUC__)
-#  if defined(TARGET_MAC) || defined(TARGET_WINDOWS)
+#  if defined(TARGET_MAC) || defined(TARGET_WINDOWS) 
      // OS X* XCODE2.4.1 gcc and Cgywin gcc 3.4.x only allow for 16b
      // alignment! So we need to pad!
 #    define ALIGN_LOCK __attribute__ ((aligned(16)))
@@ -473,8 +473,8 @@ class thread_data_t
     UINT32 enabled;
 
     vector<COUNTER> block_counts;
-
-    UINT32 size()
+    
+    UINT32 size() 
     {
         UINT32 limit;
         limit = block_counts.size();
@@ -491,7 +491,7 @@ class thread_data_t
 
 thread_data_t* get_tls(THREADID tid)
 {
-    thread_data_t* tdata =
+    thread_data_t* tdata = 
           static_cast<thread_data_t*>(PIN_GetThreadData(tls_key, tid));
     return tdata;
 }
@@ -521,7 +521,7 @@ VOID ThreadStart(THREADID tid, CONTEXT *ctxt, INT32 flags, VOID *v)
     // remember my pointer for later
     PIN_SetThreadData(tls_key, tdata, tid);
 
-    // make sure the thread is counting stuff.
+    // make sure the thread is counting stuff.  
 
     // FIXME: The controller should start all threads if no trigger
     // conditions are specified, but currently it only starts
@@ -530,7 +530,7 @@ VOID ThreadStart(THREADID tid, CONTEXT *ctxt, INT32 flags, VOID *v)
     // always stop the controller and zero the stats using markers as a
     // workaround.
 
-    if (tid)
+    if (tid) 
         activate_counting(tid);
 }
 
@@ -581,7 +581,7 @@ LOCALFUN VOID Handler(EVENT_TYPE ev, VOID *val, CONTEXT *ctxt, VOID *ip, THREADI
         PIN_ReleaseLock(&locks.lock);
         zero_stats(tid);
         break;
-
+        
       default:
         ASSERTX(false);
     }
@@ -622,7 +622,7 @@ VOID zero_stats(THREADID tid)
     thread_data_t* tdata = get_tls(tid);
     tdata->cstats.clear();
     UINT32 limit =  tdata->size();
-    for(UINT32 i=0;i< limit;i++)
+    for(UINT32 i=0;i< limit;i++) 
         tdata->block_counts[i]=0;
     tdata->stats_per_function.erase(  tdata->stats_per_function.begin(),
                                       tdata->stats_per_function.end());
@@ -631,7 +631,7 @@ VOID zero_stats(THREADID tid)
 
 VOID CheckForSpecialMarkers(INS ins, ADDRINT pc, unsigned int instruction_size)
 {
-    // This checks for single instances of special 3B NOPs.
+    // This checks for single instances of special 3B NOPs.  
     // 0F1FF3 - start
     // 0F1FF4 - stop
     // 0F1FF5 - emit stats
@@ -652,29 +652,29 @@ VOID CheckForSpecialMarkers(INS ins, ADDRINT pc, unsigned int instruction_size)
         switch(pc_ptr[2])
         {
           case 0xF3: // start
-            INS_InsertCall(ins,
-                           IPOINT_BEFORE,
+            INS_InsertCall(ins, 
+                           IPOINT_BEFORE, 
                            (AFUNPTR)activate_counting,
                            IARG_THREAD_ID,
                            IARG_END);
             break;
           case 0xF4: // stop
-            INS_InsertCall(ins,
-                           IPOINT_BEFORE,
+            INS_InsertCall(ins, 
+                           IPOINT_BEFORE, 
                            (AFUNPTR)deactivate_counting,
                            IARG_THREAD_ID,
                            IARG_END);
             break;
           case 0xF5: // emit
-            INS_InsertCall(ins,
-                           IPOINT_BEFORE,
+            INS_InsertCall(ins, 
+                           IPOINT_BEFORE, 
                            (AFUNPTR)emit_stats,
                            IARG_THREAD_ID,
                            IARG_END);
             break;
           case 0xF6: // zero
-            INS_InsertCall(ins,
-                           IPOINT_BEFORE,
+            INS_InsertCall(ins, 
+                           IPOINT_BEFORE, 
                            (AFUNPTR)zero_stats,
                            IARG_THREAD_ID,
                            IARG_END);
@@ -686,7 +686,7 @@ VOID CheckForSpecialMarkers(INS ins, ADDRINT pc, unsigned int instruction_size)
 }
 
 /* ===================================================================== */
-class  RTN_TABLE_ENTRY
+class  RTN_TABLE_ENTRY 
 {
   public:
     ADDRINT _address;
@@ -696,7 +696,7 @@ class  RTN_TABLE_ENTRY
     UINT64 _total;
 
     RTN_TABLE_ENTRY(ADDRINT address=0, ADDRINT end_address=0, const char* name=0, UINT32 rtn_num=0)
-        : _address(address),
+        : _address(address), 
           _end_address(end_address),
           _name(name),
           _rtn_num(rtn_num), _total(0) {}
@@ -704,22 +704,22 @@ class  RTN_TABLE_ENTRY
 
 static vector<RTN_TABLE_ENTRY> rtn_table;
 
-static int qsort_rtn_compare_fn(const void *a, const void *b)
+static int qsort_rtn_compare_fn(const void *a, const void *b) 
 {
     /*descending sort*/
     const RTN_TABLE_ENTRY* ba = static_cast<const RTN_TABLE_ENTRY*>(a);
     const RTN_TABLE_ENTRY* bb = static_cast<const RTN_TABLE_ENTRY*>(b);
 
-    if (ba->_total < bb->_total)
+    if (ba->_total < bb->_total) 
         return 1;
-    if (ba->_total > bb->_total)
+    if (ba->_total > bb->_total) 
         return -1;
     return 0;
 
 }
 
 
-UINT32 routine_identifier(RTN rtn, THREADID tid)
+UINT32 routine_identifier(RTN rtn, THREADID tid) 
 {
     if (!RTN_Valid(rtn)) {
         return 0; /* we never return nonzero global routine numbers */
@@ -727,7 +727,7 @@ UINT32 routine_identifier(RTN rtn, THREADID tid)
     ADDRINT rtn_address  = RTN_Address(rtn);
     ADDRINT rtn_end_address;
     const char *rtn_name = RTN_Name(rtn).c_str();
-
+    
     /* RTN_Id returns a unique global identifier. However, the numeration is not necessarily consecutive
        so we keep our own numeration for convenience (and legacy) - see comment below. */
     UINT32 rtn_num = RTN_Id(rtn);
@@ -754,7 +754,7 @@ UINT32 routine_identifier(RTN rtn, THREADID tid)
         if (global_rtn_num >= rtn_table.size())
             rtn_table.resize(global_rtn_num*2+1);
         rtn_end_address  = RTN_Address(rtn) + RTN_Size(rtn);
-        rtn_table[global_rtn_num ] = RTN_TABLE_ENTRY (rtn_address,
+        rtn_table[global_rtn_num ] = RTN_TABLE_ENTRY (rtn_address, 
                                                       rtn_end_address,
                                                       strdup(rtn_name), global_rtn_num);
     }
@@ -775,7 +775,7 @@ VOID Trace(TRACE trace, VOID *v)
          && IMG_Type(SEC_Img(RTN_Sec(TRACE_Rtn(trace)))) == IMG_TYPE_SHAREDLIB)
         return;
 
-
+    
     const BOOL accurate_handling_of_predicates = KnobProfilePredicated.Value();
     ADDRINT pc = TRACE_Address(trace);
 
@@ -793,7 +793,7 @@ VOID Trace(TRACE trace, VOID *v)
 
     TRACE_InsertCall(trace,
                      IPOINT_BEFORE,
-                     AFUNPTR(validate_bbl_count),
+                     AFUNPTR(validate_bbl_count), 
                      IARG_THREAD_ID,
                      IARG_UINT32,
                      basic_blocks+new_blocks,
@@ -819,7 +819,7 @@ VOID Trace(TRACE trace, VOID *v)
         for (INS ins = head; INS_Valid(ins); ins = INS_Next(ins))
         {
             unsigned int instruction_size = INS_Size(ins);
-            // This checks for x86-specific opcodes
+            // This checks for x86-specific opcodes 
             CheckForSpecialMarkers(ins, pc, instruction_size);
 
             // Count the number of times a predicated instruction is actually executed
@@ -832,7 +832,7 @@ VOID Trace(TRACE trace, VOID *v)
                                          IARG_UINT32,
                                          INS_GetIndex(ins),
                                          IARG_THREAD_ID,
-                                         IARG_END);
+                                         IARG_END);    
             }
 
 
@@ -841,15 +841,15 @@ VOID Trace(TRACE trace, VOID *v)
                 string filename;
                 PIN_GetSourceLocation(pc, NULL, &line, &filename);
                 if (!filename.empty())
-                    *out << "MAPADDR 0x" << hex << pc << " "
-                         << dec << line << " " << filename
+                    *out << "MAPADDR 0x" << hex << pc << " " 
+                         << dec << line << " " << filename 
                          << endl;
             }
             curr = INS_GenerateIndexString(ins,curr,1);
             pc = pc + instruction_size;
             ninsts++;
         }
-
+        
         // stats terminator
         *curr++ = 0;
         ASSERTX( curr == stats_end );
@@ -857,8 +857,8 @@ VOID Trace(TRACE trace, VOID *v)
         // Insert instrumentation to count the number of times the bbl is executed
         BBLSTATS * bblstats = new BBLSTATS(stats, block_start_pc, ninsts, pc-block_start_pc, rtn_id);
         INS_InsertCall(head,
-                       IPOINT_BEFORE,
-                       AFUNPTR(docount_bbl),
+                       IPOINT_BEFORE, 
+                       AFUNPTR(docount_bbl), 
                        IARG_FAST_ANALYSIS_CALL,
                        IARG_UINT32,
                        basic_blocks,
@@ -876,9 +876,9 @@ VOID Trace(TRACE trace, VOID *v)
 
 /* ===================================================================== */
 VOID DumpStats(ofstream& out,
-               CSTATS& stats,
-               BOOL predicated_true,
-               const string& title,
+               CSTATS& stats, 
+               BOOL predicated_true,  
+               const string& title, 
                THREADID tid)
 {
     out << "#\n# " << title << "\n#\n";
@@ -894,7 +894,7 @@ VOID DumpStats(ofstream& out,
         label = "category";
     else if (measurement == measure_iform)
         label = "iform";
-
+    
     if (label)
         out << ljstr(label,24);
 
@@ -905,7 +905,7 @@ VOID DumpStats(ofstream& out,
 
     // Compute the "total" bin. Stop at the INDEX_SPECIAL for all histograms
     // except the iform. Iforms do not use the special rows, so we count everything.
-
+    
     // build a map of the valid stats index values for all 3 tables.
     map<UINT32, bool> m;
 
@@ -950,7 +950,7 @@ VOID DumpStats(ofstream& out,
 
     // print the totals
     out << ljstr("*total",25) << " " << setw(16) << tu;
-    if( predicated_true )
+    if( predicated_true ) 
         out << " " << setw(16) << tpt;
     out << endl;
 }
@@ -972,7 +972,7 @@ VOID emit_bbl_stats_by_function(THREADID tid)
     UINT32 functions = rtn_table.size();
     RTN_TABLE_ENTRY* rtn_table_sorted = new RTN_TABLE_ENTRY[functions];
     for(UINT32 i=0; i<functions;i++) {
-        rtn_table_sorted[i]=rtn_table[i];
+        rtn_table_sorted[i]=rtn_table[i]; 
     }
     PIN_ReleaseLock(&locks.rtn_table_lock);
 
@@ -983,7 +983,7 @@ VOID emit_bbl_stats_by_function(THREADID tid)
 
     if (tdata->stats_per_function.size() < functions)
         tdata->stats_per_function.resize(functions+1);
-
+    
     UINT32 limit = tdata->size();
     if ( limit  > statsList.size() )
         limit = statsList.size();
@@ -993,20 +993,20 @@ VOID emit_bbl_stats_by_function(THREADID tid)
         BBLSTATS* b = statsList[i];
         /* the last test below is for when new bbl's get jitted while we
          * are emitting stats */
-        if (b && b->_stats && b->_rtn_num < functions)
+        if (b && b->_stats && b->_rtn_num < functions) 
             for (const stat_index_t* stats = b->_stats; *stats; stats++) {
                 tdata->cstats.unpredicated[*stats] += bcount;
                 //*out << "# stat for block " << b->_rtn_num << endl;
                 tdata->stats_per_function[b->_rtn_num].unpredicated[*stats] += bcount;
-                if (*stats < INDEX_SPECIAL)
+                if (*stats < INDEX_SPECIAL) 
                     rtn_table_sorted[b->_rtn_num]._total += bcount;
             }
     }
 
-
+    
     PIN_ReleaseLock(&locks.bbl_list_lock);
 
-    // emit the "normal" dynamic stats
+    // emit the "normal" dynamic stats 
 
 
     *out << "# EMIT_DYNAMIC_STATS FOR TID " << tid << " EMIT #" << stat_dump_count << endl;
@@ -1018,8 +1018,8 @@ VOID emit_bbl_stats_by_function(THREADID tid)
 
     // total every thing up for all functions in this thread
     UINT64 total = 0;
-    for(UINT32 i=0; i<functions;i++)
-        if (rtn_table_sorted[i]._address &&  rtn_table_sorted[i]._total)
+    for(UINT32 i=0; i<functions;i++) 
+        if (rtn_table_sorted[i]._address &&  rtn_table_sorted[i]._total) 
             total += rtn_table_sorted[i]._total;
 
     // print the functions out per thread, sorted order
@@ -1030,7 +1030,7 @@ VOID emit_bbl_stats_by_function(THREADID tid)
         if (rtn_table_sorted[i]._address && rtn_table_sorted[i]._total) {
             cumulative += rtn_table_sorted[i]._total;  // FP GUARD
             *out << setw(4) << i << ": "
-                 << setw(12) << rtn_table_sorted[i]._total
+                 << setw(12) << rtn_table_sorted[i]._total 
                  << " "
                  << fltstr(100.0 * rtn_table_sorted[i]._total / total,   3,7)  //FP GUARD
                  << " "
@@ -1072,7 +1072,7 @@ VOID emit_bbl_stats_by_function(THREADID tid)
 }
 
 
-int qsort_compare_fn(const void *a, const void *b)
+int qsort_compare_fn(const void *a, const void *b) 
 {
     const BBL_SORT_STATS* ba = static_cast<const BBL_SORT_STATS*>(a);
     const BBL_SORT_STATS* bb = static_cast<const BBL_SORT_STATS*>(b);
@@ -1088,7 +1088,7 @@ VOID emit_bbl_stats_sorted(THREADID tid)
     /* emit the top blocks for this tid */
 
     thread_data_t* tdata = get_tls(tid);
-    // dynamic Counts
+    // dynamic Counts 
 
     // Need to lock here because we might be resize (and thus reallocing)
     // the statsList when we do a push_back in the instrumentation.
@@ -1121,11 +1121,11 @@ VOID emit_bbl_stats_sorted(THREADID tid)
     PIN_GetLock(&locks.rtn_table_lock,tid+2);
 
     *out << "# EMIT_TOP_BLOCK_STATS FOR TID " << tid
-         << " EMIT # " << stat_dump_count
+         << " EMIT # " << stat_dump_count 
          << endl;
     if (limit > KnobTopBlocks.Value())
-        limit = KnobTopBlocks.Value();
-    COUNTER t =0;
+        limit = KnobTopBlocks.Value(); 
+    COUNTER t =0; 
     for(UINT32 i=0;i<limit;i++) {
         t+= icounts[i]._icount;
         *out << "BLOCK: " << setw(5) << i
@@ -1156,7 +1156,7 @@ VOID emit_bbl_stats_sorted(THREADID tid)
             *out << s << endl;
         }
     }
-
+    
     *out << "# END_TOP_BLOCK_STATS" <<  endl;
     PIN_ReleaseLock(&locks.rtn_table_lock);
     delete [] icounts;
@@ -1172,7 +1172,7 @@ VOID emit_static_stats()
 VOID emit_pc_stats(THREADID tid)
 {
     thread_data_t* tdata = get_tls(tid);
-    // dynamic Counts
+    // dynamic Counts 
 
     // Need to lock here because we might be resize (and thus reallocing)
     // the statsList when we do a push_back in the instrumentation.
@@ -1186,7 +1186,7 @@ VOID emit_pc_stats(THREADID tid)
     {
         COUNTER bcount = tdata->block_counts[i];
         BBLSTATS* b = statsList[i];
-        if (bcount && b && b->_stats)
+        if (bcount && b && b->_stats) 
             *out << "BLOCKCOUNT 0x" << hex << b->_pc  << " " << dec << (bcount * b->_ninst ) << endl;
     }
     PIN_ReleaseLock(&locks.bbl_list_lock);
@@ -1208,7 +1208,7 @@ VOID emit_stats(THREADID tid)
     *out << "# =============================================="  << endl;
     *out << "# STATS FOR TID " << tid << " EMIT# " << stat_dump_count << endl;
     *out << "# =============================================="  << endl;
-    emit_bbl_stats_sorted(tid); // top blocks
+    emit_bbl_stats_sorted(tid); // top blocks 
     emit_bbl_stats_by_function(tid); // function level stats
     if (KnobMapToFile)
         emit_pc_stats(tid);
@@ -1255,13 +1255,13 @@ void combine_dynamic_stats(unsigned int numThreads)
     *out << "# EMIT_GLOBAL_DYNAMIC_STATS   EMIT# " << stat_dump_count << endl;
     DumpStats(*out, total, false, "$global-dynamic-counts",INVALID_THREADID);
     *out << endl << "# END_GLOBAL_DYNAMIC_STATS" <<  endl;
-
+    
 }
 
 VOID Fini(int, VOID * v) // only runs once for the application
 {
     *out << "# FINI: end of program" << endl;
-    for(unsigned int i=0;i<numThreads;i++)
+    for(unsigned int i=0;i<numThreads;i++) 
         emit_stats(i);
     emit_static_stats();
     combine_dynamic_stats(numThreads);
@@ -1279,9 +1279,9 @@ VOID Image(IMG img, VOID * v)
         for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn))
         {
             // Prepare for processing of RTN, an  RTN is not broken up into BBLs,
-            // it is merely a sequence of INSs
+            // it is merely a sequence of INSs 
             RTN_Open(rtn);
-
+            
             for (INS ins = RTN_InsHead(rtn); INS_Valid(ins); ins = INS_Next(ins))
             {
                 stat_index_t array[256];
@@ -1290,14 +1290,14 @@ VOID Image(IMG img, VOID * v)
 
                 if( INS_IsPredicated(ins) )
                 {
-                    for( stat_index_t *start= array; start < end; start++)
+                    for( stat_index_t *start= array; start < end; start++) 
                     {
                         GlobalStatsStatic.predicated[ *start ]++;
                     }
                 }
                 else
                 {
-                    for( stat_index_t *start= array; start < end; start++)
+                    for( stat_index_t *start= array; start < end; start++) 
                     {
                         GlobalStatsStatic.unpredicated[ *start ]++;
                     }
@@ -1347,15 +1347,15 @@ disassemble(UINT64 start, UINT64 stop) {
     xed_error_enum_t xed_error;
     xed_decoded_inst_t xedd;
     ostringstream os;
-    if (sizeof(ADDRINT) == 4)
-        xed_state_init(&dstate,
+    if (sizeof(ADDRINT) == 4) 
+        xed_state_init(&dstate,     
                        XED_MACHINE_MODE_LEGACY_32,
-                       XED_ADDRESS_WIDTH_32b,
+                       XED_ADDRESS_WIDTH_32b, 
                        XED_ADDRESS_WIDTH_32b);
     else
         xed_state_init(&dstate,
                        XED_MACHINE_MODE_LONG_64,
-                       XED_ADDRESS_WIDTH_64b,
+                       XED_ADDRESS_WIDTH_64b, 
                        XED_ADDRESS_WIDTH_64b);
 
     while( pc < stop ) {
@@ -1390,7 +1390,7 @@ disassemble(UINT64 start, UINT64 stop) {
             os << " ";
             memset(buffer,0,200);
             int dis_okay = xed_format_context(syntax, &xedd, buffer, 200, pc, 0, 0);
-            if (dis_okay)
+            if (dis_okay) 
                 os << buffer << endl;
             else
                 os << "Error disasassembling pc 0x" << std::hex << pc << std::dec << endl;
@@ -1410,7 +1410,7 @@ disassemble(UINT64 start, UINT64 stop) {
     }
     return os.str();
 }
-
+    
 /* ===================================================================== */
 
 int main(int argc, CHAR **argv)
@@ -1427,10 +1427,8 @@ int main(int argc, CHAR **argv)
     tls_key = PIN_CreateThreadDataKey(0);
 
     string filename =  KnobOutputFile.Value();
-    if (KnobPid)
-    {
-        filename += "." + decstr(getpid());
-    }
+    if( KnobPid )
+        filename += "." + decstr( getpid_portable() );
     out = new std::ofstream(filename.c_str());
     *out << "# Mix output version 2" << endl;
     control.RegisterHandler(Handler, 0, FALSE);
@@ -1451,7 +1449,7 @@ int main(int argc, CHAR **argv)
         measurement = measure_iform;
     }
 
-
+    
     TRACE_AddInstrumentFunction(Trace, 0);
     PIN_AddThreadStartFunction(ThreadStart, 0);
     PIN_AddFiniFunction(Fini, 0);

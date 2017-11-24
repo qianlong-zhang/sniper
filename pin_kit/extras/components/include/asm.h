@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -29,6 +29,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
 /*
+** <ORIGINAL-AUTHOR>: Greg Lueck
 ** <COMPONENT>: asm
 ** <FILE-TYPE>: component public header
 */
@@ -36,6 +37,7 @@ END_LEGAL */
 #ifndef ASM_H
 #define ASM_H
 
+#include "fund/config.h"
 
 /*
  * This header provides a set of C macros for use in assembly language files.  Using
@@ -111,50 +113,27 @@ END_LEGAL */
  *          Intel(R) 64 architecture.  These macros help insulate source code from the differences
  *          between the Unix and Windows calling standards.
  *
- *      ASM_<type>_SIZE
- *          Size of type <type> in bytes.
- *
- *      ASM_<type>_TYPE
- *          Keyword to declare instance of type <type>
- *
- *      ASM_NAMED_DATA(label, type, value)
- *          declares a (local) variable with type 'type', name 'label'
- *          and initial value of 'value'
- *
- *      ASM_PIC_INIT(reg)
- *          Initialization code for function that reference PIC code/data.
- *          'reg' is assigned as the PIC register to be used for later references
- *          to PIC data/code
- *
- *      ASM_PC_REL_REF(var,reg)
- *          Reference to a PIC variable using PC relative addressing.
- *          'var' is the variable to reference while 'reg' is the PIC register.
- *
  * Toolchains must define the following macros in order to enable the ASM support:
  *
  *      ASM_TC_GAS, ASM_TC_MASM, ASM_TC_NASM
  *          Must define one of these, according to the assembler provided by the toolchain.
  */
 
-#define ASM_BYTE_SIZE       1
-#define ASM_WORD_SIZE       2
-#define ASM_DWORD_SIZE      4
-#define ASM_QWORD_SIZE      8
-
-
-#if defined(ASM_TC_GAS)
+#if defined(ASM_TC_GAS) && defined(FUND_HOST_X86)
 #   include "asm/gas-x86.h"
-#elif defined(ASM_TC_MASM)
+#elif defined(ASM_TC_GAS) && defined(FUND_HOST_IA64)
+#   include "asm/gas-ia64.h"
+#elif defined(ASM_TC_MASM) && defined(FUND_HOST_X86)
 #   include "asm/masm-x86.h"
-#elif defined(ASM_TC_NASM)
+#elif defined(ASM_TC_NASM) && defined(FUND_HOST_X86)
 #   include "asm/nasm-x86.h"
 #else
 #   error "Must define assembler type and architecture"
 #endif
 
-#if defined(HOST_IA32E) && defined(TARGET_WINDOWS)
+#if defined(FUND_HOST_WINDOWS) && defined(FUND_HOST_INTEL64)
 #   include "asm/windows-intel64.h"
-#elif (defined(TARGET_ANDROID) || defined(TARGET_MAC) || defined(TARGET_LINUX)) && defined(HOST_IA32E)
+#elif defined(FUND_HOST_UNIX) && (defined(FUND_HOST_INTEL64) || defined(FUND_HOST_MIC))
 #   include "asm/unix-intel64.h"
 #endif
 

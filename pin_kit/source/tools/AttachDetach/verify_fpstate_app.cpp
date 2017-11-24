@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+// @ORIGINAL_AUTHOR: Elena Demikhovsky
+
 /*! @file
  *  The test verifies that FP state of thread is not changed by Pin injection
  */
@@ -36,16 +38,16 @@ END_LEGAL */
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#if defined(TARGET_ANDROID)
+#include "android_ucontext.h"
+#endif
 #include <pthread.h>
 #include <sys/wait.h>
 #include <stdlib.h>
 #include <string>
 #include <list>
-#include <errno.h>
+#include <sys/syscall.h>
 #include <sched.h>
-#include <signal.h>
-#include <stdint.h>
-#include "../Utils/threadlib.h"
 
 
 using namespace std;
@@ -66,8 +68,13 @@ extern "C" void ReleaseLock(ThreadLock *lock);
  */
 unsigned int numOfSecondaryThreads = 4;
 
-// Used to sync between parent and child process: When to start the injection
-int syncPipe[2];
+/*
+ * Get thread Id
+ */
+pid_t GetTid()
+{
+     return syscall(__NR_gettid);
+}
 
 #define FP_STATE_SIZE 512
 #ifdef TARGET_IA32
@@ -90,6 +97,12 @@ struct fxsave
     unsigned char  _xmm[8 * 16];
     unsigned char  _reserved[56 * 4];
 };
+
+struct KernelFpstate
+{
+    struct _libc_fpstate _fpregs_mem;   // user-visible FP register state (_mcontext points to this)
+    struct fxsave _fxsave;           // full FP state as saved by fxsave instruction
+};
 #else
 struct fxsave 
 {
@@ -106,12 +119,12 @@ struct fxsave
     unsigned int     _reserved[24];
 };
 
-#endif
-
 struct KernelFpstate
 {
     struct fxsave _fxsave;   // user-visible FP register state (_mcontext points to this)
 };
+
+#endif
  
 extern "C" void ReadFpContext(unsigned char *buf);
 
@@ -119,17 +132,11 @@ int CompareFpStates(unsigned char *fpBuf1, unsigned char *fpBuf2)
 {
     KernelFpstate *fpState1 = reinterpret_cast < KernelFpstate * > (fpBuf1);
     KernelFpstate *fpState2 = reinterpret_cast < KernelFpstate * > (fpBuf2);
-#if defined(TARGET_LINUX) && defined(TARGET_IA32)
-    // On some Linux kernels, sysenter zeroes the last CS and DS selector in the FPU.
-    // This is not a bug in Pin - so we ignore these values (i.e.: always set them to zero).
-    fpState1->_fxsave._cs = fpState1->_fxsave._ds = 0;
-    fpState2->_fxsave._cs = fpState2->_fxsave._ds = 0;
-#endif
     return memcmp(&(fpState1->_fxsave), &(fpState2->_fxsave), 
                     sizeof(fpState1->_fxsave)- sizeof(fpState1->_fxsave._reserved));
 }
 
-void  PrintFpState(unsigned long tid, unsigned char *fpBuf)
+void  PrintFpState(pid_t tid, unsigned char *fpBuf)
 {
     KernelFpstate *fpState = reinterpret_cast < KernelFpstate * > (fpBuf);
     unsigned int *buf = (unsigned int *)&(fpState->_fxsave);
@@ -188,7 +195,7 @@ void * ThreadFunc(void * arg)
     // This is the first read
     ReadFpContext(fpstateBuf1);
     
-    GetLock(&mutex, GetTid());
+    GetLock(&mutex, (unsigned long)GetTid());
     ++secThreadStarted;
     ReleaseLock(&mutex);
     
@@ -201,14 +208,14 @@ void * ThreadFunc(void * arg)
     ReadFpContext(fpstateBuf2);
     
     unsigned long res;
-    GetLock(&mutex, GetTid());
+    GetLock(&mutex, (unsigned long)GetTid());
     if (CompareFpStates(fpstateBuf1, fpstateBuf2))
     {
-        printf("Fp state was changed in thread %lu\n", GetTid());
-        fprintf(stderr, "\n\nApplication FP state for thread %lu:\n", GetTid());
+        printf("Fp state was changed in thread %d\n", GetTid());
+        fprintf(stderr, "\n\nApplication FP state for thread %d:\n", GetTid());
         PrintFpState(GetTid(), fpstateBuf1);
         
-        fprintf(stderr, "\n\nApplication+Pin FP state for thread %lu:\n", GetTid());
+        fprintf(stderr, "\n\nApplication+Pin FP state for thread %d:\n", GetTid());
         PrintFpState(GetTid(), fpstateBuf2);
         res = 0;
     }
@@ -241,7 +248,6 @@ inline void PrintArguments(char **inArgv)
  */
 void AttachAndInstrument(list <string > * pinArgs)
 {
-    int res;
     list <string >::iterator pinArgIt = pinArgs->begin();
 
     string pinBinary = *pinArgIt;
@@ -264,15 +270,6 @@ void AttachAndInstrument(list <string > * pinArgs)
     }
     inArgv[idx] = 0;
     
-    // Wait for parent to notify injection can start
-    do
-    {
-        char dummy;
-        res = read(syncPipe[0], &dummy, sizeof(dummy));
-    }
-    while (res < 0 && errno == EINTR);
-    assert(res == 0);
-
     PrintArguments(inArgv);
 
     execvp(inArgv[0], inArgv);
@@ -339,7 +336,7 @@ int main(int argc, char *argv[])
     thHandle = new pthread_t[numOfSecondaryThreads];
 
     // start all secondary threads
-    for (uintptr_t i = 0; i < (uintptr_t)numOfSecondaryThreads; i++)
+    for (unsigned int i = 0; i < numOfSecondaryThreads; i++)
     {
         pthread_create(&thHandle[i], 0, ThreadFunc, (void *)i);
     }
@@ -370,34 +367,15 @@ int main(int argc, char *argv[])
     unsigned char *fpstateBuf2 = (unsigned char*)((((long)buf2+16)>>4) << 4);
     memset(fpstateBuf2, 0, FP_STATE_SIZE);
 
+    // === First read is here
+    ReadFpContext(fpstateBuf1);
     
-    int res = pipe(syncPipe);
-    assert(res >= 0);
-
+    // I assume that fork() does not touch xmm registers
     pid_t child = fork();
 
     if (child == 0)
     {
-        // Child
-
-        close(syncPipe[1]);
         AttachAndInstrument(&pinArgs);
-    }
-    else
-    {
-        // Parent
-
-        close(syncPipe[0]);
-        // === First read is here
-        ReadFpContext(fpstateBuf1);
-
-        // Assumption: From this point until ReadFpContext() is called again XMM registers are not changed
-
-        // Notify child process that it can start the injection of PIN after we saved the FP state.
-        // Note! Using fork instead of this pipe mechanism is not good since when using fork() we must first
-        // save FP state and then do fork(), fork() may change XMM state (been seen on some machines),
-        // in that case FP state compare will fail on main thread (even though injecting didn't change FP state).
-        close(syncPipe[1]);
     }
     
     // Give enough time for all threads to get started 
@@ -436,10 +414,10 @@ int main(int argc, char *argv[])
 
     if (CompareFpStates(fpstateBuf1, fpstateBuf2))
     {
-        printf("Fp state was changed in the main thread %lu\n", GetTid());
-        fprintf(stderr, "\n\nApplication FP state for thread %lu:\n", GetTid());
+        printf("Fp state was changed in the main thread %d\n", GetTid());
+        fprintf(stderr, "\n\nApplication FP state for thread %d:\n", GetTid());
         PrintFpState(GetTid(), fpstateBuf1);
-        fprintf(stderr, "\n\nApplication+Pin FP state for thread %lu:\n", GetTid());
+        fprintf(stderr, "\n\nApplication+Pin FP state for thread %d:\n", GetTid());
         PrintFpState(GetTid(), fpstateBuf2);
         return -1;
     }

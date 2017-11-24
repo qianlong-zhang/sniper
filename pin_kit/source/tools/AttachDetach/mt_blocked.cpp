@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -39,7 +39,7 @@ END_LEGAL */
 #include <stdlib.h>
 #include <string>
 #include <list>
-#include "../Utils/threadlib.h"
+#include <sys/syscall.h>
 
 
 using namespace std;
@@ -49,6 +49,14 @@ using namespace std;
  * The number may be changed in command line with -th_num
  */
 unsigned int numOfSecondaryThreads = 4;
+
+/*
+ * Get thread Id
+ */
+pid_t GetTid()
+{
+     return syscall(__NR_gettid);
+}
 
 /*
  * An write-read function for secondary threads
@@ -70,7 +78,7 @@ void * ThreadEndlessLoopFunc(void * arg)
 		sched_yield();
 		pthread_mutex_unlock(mutex);
 	}
-	fprintf(stderr, "Thread %u leaving the loop\n", GetTid());
+	fprintf(stderr, "Thread %d leaving the loop\n", GetTid());
 
     return 0;
 }

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -39,7 +39,7 @@ END_LEGAL */
 #include "atomic.hpp"
 
 #define NUM_TH 3
-#define LOOPS 200000000
+#define LOOPS 20000000
 
 volatile size_t numThreads = 0;
 size_t retval[NUM_TH + 1];

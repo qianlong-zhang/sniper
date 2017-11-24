@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -48,24 +48,6 @@ std::ofstream Out;
 
 
 BOOL haveError = FALSE;
-
-
-// The tool assumes single-threaded application.
-// This may not be the case on Windows 10.
-// We arbitrary choose single thread to profile.
-THREADID myThread = INVALID_THREADID;
-
-ADDRINT IfMyThread(THREADID threadId)
-{
-    // Profile only single thread at any time
-    return threadId == myThread;
-}
-
-VOID ThreadStart(THREADID tid, CONTEXT *ctxt, INT32 flags, VOID *v)
-{
-    // Determine single thread to profile.
-    if (myThread == INVALID_THREADID) myThread = tid;
-}
 
 
 static ADDRINT GetDisassembly(INS ins)
@@ -170,21 +152,18 @@ static void CheckPcBefore (ADDRINT pcExpectedInstPtr,
 
 static void InstrumentIndirects(INS ins, VOID *)
 {
+    
     if (INS_IsIndirectBranchOrCall(ins))
     {
          Out << "Instrumenting Indirect branch or call at 0x" << std::hex << INS_Address(ins) <<  " " << INS_Disassemble(ins) << std::endl;
-        INS_InsertIfCall(ins, IPOINT_BEFORE, AFUNPTR(IfMyThread), IARG_THREAD_ID, IARG_END);
-        INS_InsertThenCall(ins, IPOINT_BEFORE, AFUNPTR(RecordTargetAddrBefore),
+         INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(RecordTargetAddrBefore),
                         IARG_BRANCH_TARGET_ADDR,
                         IARG_END);
-        INS_InsertIfCall(ins, IPOINT_BEFORE, AFUNPTR(IfMyThread), IARG_THREAD_ID, IARG_END);
-        INS_InsertThenCall(ins, IPOINT_BEFORE, AFUNPTR(CheckPcBefore),
+         INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(CheckPcBefore),
                         IARG_ADDRINT, INS_Address(ins), IARG_CONTEXT, IARG_CONST_CONTEXT, IARG_INST_PTR, IARG_ADDRINT, GetDisassembly(ins), IARG_END);
-        INS_InsertIfCall(ins, IPOINT_TAKEN_BRANCH, AFUNPTR(IfMyThread), IARG_THREAD_ID, IARG_END);
-        INS_InsertThenCall(ins, IPOINT_TAKEN_BRANCH, AFUNPTR(CheckTargetAddrAfter),
+         INS_InsertCall(ins, IPOINT_TAKEN_BRANCH, AFUNPTR(CheckTargetAddrAfter),
                         IARG_BRANCH_TARGET_ADDR, IARG_INST_PTR, IARG_ADDRINT, GetDisassembly(ins), IARG_END);
-        INS_InsertIfCall(ins, IPOINT_TAKEN_BRANCH, AFUNPTR(IfMyThread), IARG_THREAD_ID, IARG_END);
-        INS_InsertThenCall(ins, IPOINT_TAKEN_BRANCH, AFUNPTR(CheckPcAtBranchTarget),
+         INS_InsertCall(ins, IPOINT_TAKEN_BRANCH, AFUNPTR(CheckPcAtBranchTarget),
             IARG_BRANCH_TARGET_ADDR,            // is also expected CONTEXT PC
             IARG_ADDRINT, INS_Address(ins),     // expected INST_PTR PC
             IARG_CONTEXT,
@@ -217,11 +196,13 @@ int main(int argc, char * argv[])
     }
 
     INS_AddInstrumentFunction(InstrumentIndirects, 0);
-
-    // Add callbacks
-    PIN_AddThreadStartFunction(ThreadStart, 0);
     PIN_AddFiniFunction(Fini, 0);
 
     PIN_StartProgram();
     return 0;
 }
+
+
+
+
+

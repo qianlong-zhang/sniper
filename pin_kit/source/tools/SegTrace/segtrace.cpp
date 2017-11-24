@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,10 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+//
+// @ORIGINAL_AUTHOR: Greg Lueck
+//
+
 /*! @file
  *
  * This file contains a tool that traces all uses and changes to the FS and GS
@@ -54,6 +58,11 @@ END_LEGAL */
 
 #if defined(TARGET_LINUX) && defined(TARGET_IA32E)
 #   include <asm/prctl.h>
+#endif
+
+#if defined(TARGET_ANDROID)
+#   define SYS_modify_ldt __NR_modify_ldt
+#   define SYS_clone __NR_clone
 #endif
 
 // These constants are not defined on old kernels.
@@ -365,7 +374,7 @@ static VOID SyscallEntry(THREADID threadIndex, CONTEXT *ctxt, SYSCALL_STANDARD s
 
 static VOID SyscallExit(THREADID threadIndex, CONTEXT *ctxt, SYSCALL_STANDARD std, VOID *v)
 {
-    OnSyscallAfter( PIN_GetSyscallReturn(ctxt, std),
+    OnSyscallAfter( PIN_GetSyscallReturn(ctxt, std), 
                     PIN_GetContextReg(ctxt, REG_SEG_FS),
                     PIN_GetContextReg(ctxt, REG_SEG_GS),
                     PIN_GetContextReg(ctxt, REG_INST_PTR),

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -54,6 +54,11 @@ KNOB<BOOL> KnobGenerateOOM(KNOB_MODE_WRITEONCE,    "pintool",
 KNOB<ADDRESS_RANGE> KnobMemoryBoundary(KNOB_MODE_WRITEONCE,    "pintool",
     "b", "0:0", "The memory boundary to check for dynamic allocation");
 
+//When specified, this tool will check that all allocated code cache blocks
+//have memory addresses within that region
+KNOB<ADDRESS_RANGE> KnobCCBoundary(KNOB_MODE_WRITEONCE,    "pintool",
+    "c", "0:0", "The memory boundary to check for code cache");
+
 //Before PIN initialized, it is using a small pre-allocated memory pool for all dynamic
 //memory allocation. This pre-allocated pool is outside the specified region for memory
 //allocation.
@@ -69,13 +74,13 @@ static const int MALLOC_POOL_SIZE = 0x10000;
 #else
 //Size of PIN's malloc pool for small memory allocations
 static const int MALLOC_POOL_SIZE = 0x1000;
-
-//The total size of PIN's initial allocator, the one that allocates memory before PIN initializes
 # ifdef TARGET_MAC
+//The total size of PIN's initial allocator, the one that allocates memory before PIN initializes
 static const int BSS_ALLOCATOR_SIZE = 0x1300000;
 # else
+//The total size of PIN's initial allocator, the one that allocates memory before PIN initializes
 static const int BSS_ALLOCATOR_SIZE = 0xc0000;
-# endif
+# endif //TARGET_MAC
 #endif //TARGET_WINDOWS
 
 /* ===================================================================== */
@@ -108,7 +113,7 @@ void* AllocateAndCheckAddressRange(size_t sz, int retries = 0)
         {
             fprintf(out, "Failed to allocate dynamic memory with size %d.\n", (int)sz);
             fclose(out);
-            PIN_ExitProcess(1);
+            exit(1);
         }
         fprintf(out, "%d) Allocated buffer %p, with size %d\n", retries, p, (int)sz);
         ADDRINT addrint = (ADDRINT)p;
@@ -119,14 +124,14 @@ void* AllocateAndCheckAddressRange(size_t sz, int retries = 0)
     }
     fprintf(out, "Allocated memory of size %d in address %p which is out of range.\n", (int)sz, p);
     fclose(out);
-    PIN_ExitProcess(2);
+    exit(2);
 }
 
 VOID OutOfMemory(size_t sz, VOID* arg)
 {
     fprintf(out, "Failed to allocate dynamic memory: Out of memory!\n");
     fclose(out);
-    PIN_ExitProcess(3);
+    exit(3);
 }
 
 //This function will check that memory the is dynamically allocated is allocated in
@@ -140,7 +145,7 @@ VOID Fini(INT32 code, VOID *v)
     free(initialPtr);
 #endif
 // Allocation for big memory region: This malloc should allocate memory directly from the OS
-    void* bigMalloc = AllocateAndCheckAddressRange(0x100000);
+    void* bigMalloc = AllocateAndCheckAddressRange(0x100000); 
     for (int i = 4; i < 0x10000; i *= 2)
     {
 // Allocation for small memory region: This malloc should allocate memory from a memory pool
@@ -165,6 +170,28 @@ VOID Fini(INT32 code, VOID *v)
     fclose(out);
 }
 
+//Check that the instructions inside the code cache blocks are in the allowed memory region
+VOID Trace(TRACE trace, VOID *v)
+{
+    for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
+    {
+        for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins))
+        {
+            ADDRINT cache_pc = INS_CodeCacheAddress(ins);
+
+            if ( cache_pc != 0x0 )
+            {
+                if (cache_pc < KnobCCBoundary.Value()._low || cache_pc > KnobCCBoundary.Value()._high)
+                {
+                    fprintf(out, "Instruction '%s' is at bad address on code cache (%lx)\n", INS_Disassemble(ins).c_str(), (long)cache_pc);
+                    fclose(out);
+                    exit(3);
+                }
+            }
+        }
+    }
+}
+
 int main(int argc, char * argv[])
 {
     PIN_InitSymbols();
@@ -174,7 +201,17 @@ int main(int argc, char * argv[])
     if (KnobMemoryBoundary.Value()._high == 0)
     {
         fprintf(out, "Must specified the knob -%s to this tool.\n", KnobMemoryBoundary.Name().c_str());
-        PIN_ExitProcess(5);
+        exit(5);
+    }
+
+    if (KnobCCBoundary.Value().Valid())
+    {
+        fprintf(out, "Will check that code cache is in %lx:%lx.\n",
+                (unsigned long)KnobCCBoundary.Value()._low,
+                (unsigned long)KnobCCBoundary.Value()._high);
+        // Register a routine that gets called when a trace is
+        //  inserted into the codecache
+        CODECACHE_AddTraceInsertedFunction(Trace, 0);
     }
 
     PIN_AddOutOfMemoryFunction(OutOfMemory, NULL);

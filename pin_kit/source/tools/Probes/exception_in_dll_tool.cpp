@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -34,13 +34,12 @@ END_LEGAL */
 
 #include "pin.H"
 
-#ifdef TARGET_WINDOWS
+#ifndef TARGET_LINUX
 namespace WND
 {
 #include <windows.h>
 }
 #endif
-#include "tool_macros.h"
 
 typedef void (* foo_t)();
 
@@ -76,7 +75,7 @@ static VOID on_module_loading(IMG img, VOID *data)
 {
     if (IMG_IsMainExecutable(img))
 	{
-		RTN routine = RTN_FindByName(img, C_MANGLE("foo1"));
+		RTN routine = RTN_FindByName(img, "foo1");
 
 		if (RTN_Valid(routine) && RTN_IsSafeForProbedReplacement(routine))
 		{
@@ -89,7 +88,7 @@ static VOID on_module_loading(IMG img, VOID *data)
             ASSERTX(foo1_ptr != 0);
 		}
         
-        routine = RTN_FindByName(img, C_MANGLE("foo2"));
+        routine = RTN_FindByName(img, "foo2");
         if (RTN_Valid(routine) && RTN_IsSafeForProbedInsertion(routine))
         {
             PROTO foo2_proto = PROTO_Allocate( PIN_PARG(void), CALLINGSTD_DEFAULT,
@@ -110,7 +109,7 @@ static VOID on_module_loading(IMG img, VOID *data)
     
     else
     {
-        RTN routine = RTN_FindByName(img, C_MANGLE("ExcInDll"));
+        RTN routine = RTN_FindByName(img, "ExcInDll");
 
         if (RTN_Valid(routine) && RTN_IsSafeForProbedReplacement(routine))
         {

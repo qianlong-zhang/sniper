@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,23 +28,11 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+
 #include "pin.H"
 #include <iostream>
 #include <fstream>
 #include <string.h>
-#include "tool_macros.h"
-
-#ifdef TARGET_MAC
-# define LIBC_LIB "libSystem.B.dylib"
-# define LIBC_INIT C_MANGLE("libSystem_initializer")
-# define PTHREAD_LIB "libsystem_pthread.dylib"
-# define PTHREAD_INIT C_MANGLE("__pthread_init")
-#else
-# define LIBC_LIB "libc.so"
-# define LIBC_INIT C_MANGLE("_init")
-# define PTHREAD_LIB "libpthread.so"
-# define PTHREAD_INIT C_MANGLE("_init")
-#endif
 
 using namespace std;
 
@@ -110,17 +98,17 @@ VOID OtherImageInit(INT32 argc, CHAR **argv, CHAR **env, INITFUNC origInit, UINT
 VOID ImageLoad(IMG img, VOID *v)
 {
     const char *name = IMG_Name(img).c_str();
-    if (strstr(name, LIBC_LIB))
+    if (strstr(name, "libc.so"))
     {
-        RTN initRtn = RTN_FindByName(img, LIBC_INIT);
+        RTN initRtn = RTN_FindByName(img, "_init");
         if (RTN_Valid(initRtn))
         {
             PROTO protoLibcInit = PROTO_Allocate( PIN_PARG(VOID), CALLINGSTD_DEFAULT,
                 "AlternativeLibcInit", PIN_PARG(INT32), PIN_PARG(CHAR**), PIN_PARG(CHAR**), PIN_PARG_END() );
 
             origLibcInit = (INITFUNC)RTN_ReplaceSignatureProbed(initRtn, AFUNPTR(AlternativeLibcInit),
-                IARG_PROTOTYPE, protoLibcInit, IARG_FUNCARG_ENTRYPOINT_VALUE, 0, IARG_FUNCARG_ENTRYPOINT_VALUE, 1,
-                IARG_FUNCARG_ENTRYPOINT_VALUE, 2, IARG_END);
+                IARG_PROTOTYPE, protoLibcInit, IARG_G_ARG0_CALLEE, IARG_G_ARG1_CALLEE, IARG_G_ARG2_CALLEE,
+                IARG_END);
         }
         else
         {
@@ -128,17 +116,17 @@ VOID ImageLoad(IMG img, VOID *v)
             cout << "initialization code of libc is not found" << endl;
         }
     }
-    else if (strstr(name, PTHREAD_LIB))
+    else if (strstr(name, "libpthread"))
     {
-        RTN initRtn = RTN_FindByName(img, PTHREAD_INIT);
+        RTN initRtn = RTN_FindByName(img, "_init");
         if (RTN_Valid(initRtn))
         {
             PROTO protoPthreadInit = PROTO_Allocate( PIN_PARG(VOID), CALLINGSTD_DEFAULT,
                 "AlternativeLibpthreadInit", PIN_PARG(INT32), PIN_PARG(CHAR**), PIN_PARG(CHAR**), PIN_PARG_END() );
 
             origPthreadInit = (INITFUNC)RTN_ReplaceSignatureProbed(initRtn, AFUNPTR(AlternativeLibpthreadInit),
-                IARG_PROTOTYPE, protoPthreadInit, IARG_FUNCARG_ENTRYPOINT_VALUE, 0, IARG_FUNCARG_ENTRYPOINT_VALUE, 1,
-                IARG_FUNCARG_ENTRYPOINT_VALUE, 2, IARG_END);
+                IARG_PROTOTYPE, protoPthreadInit, IARG_G_ARG0_CALLEE, IARG_G_ARG1_CALLEE, IARG_G_ARG2_CALLEE,
+                IARG_END);
         }
         else
         {
@@ -155,8 +143,8 @@ VOID ImageLoad(IMG img, VOID *v)
                 PIN_PARG(UINT32), PIN_PARG_END() );
 
             RTN_ReplaceSignatureProbed(initRtn, AFUNPTR(OtherImageInit),
-                IARG_PROTOTYPE, protoInit, IARG_FUNCARG_ENTRYPOINT_VALUE, 0, IARG_FUNCARG_ENTRYPOINT_VALUE, 1,
-                IARG_FUNCARG_ENTRYPOINT_VALUE, 2, IARG_ORIG_FUNCPTR, IARG_UINT32, IMG_Id(img), IARG_END);
+                IARG_PROTOTYPE, protoInit, IARG_G_ARG0_CALLEE, IARG_G_ARG1_CALLEE, IARG_G_ARG2_CALLEE,
+                IARG_ORIG_FUNCPTR, IARG_UINT32, IMG_Id(img), IARG_END);
         }
     } 
 }

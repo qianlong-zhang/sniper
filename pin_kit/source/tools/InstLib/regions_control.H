@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -96,10 +96,9 @@ END_LEGAL */
 #include <algorithm>
 #include <sstream> 
 #include <string.h>
-#include <cctype>
-#include "region_utils.H"
 
 using namespace std;
+#define ISIMPOINT_MAX_THREADS 160
 namespace CONTROLLER{
 class IREGION
 {
@@ -322,7 +321,7 @@ class CONTROL_IREGIONS
     {
         _cm = cm;
         _valid = true;
-        _maxThreads = PIN_MAX_THREADS;
+        _maxThreads = ISIMPOINT_MAX_THREADS;
         _regions = new IREGION_VECTOR[_maxThreads];
         _events = new IEVENT_VECTOR[_maxThreads];
         _counts = new THREAD_DATA[_maxThreads];
@@ -356,7 +355,7 @@ class CONTROL_IREGIONS
             {
                 cerr << "Could not open output  file " << 
                     _rOutFileKnob.Value().c_str() << endl;
-                PIN_ExitApplication(-1);
+                exit(-1);
             }
         }
         if (_rVerboseKnob) 
@@ -389,6 +388,36 @@ class CONTROL_IREGIONS
     bool _valid;
     CONTROLLER::CONTROL_MANAGER* _cm;
 
+    UINT32 StringToUINT32(string &s, const char * name)
+    {
+       char* end = 0 ;
+       INT32 retval = strtoul(s.c_str(), &end, 10); // decimal expected 
+       ASSERT((*end == 0), "ERROR reading " + name + " from " + s);
+       ASSERT((retval >=0 ), name + " (" + s  + ") must be positive " );
+       return (UINT32)retval;
+    }
+
+    UINT64 StringToUINT64(string &s, const char * name)
+    {
+       char* end = 0 ;
+#if defined(PIN_GNU_COMPATIBLE)
+       INT64 retval = strtoull(s.c_str(), &end, 10); // decimal expected 
+#elif defined(PIN_MS_COMPATIBLE)
+       INT64 retval =  _strtoi64(s.c_str(),&end, 10); // decimal expected 
+#endif
+       ASSERT((*end == 0), "ERROR reading " + name + " from " + s);
+       ASSERT((retval >=0 ), name + " (" + s  + ") must be positive " );
+       return (UINT64)retval;
+    }
+
+    double StringToDouble(string &s, const char * name )
+    {
+       char* end = 0 ;
+       double retval = strtod(s.c_str(), &end); 
+       ASSERT((*end == 0), "ERROR reading " + name + " from " + s);
+       return retval;
+    }
+
     VOID ReadRegionsFile()
     {
         string filename = _rFileKnob.Value().c_str();
@@ -399,7 +428,7 @@ class CONTROL_IREGIONS
         {
             cerr << "Could not open regions file " << 
                 _rFileKnob.Value().c_str() << endl;
-            PIN_ExitApplication(-1);
+            exit(-1);
         }
 
         UINT32 lineNum = 0;
@@ -452,27 +481,27 @@ class CONTROL_IREGIONS
             field.clear();
             getline(s, field, ',');
             ASSERT(!field.empty(), "Empty thread-id field.");
-            t_tid = REGION_UTILS::StringToUINT32(field, "thread-id");
+            t_tid = StringToUINT32(field, "thread-id");
             // cerr << "thread-id " << t_tid << endl;
 
             field.clear();
             getline(s, field, ',');
             ASSERT(!field.empty(), "Empty region-id field.");
-            t_rid = REGION_UTILS::StringToUINT32(field, "region-id");
+            t_rid = StringToUINT32(field, "region-id");
             //cerr << "region-id " << t_rid << endl;
 
             field.clear();
             getline(s, field, ',');
             ASSERT(!field.empty(), "Empty start-icount field.");
             istringstream sistart(field);
-            t_icountStart  = REGION_UTILS::StringToUINT64(field, 
+            t_icountStart  = StringToUINT64(field, 
                                             "simulation-region-start-icount");
             //cerr << "start-icount " << t_icountStart << endl;
 
             field.clear();
             getline(s, field, ',');
             ASSERT(!field.empty(), "Empty end-icount field.");
-            t_icountEnd  = REGION_UTILS::StringToUINT64(field, 
+            t_icountEnd  = StringToUINT64(field, 
                                           "simulation-region-end-icount");
             //cerr << "end-icount " << siend << endl;
 
@@ -485,7 +514,7 @@ class CONTROL_IREGIONS
             field.clear();
             getline(s, field, ',');
             ASSERT(!field.empty(), "Empty region-weight field.");
-            t_weight  = REGION_UTILS::StringToDouble(field, "region-weight");
+            t_weight  = StringToDouble(field, "region-weight");
             ASSERT((t_weight >= 0), 
                     "region-weight (" + field + ") must be positive" );
             ASSERT((t_weight <= 1), 

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -41,18 +41,14 @@ END_LEGAL */
 
 int main(int argc, char * argv[])
 {
-    if (argc != 2)
-    {
-        printf("Usage: %s <executable to run>\n", argv[0]);
-        return 1;
-    }
     pid_t pid = fork();
     if (pid == 0)
     {
         char *childArgvArray[2];
-        childArgvArray[0] = argv[1];
+        char * s  = (char *)("/bin/date");
+        childArgvArray[0] = (char * )s;
         childArgvArray[1] = NULL;
-        execv(childArgvArray[0], childArgvArray);
+        execv(s, childArgvArray);
         fprintf(stdout, "%s\n", "Child report: Execve failed ");
     }
     else

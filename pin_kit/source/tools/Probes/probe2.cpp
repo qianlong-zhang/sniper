@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,13 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Gail Lyons
+*/
+
+/* ===================================================================== */
 /*! @file
  */
 
@@ -36,7 +43,6 @@ END_LEGAL */
 #include <cstring>
 #include <iostream>
 #include <fstream>
-#include "tool_macros.h"
 
 using namespace std;
 
@@ -85,7 +91,7 @@ VOID ImageLoad(IMG img, VOID *v)
 {
     cout << "Processing " << IMG_Name( img ) << endl;
     
-    RTN rtn = RTN_FindByName(img, C_MANGLE("do_nothing"));
+    RTN rtn = RTN_FindByName(img, "do_nothing");
     if (RTN_Valid(rtn))
     {
         if ( ! RTN_IsSafeForProbedReplacement( rtn ) )

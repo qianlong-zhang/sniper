@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -37,7 +37,6 @@ END_LEGAL */
 #include "pin.H"
 #include <iostream>
 #include <fstream>
-#include "tool_macros.h"
 
 ofstream TraceFile;
 
@@ -72,7 +71,7 @@ static VOID ImageLoad(IMG img, VOID *v)
     PROTO protoMalloc = PROTO_Allocate(PIN_PARG(void *), CALLINGSTD_DEFAULT,
         "malloc", PIN_PARG(size_t), PIN_PARG_END());
 
-    RTN rtnMalloc = RTN_FindByName(img, C_MANGLE("malloc"));
+    RTN rtnMalloc = RTN_FindByName(img, "malloc");
     if (RTN_Valid(rtnMalloc))
     {
         TraceFile << "probing malloc #" << mallocCount << " in " << IMG_Name(img) << std::endl;
@@ -96,7 +95,7 @@ static VOID ImageLoad(IMG img, VOID *v)
     PROTO protoFree = PROTO_Allocate(PIN_PARG(void), CALLINGSTD_DEFAULT,
         "free", PIN_PARG(void *), PIN_PARG_END());
 
-    RTN freeRtn = RTN_FindByName(img, C_MANGLE("free"));
+    RTN freeRtn = RTN_FindByName(img, "free");
     if (RTN_Valid(freeRtn))
     {
         TraceFile << "probing free #" << freeCount << " in " << IMG_Name(img) << std::endl;

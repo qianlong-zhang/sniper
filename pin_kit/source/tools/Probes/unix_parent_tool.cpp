@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -29,18 +29,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
 #include "pin.H"
-#include <ctype.h>
 #include <fstream>
-#include <algorithm>
 #include "arglist.h"
-#include "tool_macros.h"
-
-static const string ExecVELib =
-#ifdef TARGET_MAC
-    "libsystem_kernel.dylib";
-#else
-    "libc.so";
-#endif
 
 /* ===================================================================== */
 /* Command line Switches */
@@ -106,7 +96,7 @@ BOOL FollowChild(CHILD_PROCESS childProcess, VOID * userData)
     OutFile << "knob val " << KnobApplication.Value() << "app " << childApp << endl;
     OutFile << "Do not run Pin under the child process" << endl;
     return FALSE;
-}
+}        
 
 /* ===================================================================== */
 VOID Fini(INT32 code, VOID *v)
@@ -124,8 +114,8 @@ int myexecve(const char * __path, char *const* __argv, char *const* __envp)
 {
    OutFile << "myexecve called " << endl;
    int res = fptrexecve(__path, __argv, __envp);
-
-   return res;
+   
+   return res; 
 }
 
 VOID ExitInProbeMode(INT code)
@@ -138,28 +128,29 @@ VOID ExitInProbeMode(INT code)
 
 VOID ImageLoad(IMG img, VOID *v)
 {
-    RTN exitRtn = RTN_FindByName(img, C_MANGLE("_exit"));
+    RTN exitRtn = RTN_FindByName(img, "_exit");
     if (RTN_Valid(exitRtn) && RTN_IsSafeForProbedReplacement(exitRtn))
     {
         origExit = (EXITFUNCPTR) RTN_ReplaceProbed(exitRtn, AFUNPTR(ExitInProbeMode));
     }
-    string imageName = IMG_Name(img);
-    std::transform(imageName.begin(), imageName.end(), imageName.begin(), ::tolower);
-    if ( (IMG_Name(img).find(ExecVELib) != string::npos) )
-    {  // check that tool can also probe execve successfully
-        RTN rtnexecve = RTN_FindByName(img, C_MANGLE("execve"));
-        if (RTN_Valid(rtnexecve))
+    else
+    {
+        exitRtn = RTN_FindByName(img, "exit");    
+        if (RTN_Valid(exitRtn) && RTN_IsSafeForProbedReplacement(exitRtn))
         {
-            if (RTN_IsSafeForProbedReplacement(rtnexecve))
-            {
-                OutFile << "Inserting probe for execve at " << hex << RTN_Address(rtnexecve) << endl;
-                AFUNPTR fptr = (RTN_ReplaceProbed(rtnexecve, AFUNPTR(myexecve)));
-                fptrexecve = (int (*)(__const char * , char *__const* , char *__const* ))fptr;
-            }
-            else
-            {
-                OutFile << "Unsafe to probe execve" << endl;
-            }
+            origExit = (EXITFUNCPTR) RTN_ReplaceProbed(exitRtn, AFUNPTR(ExitInProbeMode));
+        }
+    }
+    if ( (IMG_Name(img).find("libc.so") != string::npos) ||
+         (IMG_Name(img).find("LIBC.SO") != string::npos) ||
+         (IMG_Name(img).find("LIBC.so") != string::npos) ) 
+    {  // check that tool can also probe execve successfully
+        RTN rtnexecve = RTN_FindByName(img, "execve");
+        if (RTN_Valid(rtnexecve) && RTN_IsSafeForProbedReplacement(rtnexecve))
+        {
+            OutFile << "Inserting probe for execve at " << hex << RTN_Address(rtnexecve) << endl;
+            AFUNPTR fptr = (RTN_ReplaceProbed(rtnexecve, AFUNPTR(myexecve)));
+            fptrexecve = (int (*)(__const char * , char *__const* , char *__const* ))fptr;
         }
     }
 }
@@ -168,10 +159,9 @@ VOID ImageLoad(IMG img, VOID *v)
 int main(INT32 argc, CHAR **argv)
 {
     if (PIN_Init(argc, argv)) return Usage();
-    PIN_InitSymbols();
 
     // Can't just open for writing because child_process' Pintool may overwrite
-    // the parent_process' Pintool file (when the -o parameter doesn't change).
+    // the parent_process' Pintool file (when the -o parameter doesn't change). 
     // Opening in append mode instead.
     OutFile.open(KnobOutputFile.Value().c_str(), ofstream::app);
 
@@ -180,7 +170,7 @@ int main(INT32 argc, CHAR **argv)
     // Never returns
     IMG_AddInstrumentFunction(ImageLoad, 0);
     PIN_StartProgramProbed();
-
+    
     return 0;
 }
 

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -48,11 +48,7 @@ void *compute(void *ptr)
     size_t newptr = (size_t) ptr;
     size_t i = 0, start_count = newptr;
 
-#ifdef TARGET_IA32
-    printf("Thread start %ld %ld\n", newptr, start_count);
-#else
     printf("Thread start %lld %lld\n", newptr, start_count);
-#endif
 
     ATOMIC::OPS::Increment<size_t>(&numThreads, 1);
 

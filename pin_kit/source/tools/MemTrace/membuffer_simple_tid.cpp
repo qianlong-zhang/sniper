@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -29,12 +29,12 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
 /*
- *
+ * 
  * A memory trace (Ip of memory accessing instruction and address of memory access - see
- * struct MEMREF) is collected by inserting Pin buffering API code into the application code,
- * via calls to INS_InsertFillBuffer. This analysis code writes a MEMREF into the
- * buffer being filled, and calls the registered BufferFull function (see call to
- * PIN_DefineTraceBuffer which defines the buffer and registers the BufferFull function)
+ * struct MEMREF) is collected by inserting Pin buffering API code into the application code, 
+ * via calls to INS_InsertFillBuffer. This analysis code writes a MEMREF into the 
+ * buffer being filled, and calls the registered BufferFull function (see call to 
+ * PIN_DefineTraceBuffer which defines the buffer and registers the BufferFull function) 
  * when the buffer becomes full.
  * The BufferFull function processes the buffer and returns it to Pin to be filled again.
  *
@@ -44,14 +44,15 @@ END_LEGAL */
  * This tool is similar to membuffer_simple, but it checks to see that the BufferFull function
  * can be executed simultaneously by different threads
  * It must be run with the thread2 application
- *
+ * 
  */
 
-#include <cstdio>
-#include <cstdlib>
-#include <cstddef>
-#include "pin.H"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stddef.h>
 
+#include "pin.H"
+#include "portability.H"
 using namespace std;
 
 
@@ -99,7 +100,7 @@ volatile int numThreadsCalledWaitForAllThreadsStarted = 0;
  */
 class APP_THREAD_REPRESENTITVE
 {
-
+ 
   public:
     APP_THREAD_REPRESENTITVE(THREADID tid);
     ~APP_THREAD_REPRESENTITVE();
@@ -112,7 +113,7 @@ class APP_THREAD_REPRESENTITVE
   private:
     UINT32 _numBuffersFilled;
     UINT32 _numElementsProcessed;
-
+    
 };
 
 
@@ -148,13 +149,13 @@ VOID APP_THREAD_REPRESENTITVE::ProcessBuffer(VOID *buf, UINT64 numElements, THRE
     { // it is now safe to wait to see at least two threads in this function.
       // trying to do this beforehand can cause dealock on system locks such as the LoaderLock
         while (maxThreadsSimultaneosulyInProcessBuffer<2)
-        { // want to see more than one thread in this function, in order to verify that
+        { // want to see more than one thread in this function, in order to verify that 
           // the BufferFull registered by PIN_DefineTraceBuffer can be executed simultaneously
           // by different threads (BufferFull calls this function)
         }
     }
 
-
+    
     if (!KnobProcessBuffer )
     {
         PIN_GetLock(&lock1, tid+1);
@@ -162,9 +163,9 @@ VOID APP_THREAD_REPRESENTITVE::ProcessBuffer(VOID *buf, UINT64 numElements, THRE
         PIN_ReleaseLock(&lock1);
         return;
     }
-
+    
 	UINT64 until = numElements;
-    int numLoops = 20;
+    int numLoops = 20; 
     for (int h = 0; h < numLoops; h++)
     { // make processing take a long time
         struct MEMREF * memref=(struct MEMREF*)buf;
@@ -244,7 +245,7 @@ VOID Image(IMG img, void *v)
    for (SEC sec = IMG_SecHead(img); SEC_Valid(sec); sec = SEC_Next(sec))
         {
             for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn))
-            {
+            { 
                 printf ("  rtn %s\n", RTN_Name(rtn).c_str());
             }
    }
@@ -274,7 +275,7 @@ VOID * BufferFull(BUFFER_ID id, THREADID tid, const CONTEXT *ctxt, VOID *buf,
     APP_THREAD_REPRESENTITVE * appThreadRepresentitive = static_cast<APP_THREAD_REPRESENTITVE*>( PIN_GetThreadData( appThreadRepresentitiveKey, tid ) );
 
     appThreadRepresentitive->ProcessBuffer(buf, numElements, tid);
-
+    
     return buf;
 }
 
@@ -304,9 +305,9 @@ VOID ThreadFini(THREADID tid, const CONTEXT *ctxt, INT32 code, VOID *v)
 VOID Fini(INT32 code, VOID *v)
 {
 
-    printf ("maxThreadsSimultaneosulyInProcessBuffer %d totalBuffersFilled %u  totalElementsProcessed %14.0f\n",
+    printf ("maxThreadsSimultaneosulyInProcessBuffer %d totalBuffersFilled %u  totalElementsProcessed %14.0f\n", 
             maxThreadsSimultaneosulyInProcessBuffer,
-           (totalBuffersFilled),
+           (totalBuffersFilled),  
            static_cast<double>(totalElementsProcessed));
     if (maxThreadsSimultaneosulyInProcessBuffer < 2)
     {
@@ -329,7 +330,7 @@ INT32 Usage()
  * The main procedure of the tool.
  * This function is called when the application image is loaded but not yet started.
  * @param[in]   argc            total number of elements in the argv array
- * @param[in]   argv            array of command line arguments,
+ * @param[in]   argv            array of command line arguments, 
  *                              including pin -t <toolname> -- ...
  */
 int main(int argc, char *argv[])
@@ -343,13 +344,13 @@ int main(int argc, char *argv[])
     {
         return Usage();
     }
-
+    
     PIN_InitLock(&lock1);
     PIN_InitLock(&lock2);
     // Initialize the memory reference buffer
     //printf ("buffer size in bytes 0x%x\n", KnobNumPagesInBuffer.Value()*4096);
     //	fflush (stdout);
-
+    
     bufId = PIN_DefineTraceBuffer(sizeof(struct MEMREF), KnobNumPagesInBuffer,
                                   BufferFull, 0);
 
@@ -361,8 +362,8 @@ int main(int argc, char *argv[])
 
     // Initialize thread-specific data not handled by buffering api.
     appThreadRepresentitiveKey = PIN_CreateThreadDataKey(0);
-
-
+   
+    
     TRACE_AddInstrumentFunction(Trace, 0);
 
     RTN_AddInstrumentFunction(InstrumentRtn, 0);
@@ -376,7 +377,7 @@ int main(int argc, char *argv[])
 
     // Start the program, never returns
     PIN_StartProgram();
-
+    
     return 0;
 }
 

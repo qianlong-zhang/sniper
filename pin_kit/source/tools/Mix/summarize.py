@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- python -*-
+# Mark Charney <mark.charney@intel.com>
 
 # Grab the BLOCKCOUNT and MAPPADDR lines from the mix-mt output and
 # attach that to a copy of the program. Run mix-mt with the -mapaddr

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+// @ORIGINAL_AUTHOR: Moshe Lazer
+
 /*! @file
  *  Test pause_tool messages when attaching to Linux process  
  *  The application tests that pause_tool messages appears on INJECTOR stdout  
@@ -39,7 +41,6 @@ END_LEGAL */
 #include <stdlib.h>
 #include <string>
 #include <list>
-#include <sched.h>
 #include <sys/types.h>
 #include <unistd.h>
 

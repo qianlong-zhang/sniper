@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -40,13 +40,13 @@ END_LEGAL */
 
 #include "pin.H"
 
-#ifdef TARGET_WINDOWS
+#ifndef TARGET_LINUX
 namespace WND
 {
 #include <windows.h>
 }
 #endif
-#include "tool_macros.h"
+
 
 static VOID foo_before(int a0, int a1, int a2, int a3, int a4, int a5, int a6)
 {
@@ -64,7 +64,7 @@ static VOID foo_after(ADDRINT returnIp)
     fflush(stdout);
 }
 
-#if defined(TARGET_LINUX) || defined(TARGET_MAC)
+#ifdef TARGET_LINUX
 #define CALL_TYPE CALLINGSTD_DEFAULT
 #else
 #if defined(TARGET_IA32E)
@@ -77,15 +77,15 @@ static VOID foo_after(ADDRINT returnIp)
 static VOID on_module_loading(IMG img, VOID *data)
 {
     if (IMG_IsMainExecutable(img))
-    {
-        RTN routine = RTN_FindByName(img, C_MANGLE("foo"));
-        if (!RTN_Valid(routine))
-        {
-            routine = RTN_FindByName(img, C_MANGLE("@foo@28"));
+	{
+		RTN routine = RTN_FindByName(img, "foo");
+		if (!RTN_Valid(routine))
+		{
+            routine = RTN_FindByName(img, "@foo@28");
         }
 
-        if (RTN_Valid(routine))
-        {
+		if (RTN_Valid(routine))
+		{
             PROTO foo_proto = PROTO_Allocate( PIN_PARG(int), CALL_TYPE,
                                               "foo",
                                               PIN_PARG(int), PIN_PARG(int),

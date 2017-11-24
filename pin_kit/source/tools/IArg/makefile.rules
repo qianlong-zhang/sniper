@@ -17,14 +17,20 @@
 # This defines tests which run tools of the same name.  This is simply for convenience to avoid
 # defining the test name twice (once in TOOL_ROOTS and again in TEST_ROOTS).
 # Tests defined here should not be defined in TOOL_ROOTS and TEST_ROOTS.
-TEST_TOOL_ROOTS := iarg_explicit_memory_ea iarg_uint64
+TEST_TOOL_ROOTS := iarg_explicit_memory_ea
 
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
-TEST_ROOTS := iarg_inst_ptr_error_msg_ref iarg_inst_ptr_error_msg_ret iarg_memory_size_fxsave_fxrstor
+TEST_ROOTS := iarg_inst_ptr_error_msg_ref iarg_inst_ptr_error_msg_ret
+
+# This defines a list of tests that should run in the "short" sanity. Tests in this list must also
+# appear either in the TEST_TOOL_ROOTS or the TEST_ROOTS list.
+# If the entire directory should be tested in sanity, assign TEST_TOOL_ROOTS and TEST_ROOTS to the
+# SANITY_SUBSET variable in the tests section below (see example in makefile.rules.tmpl).
+SANITY_SUBSET :=
 
 # This defines the tools which will be run during the the tests, and were not already defined in
 # TEST_TOOL_ROOTS.
-TOOL_ROOTS := iarg_inst_ptr_error_msg fxsave_size
+TOOL_ROOTS := iarg_inst_ptr_error_msg
 
 # This defines the static analysis tools which will be run during the the tests. They should not
 # be defined in TEST_TOOL_ROOTS. If a test with the same name exists, it should be defined in
@@ -35,7 +41,7 @@ TOOL_ROOTS := iarg_inst_ptr_error_msg fxsave_size
 SA_TOOL_ROOTS :=
 
 # This defines all the applications that will be run during the tests.
-APP_ROOTS := iarg_explicit_memory_ea_app fxsave_app
+APP_ROOTS := iarg_explicit_memory_ea_app
 
 # This defines any additional object files that need to be compiled.
 OBJECT_ROOTS :=
@@ -52,12 +58,6 @@ LIB_ROOTS :=
 ifeq ($(TARGET_OS),windows)
     OBJECT_ROOTS += iarg_explicit_memory_ea_app_asm
 endif
-
-###### Define the sanity subset ######
-
-# This defines the list of tests that should run in sanity. It should include all the tests listed in
-# TEST_TOOL_ROOTS and TEST_ROOTS excluding only unstable tests.
-SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 
 
 ##############################################################
@@ -93,17 +93,6 @@ iarg_inst_ptr_error_msg_check_reference.test: $(OBJDIR)iarg_inst_ptr_error_msg$(
 	$(QGREP) "Great place to work!" $(OBJDIR)iarg_inst_ptr_error_msg_check_reference.out
 	-$(RM) $(OBJDIR)iarg_inst_ptr_error_msg_check_reference_output $(OBJDIR)iarg_inst_ptr_error_msg_check_reference.out
 
-iarg_uint64.test: $(OBJDIR)iarg_uint64$(PINTOOL_SUFFIX) $(HELLO_APP)
-	$(PIN) -t $(OBJDIR)iarg_uint64$(PINTOOL_SUFFIX) -o $(OBJDIR)iarg_uint64.out -- $(HELLO_APP)
-	$(SYNC)
-	$(DIFF) iarg_uint64.reference $(OBJDIR)iarg_uint64.out
-	$(RM) $(OBJDIR)iarg_uint64.out
-
-iarg_memory_size_fxsave_fxrstor.test: $(OBJDIR)fxsave_size$(PINTOOL_SUFFIX) $(OBJDIR)fxsave_app$(EXE_SUFFIX)
-	$(PIN) -t $(OBJDIR)fxsave_size$(PINTOOL_SUFFIX) -o $(OBJDIR)$(@:%.test=%.out) \
-	  -- $(OBJDIR)fxsave_app$(EXE_SUFFIX) > $(OBJDIR)fxsave_app.out 
-	$(RM) $(OBJDIR)$(@:%.test=%.out) $(OBJDIR)fxsave_app.out
-
 
 ##############################################################
 #
@@ -125,9 +114,6 @@ $(OBJDIR)iarg_explicit_memory_ea_app$(EXE_SUFFIX): iarg_explicit_memory_ea_app.c
 	$(APP_CXX) $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@ $< $(APP_LDFLAGS_NOOPT) $(APP_LIBS) $(CXX_LPATHS) $(CXX_LIBS)
 
 endif
-
-$(OBJDIR)fxsave_app$(EXE_SUFFIX): fxsave_app.cpp $(OBJDIR)DoFxsave$(OBJ_SUFFIX)
-	$(APP_CXX) $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@ $^ $(APP_LDFLAGS_NOOPT) $(APP_LIBS) $(CXX_LPATHS) $(CXX_LIBS)
 
 ###### Special objects' build rules ######
 

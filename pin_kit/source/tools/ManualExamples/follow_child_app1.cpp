@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,18 +28,11 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
-/*! @file
- * In addition to what this test checks, we also check these:
- * - Checking if an environment variable which is set after Pin took over the application is being passed to
- *   the application which will be executed by the current application.
- *   Application is executed from parent (unlike parent_process.cpp)
- */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <signal.h>
 
 int main(int argc, char **argv)
 {
@@ -50,14 +43,6 @@ int main(int argc, char **argv)
         fprintf(stderr, "Specify child application name: %s <child app name>\n", argv[0]);
         exit(-1);
     }
-    
-    // Test injector correctness in OS X*
-    signal(SIGUSR1, SIG_IGN);
-    signal(SIGUSR2, SIG_IGN);
-
-    // Checking if an environment variable which is set after Pin took over the application is being passed to
-    // the application we're about to execute below (as expected)
-    setenv("ParentEnv", "1", 1);
 
     if (execv(argv[1], NULL) == -1)
     {

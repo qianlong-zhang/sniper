@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,12 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Elena Demikhovsky
+*/
+
+/* ===================================================================== */
 /*! @file
   The tool checks that page permissions in application process are not changed
   after Pin writes a probe
@@ -43,7 +49,6 @@ END_LEGAL */
 #include <linux/limits.h>
 #include "pin.H"
 #include <list>
-#include "tool_macros.h"
 
 using namespace std;
 
@@ -88,7 +93,6 @@ BOOL RANGES::GetAttributes(ADDRINT addr, string *attrStr)
     return FALSE;
 }
 
-#if defined(TARGET_LINUX)
 #define MAX_NUM_OF_RANGES_PER_FILENAME 10
 
 /* Read /proc/self/maps and fill fileMap with ranges */
@@ -107,7 +111,7 @@ VOID FillFileMap(const char *name, RANGES *fileMap)
              attributes[nRange]) != 3)
                 continue;
 			nRange++;
-        }
+		}
     }
     fclose(fp);
     for (int i=0; i< nRange; i++)
@@ -115,40 +119,6 @@ VOID FillFileMap(const char *name, RANGES *fileMap)
         fileMap->AddRange(mapl[i], maph[i], attributes[i]);
     }
 }
-
-#elif defined(TARGET_MAC)
-
-#include <mach/mach_vm.h>
-#include <mach/mach_init.h>
-#include <mach/vm_prot.h>
-
-VOID FillFileMap(const char *name, RANGES *fileMap)
-{
-    mach_vm_address_t address = 0;
-    mach_vm_address_t last_address = 0;
-    mach_vm_size_t size = 0;
-    while (1)
-    {
-        kern_return_t ret = KERN_SUCCESS;
-        natural_t depth = 1;
-        vm_region_submap_info_data_64_t info;
-        mach_msg_type_number_t count = VM_REGION_SUBMAP_INFO_COUNT_64;
-        ret = mach_vm_region_recurse(mach_task_self(), &address, &size, &depth, (vm_region_recurse_info_t)&info, &count);
-        if (ret != KERN_SUCCESS || (ADDRINT)address < (ADDRINT)last_address)
-        {
-            break;
-        }
-        char buf[4];
-        sprintf(buf, "%c%c%c", (info.protection & VM_PROT_READ) ? 'r' : '-',
-                               (info.protection & VM_PROT_WRITE) ? 'w' : '-',
-                               (info.protection & VM_PROT_EXECUTE) ? 'x' : '-');
-        fileMap->AddRange((unsigned long)address, (unsigned long)(address+size), buf);
-        last_address = address;
-        address += size;
-    }
-}
-
-#endif
 
 VOID ToolDoNothing()
 {
@@ -166,8 +136,8 @@ BOOL PutProbeAndCheckAttributes(IMG img, const char *rtnName, AFUNPTR rtnReplace
     string::size_type pos = shortName.rfind('/');
     if (pos != string::npos)
         shortName = shortName.substr(pos + 1);
-
-    RANGES fileMapBeforeProbe;
+	
+ 	RANGES fileMapBeforeProbe;
     FillFileMap(shortName.c_str(), &fileMapBeforeProbe);
     
     RTN rtn = RTN_FindByName(img, rtnName);
@@ -217,13 +187,13 @@ BOOL PutProbeAndCheckAttributes(IMG img, const char *rtnName, AFUNPTR rtnReplace
 VOID ImageLoad(IMG img, VOID * arg)
 {
     UINT32 *numOfInstrumentedRtnsPtr = (UINT32 *)arg;
-    if (PutProbeAndCheckAttributes(img, C_MANGLE("do_nothing"), (AFUNPTR)ToolDoNothing))
+    if (PutProbeAndCheckAttributes(img, "do_nothing", (AFUNPTR)ToolDoNothing))
     {
         (*numOfInstrumentedRtnsPtr) ++;
 	    cout << dec << *numOfInstrumentedRtnsPtr << " routines were instrumented" << endl;
     }
         
-    if (PutProbeAndCheckAttributes(img, C_MANGLE("one"), (AFUNPTR)ToolOne))
+    if (PutProbeAndCheckAttributes(img, "one", (AFUNPTR)ToolOne))
     {
         (*numOfInstrumentedRtnsPtr) ++;
 	    cout << dec << *numOfInstrumentedRtnsPtr << " routines were instrumented" << endl;
@@ -233,7 +203,6 @@ VOID ImageLoad(IMG img, VOID * arg)
 int main(INT32 argc, CHAR **argv)
 {
     PIN_Init(argc, argv);
-    PIN_InitSymbols();
 
     UINT32 numOfInstrumentedRtns = 0;
     IMG_AddInstrumentFunction(ImageLoad, (VOID*)&numOfInstrumentedRtns);

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -39,24 +39,6 @@ VOID * predictedInstPtr;
 UINT64 icount = 0;
 UINT64 errors = 0;
 BOOL isSkipped = TRUE; // always skip checking the first inst
-
-// The tool assumes single-threaded application.
-// This may not be the case on Windows 10.
-// We arbitrary choose single thread to profile.
-THREADID myThread = INVALID_THREADID;
-
-ADDRINT IfMyThread(THREADID threadId)
-{
-    // Profile only single thread at any time
-    return threadId == myThread;
-}
-
-VOID ThreadStart(THREADID tid, CONTEXT *ctxt, INT32 flags, VOID *v)
-{
-    // Determine single thread to profile.
-    if (myThread == INVALID_THREADID) myThread = tid;
-}
-
 
 VOID CountError()
 {
@@ -148,8 +130,7 @@ VOID Instruction(INS ins, VOID *v)
 {
     CheckXlat(ins);
     
-    INS_InsertIfCall(ins, IPOINT_BEFORE, AFUNPTR(IfMyThread), IARG_THREAD_ID, IARG_END);
-    INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)CheckFlow,
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)CheckFlow,
         IARG_INST_PTR,
         IARG_BRANCH_TAKEN,
         IARG_FALLTHROUGH_ADDR,
@@ -159,24 +140,19 @@ VOID Instruction(INS ins, VOID *v)
 
     if (INS_IsBranchOrCall(ins))
     {
-        INS_InsertIfCall(ins, IPOINT_TAKEN_BRANCH, AFUNPTR(IfMyThread), IARG_THREAD_ID, IARG_END);
-        INS_InsertThenCall(ins, IPOINT_TAKEN_BRANCH, (AFUNPTR)Taken, IARG_END);
+        INS_InsertCall(ins, IPOINT_TAKEN_BRANCH, (AFUNPTR)Taken, IARG_END);
     }
 
 #if defined(TARGET_IA32) || defined(TARGET_IA32E)
     if (INS_IsSysenter(ins))
     { // sysenter on x86 has some funny control flow that we can't correctly verify for now
-        INS_InsertIfCall(ins, IPOINT_BEFORE, AFUNPTR(IfMyThread), IARG_THREAD_ID, IARG_END);
-        INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)Skip, IARG_END);
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)Skip, IARG_END);
     }
 #endif
 }
 
 VOID SyscallEntry(THREADID threadIndex, CONTEXT *ctxt, SYSCALL_STANDARD std, VOID *v)
 {
-    // Profile only single thread
-    if (myThread != threadIndex) return;
-
     Skip();
 }
 
@@ -202,8 +178,6 @@ int main(INT32 argc, CHAR **argv)
     INS_AddInstrumentFunction(Instruction, 0);
     PIN_AddSyscallEntryFunction(SyscallEntry, 0);
 
-    // Add callbacks
-    PIN_AddThreadStartFunction(ThreadStart, 0);
     PIN_AddFiniFunction(Fini, 0);
     
     // Never returns

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -63,12 +63,6 @@ typedef int64_t INT64;
 #define ALIGN8  __attribute__ ((aligned(8)))
 
 
-#endif
-
-#ifdef TARGET_IA32E
-typedef UINT64 ADDRINT;
-#else
-typedef UINT32 ADDRINT;
 #endif
 
 #define MAX_XMM_REGS 16
@@ -423,7 +417,7 @@ int main(int argc, char** argv)
     //printf ("1 %d\n", atoi(argv[1]));
     //fflush (stdout);
     char buffer[512+16];
-    char* aligned_bufp =reinterpret_cast<char*>(((reinterpret_cast<ADDRINT>(buffer) + 16) >> 4) << 4);
+    char* aligned_bufp =reinterpret_cast<char*>(((reinterpret_cast<unsigned long>(buffer) + 16) >> 4)<<4);
     
     UINT32 valsToSet[NUM_XMM_REGS];
     for (UINT32 i=0; i<NUM_XMM_REGS; i++)
@@ -499,3 +493,4 @@ int main(int argc, char** argv)
     cout << "xmm registers saved and restored successfully\n";
     return 0;
 }
+ 

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,13 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Ady Tal
+ */
+
+/* ===================================================================== */
 /*! @file
   This file test the PIN_InsertCallProbed feature.
   The test application adds the special "annotations".
@@ -39,7 +46,6 @@ END_LEGAL */
 #include "pin.H"
 #include <stdlib.h>
 #include <stdio.h>
-#include "tool_macros.h"
 
 
 /* ===================================================================== */
@@ -119,7 +125,7 @@ VOID ImageLoad(IMG img, VOID *v)
         }
 
         // Set the write line function, from the image of the annotations (i.e. the main executable).
-        RTN writeRtn = RTN_FindByName(img, C_MANGLE("write_line"));
+        RTN writeRtn = RTN_FindByName(img, "write_line");
         if (RTN_Valid(writeRtn))
         {
             writeFun = (void (*)(char *))RTN_Funptr(writeRtn);

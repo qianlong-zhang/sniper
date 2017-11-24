@@ -17,10 +17,16 @@
 # This defines tests which run tools of the same name.  This is simply for convenience to avoid
 # defining the test name twice (once in TOOL_ROOTS and again in TEST_ROOTS).
 # Tests defined here should not be defined in TOOL_ROOTS and TEST_ROOTS.
-TEST_TOOL_ROOTS := indirect_jmp_with_translation memory_addr_callback memory_callback_error memory_addr_callback_then
+TEST_TOOL_ROOTS := indirect_jmp_with_translation memory_addr_callback memory_callback_error
 
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
 TEST_ROOTS :=
+
+# This defines a list of tests that should run in the "short" sanity. Tests in this list must also
+# appear either in the TEST_TOOL_ROOTS or the TEST_ROOTS list.
+# If the entire directory should be tested in sanity, assign TEST_TOOL_ROOTS and TEST_ROOTS to the
+# SANITY_SUBSET variable in the tests section below (see example in makefile.rules.tmpl).
+SANITY_SUBSET :=
 
 # This defines the tools which will be run during the the tests, and were not already defined in
 # TEST_TOOL_ROOTS.
@@ -46,22 +52,12 @@ DLL_ROOTS :=
 # This defines any static libraries (archives), that need to be built.
 LIB_ROOTS :=
 
-###### Place OS-specific definitions here ######
+###### Handle exceptions here ######
 
-#Linux
-ifeq ($(TARGET_OS),linux)
-    ifeq ($(TARGET),intel64)
-        # There are not enough bits on ia32 to mark addresses returned by malloc()
-        TEST_TOOL_ROOTS += malloc_translation translate_32bit_register
-        APP_ROOTS += malloc_translation_app translate_32bit_register_app
-    endif
+# See Mantis 2963
+ifeq ($(TARGET),mic)
+    TEST_TOOL_ROOTS := $(filter-out memory_addr_callback memory_callback_error, $(TEST_TOOL_ROOTS))
 endif
-
-###### Define the sanity subset ######
-
-# This defines the list of tests that should run in sanity. It should include all the tests listed in
-# TEST_TOOL_ROOTS and TEST_ROOTS excluding only unstable tests.
-SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 
 
 ##############################################################
@@ -87,30 +83,11 @@ memory_addr_callback.test: $(OBJDIR)memory_addr_callback$(PINTOOL_SUFFIX)
 	$(RM) $(OBJDIR)memory_addr_callback.makefile.copy
 
 memory_callback_error.test: $(OBJDIR)memory_callback_error$(PINTOOL_SUFFIX)
-	-$(PIN) -logfile $(OBJDIR)memory_callback_error.log -t $(OBJDIR)memory_callback_error$(PINTOOL_SUFFIX) \
-	  -- $(TESTAPP) makefile $(OBJDIR)memory_callback_error.makefile.copy
-	$(QGREP) "Illegal use of memory address callback and register parameters" $(OBJDIR)memory_callback_error.log
-	$(RM) $(OBJDIR)memory_callback_error.log
+	-$(PIN) -t $(OBJDIR)memory_callback_error$(PINTOOL_SUFFIX) \
+	  -- $(TESTAPP) makefile $(OBJDIR)memory_callback_error.makefile.copy > $(OBJDIR)memory_callback_error.out 2>&1
+	$(QGREP) "Illegal use of memory address callback and register parameters" $(OBJDIR)memory_callback_error.out
+	$(RM) $(OBJDIR)memory_callback_error.out
 	$(RM) -f $(OBJDIR)memory_callback_error.makefile.copy # this file might not be generated so we use the -f flag
-
-malloc_translation.test: $(OBJDIR)malloc_translation$(PINTOOL_SUFFIX) $(OBJDIR)malloc_translation_app$(EXE_SUFFIX)
-	$(PIN) -t $(OBJDIR)malloc_translation$(PINTOOL_SUFFIX) \
-	  -- $(OBJDIR)malloc_translation_app$(EXE_SUFFIX) `$(CXX) $(COMP_OBJ) /dev/null -print-file-name=libm.so.6` \
-	      > $(OBJDIR)malloc_translation.out 2>&1
-	$(QGREP) "Application finished successfully!" $(OBJDIR)malloc_translation.out
-	$(RM) $(OBJDIR)malloc_translation.out
-
-translate_32bit_register.test: $(OBJDIR)translate_32bit_register$(PINTOOL_SUFFIX) $(OBJDIR)translate_32bit_register_app$(EXE_SUFFIX)
-	$(PIN) -t $(OBJDIR)translate_32bit_register$(PINTOOL_SUFFIX) \
-	  -- $(OBJDIR)translate_32bit_register_app$(EXE_SUFFIX) > $(OBJDIR)translate_32bit_register.out 2>&1
-	$(QGREP) "result = deadbee" $(OBJDIR)translate_32bit_register.out
-	$(RM) $(OBJDIR)translate_32bit_register.out
-
-memory_addr_callback_then.test: $(OBJDIR)memory_addr_callback_then$(PINTOOL_SUFFIX)
-	$(PIN) -t $(OBJDIR)memory_addr_callback_then$(PINTOOL_SUFFIX) \
-	  -- $(TESTAPP) makefile $(OBJDIR)memory_addr_callback_then.makefile.copy
-	$(CMP) makefile $(OBJDIR)memory_addr_callback_then.makefile.copy
-	$(RM) $(OBJDIR)memory_addr_callback_then.makefile.copy
 
 
 ##############################################################

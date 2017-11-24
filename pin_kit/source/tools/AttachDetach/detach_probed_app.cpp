@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,8 +28,10 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+// @ORIGINAL_AUTHOR: Elena Demikhovsky
+
 /*! @file
- *  Test detaching Pin from running process on a Unix compatible system
+ *  Test detaching Pin from running process on Linux
  */
 
 #include <stdio.h>
@@ -40,14 +42,20 @@ END_LEGAL */
 #include <string.h>
 #include <dlfcn.h>
 #include <sys/types.h>
+#include <linux/unistd.h>
+#ifdef TARGET_ANDROID
+#include <sys/syscall.h>
+#endif
 
 #define NTHREADS 20
 
-#ifdef TARGET_MAC
-# define DLL_SUFFIX ".dylib"
-#else
-# define DLL_SUFFIX ".so"
-#endif
+/*
+ * Get thread Id
+ */
+pid_t GetTid()
+{
+     return syscall(__NR_gettid);
+}
 
 extern "C" void TellPinToDetach(unsigned long *updateWhenReady)
 {
@@ -75,7 +83,7 @@ void * thread_dlopen_func (void *arg)
 	double number = 0.2;
     while (loop1)
     {
-        void *handle = dlopen("libm" DLL_SUFFIX, RTLD_LAZY);
+        void *handle = dlopen("libm.so", RTLD_LAZY);
         if (handle)
         {
             SIN_FUNC sin_fptr = (SIN_FUNC)dlsym(handle, "sin");

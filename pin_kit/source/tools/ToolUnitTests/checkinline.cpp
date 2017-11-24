@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -60,20 +60,12 @@ struct branchCount_t
 };
 static branchCount_t branchCounts[XED_ICLASS_LAST];
 
-THREADID myThread = INVALID_THREADID;
-
-ADDRINT IfMyThread(THREADID threadId)
-{
-    return threadId == myThread;
-}
-
-
 // Trivial analysis routine to pass its argument back in an IfCall so that we can use it 
 // to control the next piece of instrumentation.
 // Simple enough to be inlined.
-static ADDRINT returnArg (BOOL arg, THREADID threadId)
+static ADDRINT returnArg (BOOL arg)
 {
-    return arg && (threadId == myThread);
+    return arg;
 }
 
 static VOID increment (UINT64 * counter)
@@ -87,25 +79,23 @@ static VOID add (UINT64 * counter, BOOL value)
 }
 
 static VOID InstrumentInstruction(INS ins, VOID *)
-{   
+{
     if (INS_IsPredicated(ins))
     {
-        INS_InsertIfCall(ins, IPOINT_BEFORE, (AFUNPTR)returnArg, IARG_EXECUTING, IARG_THREAD_ID, IARG_END);
+        INS_InsertIfCall(ins, IPOINT_BEFORE, (AFUNPTR)returnArg, IARG_EXECUTING, IARG_END);
         INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)increment, IARG_ADDRINT, ADDRINT(&predicatedTrueCount), IARG_END);
         
-        INS_InsertIfCall(ins, IPOINT_BEFORE, AFUNPTR(IfMyThread), IARG_THREAD_ID, IARG_END);
-        INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)add, IARG_ADDRINT, ADDRINT(&predicatedTrueCountArg), 
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)add, IARG_ADDRINT, ADDRINT(&predicatedTrueCountArg), 
                        IARG_EXECUTING, IARG_END);
         // CountOp = TRUE;
     }
 
     if (INS_HasRealRep(ins))
     {
-        INS_InsertIfCall(ins, IPOINT_BEFORE, (AFUNPTR)returnArg, IARG_FIRST_REP_ITERATION, IARG_THREAD_ID, IARG_END);
+        INS_InsertIfCall(ins, IPOINT_BEFORE, (AFUNPTR)returnArg, IARG_FIRST_REP_ITERATION, IARG_END);
         INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)increment, IARG_ADDRINT, ADDRINT(&firstRepCount), IARG_END);
 
-        INS_InsertIfCall(ins, IPOINT_BEFORE, AFUNPTR(IfMyThread), IARG_THREAD_ID, IARG_END);
-        INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)add, IARG_ADDRINT, ADDRINT(&firstRepCountArg), 
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)add, IARG_ADDRINT, ADDRINT(&firstRepCountArg), 
                        IARG_FIRST_REP_ITERATION, IARG_END);
     }
 
@@ -113,13 +103,12 @@ static VOID InstrumentInstruction(INS ins, VOID *)
     {
         UINT32 op = INS_Opcode(ins);
 
-        INS_InsertIfCall(ins, IPOINT_BEFORE, (AFUNPTR)returnArg, IARG_BRANCH_TAKEN, IARG_THREAD_ID, IARG_END);
-        INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)increment,
+        INS_InsertIfCall(ins, IPOINT_BEFORE, (AFUNPTR)returnArg, IARG_BRANCH_TAKEN, IARG_END);
+        INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)increment, 
                            IARG_ADDRINT, ADDRINT(&(branchCounts[op].taken)), 
                            IARG_END);
 
-        INS_InsertIfCall(ins, IPOINT_BEFORE, AFUNPTR(IfMyThread), IARG_THREAD_ID, IARG_END);                   
-        INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)add, 
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)add, 
                        IARG_ADDRINT, ADDRINT(&(branchCounts[op].takenArg)), 
                        IARG_BRANCH_TAKEN, IARG_END);
     }
@@ -171,14 +160,7 @@ static VOID Fini(INT32,VOID *)
 
 static VOID CheckThreadCount(THREADID threadIndex, CONTEXT *, INT32, VOID *)
 {
-    if (myThread == INVALID_THREADID)
-    {
-        myThread = threadIndex;
-    }
-
-    #ifndef _WIN32
-        ASSERT (threadIndex == myThread, "This tool does not handle multiple threads\n");
-    #endif
+    ASSERT (threadIndex==0, "This tool does not handle multiple threads\n");
 }
 
 int main(int argc, char *argv[])

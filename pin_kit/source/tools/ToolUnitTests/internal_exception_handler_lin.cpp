@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -329,26 +329,14 @@ static VOID InstrumentRoutine(RTN rtn, VOID *)
 VOID Instruction(INS ins, VOID *v)
 {
     static bool instrumented[2] = { false, false };
-    static ADDRINT ins_addresses[2];
-    ADDRINT ins_address = INS_Address(ins);
-
     if (!instrumented[0])
     {
         instrumented[0] = true;
-        ins_addresses[0] = ins_address;
-    }
-    else if (!instrumented[1] && (ins_addresses[0] != ins_address))
-    {
-        instrumented[1] = true;
-        ins_addresses[1] = ins_address;
-    }
-
-    if (ins_addresses[0] == ins_address)
-    {
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)OnIns1, IARG_END);
     }
-    else if (ins_addresses[1] == ins_address)
+    else if (!instrumented[1])
     {
+        instrumented[1] = true;
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)OnIns2, IARG_END);
     }
 }

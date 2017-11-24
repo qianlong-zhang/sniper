@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,15 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+
+
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Vijay Janapa Reddi
+  @MAJOR_REWRITE: Gail Lyons
+*/
+
+/* ===================================================================== */
 /*! @file
   Replace an original function with a custom function defined in the tool. The
   new function can have either the same or different signature from that of its
@@ -38,7 +47,6 @@ END_LEGAL */
 #include "pin.H"
 #include <iostream>
 #include <stdlib.h>
-#include "tool_macros.h"
 
 using namespace std;
 
@@ -64,7 +72,7 @@ VOID ImageLoad(IMG img, VOID *v)
     PROTO proto_malloc = PROTO_Allocate( PIN_PARG(void *), CALLINGSTD_DEFAULT,
                                   "malloc", PIN_PARG(size_t), PIN_PARG_END() );
 
-    RTN rtn = RTN_FindByName(img, C_MANGLE("malloc"));
+    RTN rtn = RTN_FindByName(img, "malloc");
     if (RTN_Valid(rtn))
     {
         Sanity(img, rtn);

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -180,11 +180,12 @@ VOID Trace (TRACE trace, VOID *v)
                         printf ("found fld1 sequence at %lx\n", (unsigned long)(INS_Address(INS_Next(INS_Next(ins)))));
                         if (testNum == 0)
                         {
+                            
                             INS_InsertCall(INS_Next(INS_Next(ins)), IPOINT_AFTER, AFUNPTR(CallToUnMaskZeroDivideInMxcsr), IARG_END);
                             printf ("Inserted call1 to UnMaskZeroDivideInMxcsr after instruction at %lx\n",
-                                    (unsigned long)(INS_Address(INS_Next(INS_Next(ins)))));
+                            		(unsigned long)(INS_Address(INS_Next(INS_Next(ins)))));
                             printf ("Inserted call1 to MaskZeroDivideInMxcsr after instruction at %lx\n",
-                                    (unsigned long)(INS_Address((INS_Next(ins)))));
+                            		(unsigned long)(INS_Address((INS_Next(ins)))));
                             testNum++;
                         }
                         return;

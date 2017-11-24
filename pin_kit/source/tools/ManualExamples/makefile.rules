@@ -18,11 +18,17 @@
 # defining the test name twice (once in TOOL_ROOTS and again in TEST_ROOTS).
 # Tests defined here should not be defined in TOOL_ROOTS and TEST_ROOTS.
 TEST_TOOL_ROOTS := inscount0 inscount1 inscount2 proccount imageload staticcount detach malloctrace \
-                   malloc_mt inscount_tls stack-debugger pinatrace itrace isampling safecopy invocation countreps \
-                   nonstatica
+                   malloc_mt inscount_tls stack-debugger pinatrace itrace isampling safecopy invocation \
+                   countreps nonstatica
 
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
 TEST_ROOTS :=
+
+# This defines a list of tests that should run in the "short" sanity. Tests in this list must also
+# appear either in the TEST_TOOL_ROOTS or the TEST_ROOTS list.
+# If the entire directory should be tested in sanity, assign TEST_TOOL_ROOTS and TEST_ROOTS to the
+# SANITY_SUBSET variable in the tests section below (see example in makefile.rules.tmpl).
+SANITY_SUBSET :=
 
 # This defines the tools which will be run during the the tests, and were not already defined in
 # TEST_TOOL_ROOTS.
@@ -37,7 +43,7 @@ TOOL_ROOTS :=
 SA_TOOL_ROOTS :=
 
 # This defines all the applications that will be run during the tests.
-APP_ROOTS := fibonacci little_malloc
+APP_ROOTS := fibonacci little_malloc thread_app
 
 # This defines any additional object files that need to be compiled.
 OBJECT_ROOTS :=
@@ -48,11 +54,16 @@ DLL_ROOTS :=
 # This defines any static libraries (archives), that need to be built.
 LIB_ROOTS :=
 
+###### Place probe mode tests here ######
+ifeq ($(PROBE),1)
+    TEST_TOOL_ROOTS += replacesigprobed
+endif
+
 ###### Place OS-specific definitions here ######
 
 # Linux
 ifeq ($(TARGET_OS),linux)
-    TEST_TOOL_ROOTS += buffer_linux fork_jit_tool follow_child_tool strace emudiv replacesigprobed
+    TEST_TOOL_ROOTS += buffer_linux fork_jit_tool follow_child_tool strace emudiv
     TEST_ROOTS += statica
     SA_TOOL_ROOTS += statica
     APP_ROOTS += fork_app follow_child_app1 follow_child_app2 divide_by_zero
@@ -68,24 +79,24 @@ endif
 
 # Windows
 ifeq ($(TARGET_OS),windows)
-    TEST_TOOL_ROOTS += w_malloctrace buffer_windows emudiv replacesigprobed
+    TEST_TOOL_ROOTS += w_malloctrace buffer_windows emudiv
     APP_ROOTS += divide_by_zero
 endif
 
 ###### Handle exceptions here ######
 
 # TODO: These tests fail - fix and remove the following:
-
-# See Mantis 4311 for nonstatica
-ifeq ($(TARGET_OS),windows)
-    TEST_TOOL_ROOTS := $(filter-out nonstatica, $(TEST_TOOL_ROOTS))
+# See Mantis 2963
+ifeq ($(TARGET),mic)
+    TEST_TOOL_ROOTS := $(filter-out nonstatica emudiv, $(TEST_TOOL_ROOTS))
+    TEST_ROOTS := $(filter-out statica, $(TEST_ROOTS))
+    SA_TOOL_ROOTS := $(filter-out statica, $(SA_TOOL_ROOTS))
 endif
 
-###### Define the sanity subset ######
-
-# This defines the list of tests that should run in sanity. It should include all the tests listed in
-# TEST_TOOL_ROOTS and TEST_ROOTS excluding only unstable tests.
-SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
+# See Mantis 3204
+ifeq ($(TARGET_OS),mac)
+    TEST_TOOL_ROOTS := $(filter-out follow_child_tool, $(TEST_TOOL_ROOTS))
+endif
 
 
 ##############################################################
@@ -98,28 +109,21 @@ SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 # See makefile.default.rules for the default test rules.
 # All tests in this section should adhere to the naming convention: <testname>.test
 
-inscount_tls.test: $(OBJDIR)inscount_tls$(PINTOOL_SUFFIX) $(THREAD_APP)
-	$(PIN) -t $(OBJDIR)inscount_tls$(PINTOOL_SUFFIX) -- $(THREAD_APP) > $(OBJDIR)inscount_tls.out 2>&1
+inscount_tls.test: $(OBJDIR)inscount_tls$(PINTOOL_SUFFIX) $(OBJDIR)thread_app$(EXE_SUFFIX)
+	$(PIN) -t $(OBJDIR)inscount_tls$(PINTOOL_SUFFIX) -- $(OBJDIR)thread_app$(EXE_SUFFIX) > $(OBJDIR)inscount_tls.out 2>&1
 	$(RM) $(OBJDIR)inscount_tls.out
-    
-replacesigprobed.test: $(OBJDIR)replacesigprobed$(PINTOOL_SUFFIX) $(TESTAPP)
-	$(PIN) -t $(OBJDIR)replacesigprobed$(PINTOOL_SUFFIX) \
-	  -- $(TESTAPP) makefile $(OBJDIR)replacesigprobed.makefile.copy > $(OBJDIR)replacesigprobed.out
-	$(DIFF) makefile $(OBJDIR)replacesigprobed.makefile.copy
-	$(QGREP) "NewMalloc" $(OBJDIR)replacesigprobed.out
-	$(RM) $(OBJDIR)replacesigprobed.makefile.copy $(OBJDIR)replacesigprobed.out
 
-malloc_mt.test: $(OBJDIR)malloc_mt$(PINTOOL_SUFFIX) $(THREAD_APP)
-	$(PIN) -t $(OBJDIR)malloc_mt$(PINTOOL_SUFFIX) -- $(THREAD_APP) > $(OBJDIR)malloc_mt.out 2>&1
+malloc_mt.test: $(OBJDIR)malloc_mt$(PINTOOL_SUFFIX) $(OBJDIR)thread_app$(EXE_SUFFIX)
+	$(PIN) -t $(OBJDIR)malloc_mt$(PINTOOL_SUFFIX) -- $(OBJDIR)thread_app$(EXE_SUFFIX) > $(OBJDIR)malloc_mt.out 2>&1
 	$(RM) $(OBJDIR)malloc_mt.out
 
-buffer_linux.test: $(OBJDIR)buffer_linux$(PINTOOL_SUFFIX) $(THREAD_APP)
-	$(PIN) -t $(OBJDIR)buffer_linux$(PINTOOL_SUFFIX) -- $(THREAD_APP) > $(OBJDIR)buffer_linux.out 2>&1
+buffer_linux.test: $(OBJDIR)buffer_linux$(PINTOOL_SUFFIX) $(OBJDIR)thread_app$(EXE_SUFFIX)
+	$(PIN) -t $(OBJDIR)buffer_linux$(PINTOOL_SUFFIX) -- $(OBJDIR)thread_app$(EXE_SUFFIX) > $(OBJDIR)buffer_linux.out 2>&1
 	$(RM) $(OBJDIR)buffer_linux.out
 
-buffer_windows.test: $(OBJDIR)buffer_windows$(PINTOOL_SUFFIX) $(THREAD_APP)
+buffer_windows.test: $(OBJDIR)buffer_windows$(PINTOOL_SUFFIX) $(OBJDIR)thread_app$(EXE_SUFFIX)
 	$(PIN) -t $(OBJDIR)buffer_windows$(PINTOOL_SUFFIX) -emit 0 \
-	  -- $(THREAD_APP) > $(OBJDIR)buffer_windows.out 2>&1
+	  -- $(OBJDIR)thread_app$(EXE_SUFFIX) > $(OBJDIR)buffer_windows.out 2>&1
 	$(RM) $(OBJDIR)buffer_windows.out
 
 invocation.test: $(OBJDIR)invocation$(PINTOOL_SUFFIX) $(OBJDIR)little_malloc$(EXE_SUFFIX)
@@ -134,7 +138,7 @@ stack-debugger.test: $(OBJDIR)stack-debugger$(PINTOOL_SUFFIX) $(OBJDIR)fibonacci
 
 # stand alone pin tool
 statica.test: $(OBJDIR)statica$(SATOOL_SUFFIX)
-	$(SET_DLL_PATH) $(OBJDIR)statica$(SATOOL_SUFFIX) -i $(OBJDIR)statica$(SATOOL_SUFFIX) > $(OBJDIR)statica.dmp
+	$(OBJDIR)statica$(SATOOL_SUFFIX) -i $(OBJDIR)statica$(SATOOL_SUFFIX) > $(OBJDIR)statica.dmp
 	$(RM) $(OBJDIR)statica.dmp
 
 nonstatica.test: $(OBJDIR)nonstatica$(PINTOOL_SUFFIX) $(TESTAPP)
@@ -167,5 +171,8 @@ follow_child_tool.test: $(OBJDIR)follow_child_tool$(PINTOOL_SUFFIX) $(OBJDIR)fol
 
 ###### Special applications' build rules ######
 
-$(OBJDIR)divide_by_zero$(EXE_SUFFIX): divide_by_zero_$(OS_TYPE).c
+$(OBJDIR)divide_by_zero$(EXE_SUFFIX): divide_by_zero_$(TARGET_OS).c
 	$(APP_CC) $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@ $< $(APP_LDFLAGS_NOOPT) $(APP_LIBS)
+
+$(OBJDIR)thread_app$(EXE_SUFFIX): thread_$(OS_TYPE).c
+	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(APP_LIBS)

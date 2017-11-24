@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -34,24 +34,19 @@ END_LEGAL */
  */
 
 #include "pin.H"
-#include "tool_macros.h"
 #include <iostream>
 #include <fstream>
 #include <stdlib.h>
 #include <assert.h>
 #include <sched.h>
+#include <linux/unistd.h>
+#include <sys/syscall.h>
 
 #define MAX_ITERATION 2
 
-#ifdef TARGET_MAC
-# define DLL_SUFFIX ".dylib"
-#else
-# define DLL_SUFFIX ".so"
-#endif
+const char * FIRST_DLL_NAME = "my_dll.so";
 
-const char * FIRST_DLL_NAME = "my_dll" DLL_SUFFIX;
-
-const char * SECOND_DLL_NAME = "my_dll_1" DLL_SUFFIX;
+const char * SECOND_DLL_NAME = "my_dll_1.so";
 
 static int iteration = 1;
 
@@ -65,7 +60,7 @@ KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
 
 ofstream TraceFile;
 
-PIN_LOCK pinLock;
+PIN_LOCK lock;
 /* ===================================================================== */
 
 
@@ -82,7 +77,7 @@ class SESSION_CONTROL
     {}
 
     static VOID AttachedThreadStart(VOID *sigmask, VOID *v);
-    static VOID DedicatedThread(VOID *arg);
+    static INT DedicatedThread(VOID *arg);
 
     VOID StartIteration(UINT32 it) { _currentIteration = it; _threadCounter = 0;}
     UINT32 CurrentIteration() { return _currentIteration; }
@@ -153,7 +148,7 @@ VOID DETACH_SESSION::DetachCompleted(VOID *v)
         PIN_ExitProcess (1);
     }
 
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     TraceFile << "Detach session " << detachIteration << " Detach completed; tid = "
              << PIN_GetTid() << endl;
     if (detachIteration == MAX_ITERATION)
@@ -162,7 +157,7 @@ VOID DETACH_SESSION::DetachCompleted(VOID *v)
         TraceFile.close();
         PIN_ExitProcess(0);
     }
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
     SessionControl()->StartAttach();
 }
 
@@ -183,22 +178,23 @@ VOID AttachMain(VOID *arg)
 }
 
 
-VOID SESSION_CONTROL::DedicatedThread(VOID *arg)
+INT SESSION_CONTROL::DedicatedThread(VOID *arg)
 {
     ADDRINT reattachIteration = 2;
     while (1)
     {
         SessionControl()->WaitForDetach();
-        PIN_GetLock(&pinLock, PIN_GetTid());
+        PIN_GetLock(&lock, PIN_GetTid());
         TraceFile << "Pin tool: sending detach request" << endl;
-        PIN_ReleaseLock(&pinLock);
+        PIN_ReleaseLock(&lock);
         PIN_DetachProbed();
         SessionControl()->WaitForAttach();
-        PIN_GetLock(&pinLock, PIN_GetTid());
+        PIN_GetLock(&lock, PIN_GetTid());
         TraceFile << "Pin tool: sending attach request" << endl;
-        PIN_ReleaseLock(&pinLock);
+        PIN_ReleaseLock(&lock);
         PIN_AttachProbed(AttachMain, (VOID *)reattachIteration++);
     }
+    return 0;
 }
 
 
@@ -212,10 +208,10 @@ VOID SESSION_CONTROL::AttachedThreadStart(VOID *sigmask, VOID *arg)
             << " Received " << iteration << " In AttachedThreadStart" << endl;
          PIN_ExitProcess (1);
     }
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     ++(SessionControl()->_threadCounter) ;
     TraceFile << "Thread start " <<" notification at session " << iteration << " tid " << PIN_GetTid()<< endl;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 }
 
 VOID DETACH_SESSION::DetachThreadStart(VOID *arg)
@@ -227,9 +223,9 @@ VOID DETACH_SESSION::DetachThreadStart(VOID *arg)
             << " Received " << iteration << " In DetachThreadStart" << endl;
         PIN_ExitProcess (1);
     }
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     TraceFile << "Thread detach "  << " notification at session " << iteration << " tid " << PIN_GetTid() << endl;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 }
 
 
@@ -240,7 +236,7 @@ VOID DETACH_SESSION::ImageLoad(IMG img,  VOID *v)
 {
     if ( IMG_IsMainExecutable(img))
     {
-        RTN rtn = RTN_FindByName(img, C_MANGLE("AfterAttach1"));
+        RTN rtn = RTN_FindByName(img, "AfterAttach1");
 
         // relevent only in the attach scenario.
         if (RTN_Valid(rtn))
@@ -249,9 +245,9 @@ VOID DETACH_SESSION::ImageLoad(IMG img,  VOID *v)
         }
     }
 
-    PIN_GetLock(&pinLock, PIN_GetTid());
-    TraceFile <<"Load image " << IMG_Name(img) << " in iteration " << iteration << endl;
-    PIN_ReleaseLock(&pinLock);
+    PIN_GetLock(&lock, PIN_GetTid());
+    TraceFile <<"Load image " << IMG_Name(img) << "in iteration " << iteration << endl;
+    PIN_ReleaseLock(&lock);
     size_t found;
     found= IMG_Name(img).find(FIRST_DLL_NAME);
     if ( found!=string::npos )
@@ -267,16 +263,16 @@ VOID REATTACH_SESSION::ImageLoad(IMG img,  VOID *v)
 {
     if ( IMG_IsMainExecutable(img))
     {
-        RTN rtn = RTN_FindByName(img, C_MANGLE("AfterAttach2"));
+        RTN rtn = RTN_FindByName(img, "AfterAttach2");
         if (RTN_Valid(rtn))
         {
             RTN_ReplaceProbed(rtn, AFUNPTR(afterAttachProbe));
         }
     }
 
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     TraceFile <<"Load image " << IMG_Name(img) <<" in iteration" << iteration  <<endl;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 
     size_t found;
     found= IMG_Name(img).find(SECOND_DLL_NAME);
@@ -294,16 +290,20 @@ int main(int argc, CHAR *argv[])
 
     PIN_Init(argc,argv);
     SessionControl()->StartIteration(1);
-    PIN_InitLock(&pinLock);
+    PIN_InitLock(&lock);
     TraceFile.open(KnobOutputFile.Value().c_str());
     IMG_AddInstrumentFunction(DETACH_SESSION::ImageLoad,(VOID *) 1);
     PIN_AddDetachFunctionProbed(DETACH_SESSION::DetachCompleted, (VOID *)1);
     PIN_AddThreadAttachProbedFunction(SESSION_CONTROL::AttachedThreadStart, (VOID *)1);
     PIN_AddThreadDetachProbedFunction(DETACH_SESSION::DetachThreadStart, (VOID *)1);
+    UINT32 stackSize = 0x40000;
+    UINT8 *stack = new UINT8[stackSize];
     
-    THREADID tid = PIN_SpawnInternalThread(SESSION_CONTROL::DedicatedThread, NULL, 0x40000, NULL);
-    ASSERTX(tid != INVALID_THREADID);
-
+    // thread stack should be aligned 
+    UINT8 *stackTop = (UINT8*)((((ADDRINT)stack + stackSize) >> 4) << 4);
+    int flags = (CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD | CLONE_PARENT);
+    int tid = clone(SESSION_CONTROL::DedicatedThread, stackTop, flags, 0);
+    assert(tid != -1);
     PIN_StartProgramProbed();
 
     return 0;

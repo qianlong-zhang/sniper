@@ -28,14 +28,14 @@ extern BOOL RTN_IsSafeForProbedReplacementEx(RTN rtn, PROBE_MODE mode);
 extern AFUNPTR RTN_ReplaceSignatureProbed(RTN replacedRtn, AFUNPTR replacementFun, ...);
 
                                                                   /* DO NOT EDIT */
-extern AFUNPTR RTN_ReplaceSignatureProbedEx(RTN replacedRtn, PROBE_MODE mode,
+extern AFUNPTR RTN_ReplaceSignatureProbedEx(RTN replacedRtn, PROBE_MODE mode, 
                                                AFUNPTR replacementFun, ...);
 
                                                                   /* DO NOT EDIT */
 extern VOID RTN_InsertCallProbed( RTN orgRtn, IPOINT action, AFUNPTR funptr, ... );
 
                                                                   /* DO NOT EDIT */
-extern VOID RTN_InsertCallProbedEx( RTN orgRtn, IPOINT action,
+extern VOID RTN_InsertCallProbedEx( RTN orgRtn, IPOINT action, 
                                       PROBE_MODE mode,
                                       AFUNPTR funptr, ... );
 

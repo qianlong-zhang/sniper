@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -69,17 +69,20 @@ private:
     // To obtain the tested subset, use the GetTestRegs() and/or GetTestRegset() functions.
     enum TestReg {
         GPRREG = 0,
-    #if defined(TARGET_IA32E)
+    #if defined(TARGET_IA32E) || defined(TARGET_MIC)
         GPR32REG,
     #endif
         GPR16REG,
         GPRLREG,
         GPRHREG,
         STREG,
+    #ifdef TARGET_MIC
+        ZMMREG,
+        KREG,
+    #else
         XMMREG,
         YMMREG,
-        ZMMREG,
-        OPMASKREG,
+    #endif // not TARGET_MIC
         TESTREGSIZE
     };
 
@@ -181,17 +184,20 @@ REG RegisterDB::_GetRegFromTestReg(TestReg testReg) const
     static REG const testRegToReg[TESTREGSIZE] =
     {
         REG_GBX,
-#if defined(TARGET_IA32E)
+#if defined(TARGET_IA32E) || defined(TARGET_MIC)
         REG_EBX,
 #endif
         REG_BX,
         REG_BL,
         REG_BH,
         REG_ST2,
-        REG_XMM0,
-        REG_YMM1,
+#ifdef TARGET_MIC
         REG_ZMM5,
         REG_K3
+#else
+        REG_XMM0,
+        REG_YMM1
+#endif // not TARGET_MIC
     };
     return testRegToReg[testReg];
 }
@@ -203,11 +209,15 @@ const UINT8* RegisterDB::_GetAppRegisterValue(REG reg) const
     static const unsigned char* const appRegisterValues[TESTREGSIZE] =
     {
         gprval,
-#if defined(TARGET_IA32E)
+#if defined(TARGET_IA32E) || defined(TARGET_MIC)
         gpr32val,
 #endif
         gpr16val, gprlval, gprhval, stval,
-        xmmval, ymmval, zmmval, opmaskval
+#ifdef TARGET_MIC
+        zmmval, kval
+#else
+        xmmval, ymmval
+#endif // not TARGET_MIC
     };
     return reinterpret_cast<const UINT8*>(appRegisterValues[_regToTestReg.find(reg)->second]);
 }
@@ -219,11 +229,15 @@ const UINT8* RegisterDB::_GetToolRegisterValue(REG reg) const
     static const unsigned char* const toolRegisterValues[TESTREGSIZE] =
     {
         tgprval,
-#if defined(TARGET_IA32E)
+#if defined(TARGET_IA32E) || defined(TARGET_MIC)
         tgpr32val,
 #endif
         tgpr16val, tgprlval, tgprhval, tstval,
-        txmmval, tymmval, tzmmval, topmaskval
+#ifdef TARGET_MIC
+        tzmmval, tkval
+#else
+    txmmval, tymmval
+#endif // not TARGET_MIC
     };
     return reinterpret_cast<const UINT8*>(toolRegisterValues[_regToTestReg.find(reg)->second]);
 }
@@ -256,7 +270,7 @@ void RegisterDB::InitializeDB()
     DefineActiveRegister(GPRREG); // Always tested
     if (KnobTestPartial.Value())
     {
-#if defined(TARGET_IA32E)
+#if defined(TARGET_IA32E) || defined(TARGET_MIC)
         DefineActiveRegister(GPR32REG);
 #endif
         DefineActiveRegister(GPR16REG);
@@ -269,16 +283,16 @@ void RegisterDB::InitializeDB()
     }
     if (KnobTestSIMD.Value())
     {
+#ifdef TARGET_MIC
+        DefineActiveRegister(ZMMREG);
+        DefineActiveRegister(KREG);
+#else
         DefineActiveRegister(XMMREG);
         if (hasAvxSupport)
         {
             DefineActiveRegister(YMMREG);
         }
-        if (hasAvx512fSupport)
-        {
-            DefineActiveRegister(ZMMREG);
-            DefineActiveRegister(OPMASKREG);
-        }
+#endif
     }
     _numOfTestRegs = _testRegs.size();
 }

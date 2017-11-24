@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -40,7 +40,6 @@ END_LEGAL */
 #include <stdlib.h>
 #include <assert.h>
 #include <sched.h>
-#include <unistd.h>
 #include <linux/unistd.h>
 #include <sys/syscall.h>
 #include "zombie_utils.h"
@@ -55,7 +54,7 @@ pid_t zombiePid = -1;
 
 TEST_TYPE testType = TEST_TYPE_DEFAULT;
 
-PIN_LOCK pinLock;
+PIN_LOCK lock;
 
 using std::cerr;
 
@@ -151,7 +150,7 @@ VOID DETACH_SESSION::DetachCompleted(VOID *v)
         PIN_ExitProcess (1);
     }
 
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     traceFile << "Detach session " << detachIteration << " Detach completed; tid = "
             << PIN_GetTid() << endl;
     if (detachIteration == MAX_ITERATION)
@@ -160,7 +159,7 @@ VOID DETACH_SESSION::DetachCompleted(VOID *v)
         traceFile.close();
         PIN_ExitProcess(0);
     }
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
     SessionControl()->StartAttach();
 }
 
@@ -214,14 +213,14 @@ INT SESSION_CONTROL::DedicatedThread(VOID *arg)
         }
 
         SessionControl()->WaitForDetach();
-        PIN_GetLock(&pinLock, PIN_GetTid());
+        PIN_GetLock(&lock, PIN_GetTid());
         traceFile << "Pin tool: sending detach request" << endl;
-        PIN_ReleaseLock(&pinLock);
+        PIN_ReleaseLock(&lock);
         PIN_DetachProbed();
         SessionControl()->WaitForAttach();
-        PIN_GetLock(&pinLock, PIN_GetTid());
+        PIN_GetLock(&lock, PIN_GetTid());
         traceFile << "Pin tool: sending attach request" << endl;
-        PIN_ReleaseLock(&pinLock);
+        PIN_ReleaseLock(&lock);
 
         // If the main thread will turn into zombie before the first time it reattaches to the application.
         if(testType == TEST_TYPE_MAIN_THREAD_ZOMBIE_IN_REATTACH)
@@ -246,10 +245,10 @@ VOID SESSION_CONTROL::AttachedThreadStart(VOID *sigmask, VOID *arg)
             << " Received " << iteration << " In AttachedThreadStart" << endl;
         PIN_ExitProcess (1);
     }
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     ++(SessionControl()->_threadCounter);
     traceFile << "Thread start " << " notification at session " << iteration << " tid " << PIN_GetTid()<< endl;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 }
 
 VOID DETACH_SESSION::DetachThreadStart(VOID *arg)
@@ -261,9 +260,9 @@ VOID DETACH_SESSION::DetachThreadStart(VOID *arg)
             << " Received " << iteration << " In DetachThreadStart" << endl;
         PIN_ExitProcess (1);
     }
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     traceFile << "Thread detach "  << " notification at session " << iteration << " tid " << PIN_GetTid() << endl;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 }
 
 
@@ -298,9 +297,9 @@ VOID DETACH_SESSION::ImageLoad(IMG img,  VOID *v)
         }
     }
 
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     traceFile << "Load image " << IMG_Name(img) << "in iteration " << iteration << endl;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
     size_t found;
     found = IMG_Name(img).find(firstDllName);
 
@@ -313,9 +312,9 @@ VOID DETACH_SESSION::ImageLoad(IMG img,  VOID *v)
 // Image load callback for the second Pin session
 VOID REATTACH_SESSION::ImageLoad(IMG img,  VOID *v)
 { 
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     traceFile <<"Load image " << IMG_Name(img) <<" in iteration" << iteration  <<endl;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 
     size_t found;
     found= IMG_Name(img).find(firstDllName);
@@ -333,7 +332,7 @@ int main(int argc, CHAR *argv[])
 
     PIN_Init(argc,argv);
     SessionControl()->StartIteration(1);
-    PIN_InitLock(&pinLock);
+    PIN_InitLock(&lock);
     traceFile.open(knobOutputFile.Value().c_str());
     IMG_AddInstrumentFunction(DETACH_SESSION::ImageLoad,(VOID *) 1);
     PIN_AddDetachFunctionProbed(DETACH_SESSION::DetachCompleted, (VOID *)1);

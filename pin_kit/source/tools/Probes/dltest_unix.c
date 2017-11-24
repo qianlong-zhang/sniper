@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -33,7 +33,6 @@ END_LEGAL */
 #include <sys/mman.h>
 #include <dlfcn.h>
 #include <stdio.h>
-#include "../InstLib/tool_macros.h"
 
 void Load(char * name, int expect)
 {
@@ -70,14 +69,14 @@ int main()
 #if defined(TARGET_MAC) || defined(TARGET_BSD)
     void * mem = mmap(0, 0x2000, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
 #else    
-    void * mem = mmap(0, 0x2000, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    void * mem = mmap(0, 0x2000, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
 #endif    
     fprintf(stderr, "Allocated %p\n",mem);
     // This unmap should not trigger a flush
     munmap(mem, 0x2000);
-
-    Load(SHARED_LIB("libone"), 1);
-    Load(SHARED_LIB("libtwo"), 2);
+    
+    Load("libone.so", 1);
+    Load("libtwo.so", 2);
 
     return 0;
 }

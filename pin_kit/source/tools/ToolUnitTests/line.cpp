@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -40,18 +40,12 @@ using namespace std;
 /* Global Variables and Definitions */
 /* ===================================================================== */
 
-// A knob for defining the output file name
-KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o", "line_tool.out",
-                            "specify file name for line information output");
-
-// ofstream object for handling the output.
-ofstream trace;
-
+std::ofstream trace;
 
 #if defined(TARGET_MAC)
-# define MAINNAME "_main"
+#define MAINNAME "_main"
 #else
-# define MAINNAME "main"
+#define MAINNAME "main"
 #endif
 
 /* ===================================================================== */
@@ -59,8 +53,8 @@ ofstream trace;
 VOID ImageLoad(IMG img, VOID * v)
 {
     // Looking for main symbol only in main image
-
-    if (IMG_IsMainExecutable(img))
+    IMG_TYPE imgType = IMG_Type(img);
+    if(imgType ==  IMG_TYPE_STATIC || imgType == IMG_TYPE_SHARED)
     {
         for (SEC sec = IMG_SecHead(img); SEC_Valid(sec); sec = SEC_Next(sec))
         {
@@ -82,7 +76,7 @@ VOID ImageLoad(IMG img, VOID * v)
                         }
                     }
 
-                    //Test the case where all output parameters are NULL
+                    //Test the case where all output parametrs are NULL
                     PIN_GetSourceLocation(RTN_Address(rtn), NULL, NULL, NULL);
                 }
             }
@@ -97,11 +91,11 @@ VOID Fini(INT32 code, VOID *)
 
 int main(INT32 argc, CHAR **argv)
 {
+    trace.open("line.output");
+
     PIN_InitSymbols();
     PIN_Init(argc, argv);
     
-    trace.open(KnobOutputFile.Value().c_str());
-
     IMG_AddInstrumentFunction(ImageLoad, 0);
     PIN_AddFiniFunction(Fini, 0);
     

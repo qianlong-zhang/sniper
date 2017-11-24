@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -74,8 +74,10 @@ public:
       }
 private:
     VOID Activate();
-};
+    static VOID Trace(TRACE trace, VOID* v);
 
+    ADDRINT _address;
+};
 //*****************************************************************************
 class ALARM_SYMBOL : public IALARM
 {
@@ -89,8 +91,10 @@ public:
 private:
     VOID Activate();
     static VOID Img(IMG img, VOID* v);
+    static VOID Trace(TRACE trace, VOID* v);
 
     string _symbol;
+    ADDRINT _address;
 };
 
 //*****************************************************************************
@@ -109,8 +113,10 @@ public:
 private:
     VOID Activate();
     static VOID Img(IMG img, VOID* v);
+    static VOID Trace(TRACE trace, VOID* v);
 
     string _image;
+    ADDRINT _address;
     UINT64 _offset;
 };
 
@@ -219,7 +225,6 @@ public:
     IALARM(tid, 1, need_ctxt, manager){
         Activate();
       }
-    INTERACTIVE_LISTENER* GetListener() {return _listener;}
 
 private:
     INTERACTIVE_LISTENER* _listener;
@@ -272,107 +277,7 @@ private:
     static VOID OnFunctionEnd(CONTEXT* ctxt, ADDRINT ip, THREADID tid, VOID *v);
 };
 
-//*****************************************************************************
 
-class ALARM_CPUID : public IALARM
-{
-public:
-    ALARM_CPUID(const string& val_str, UINT32 tid, UINT32 count, 
-                 BOOL need_ctxt, ALARM_MANAGER* manager):
-      IALARM(tid, count, need_ctxt, manager) {
-          UINT32 val = PARSER::StringToUint32(val_str);
-          ASSERT((val<0x10000), "CPUID alarm should be 16 bits value");
-          _val = 0x4711|(val<<16);
-          Activate();
-      }
-
-private:
-    UINT32 _val;
-    
-    VOID Activate();
-    static VOID Trace(TRACE trace, VOID* v);
-
-    static ADDRINT PIN_FAST_ANALYSIS_CALL 
-        ShouldFire(IALARM* alarm, ADDRINT eax, UINT32 val, UINT32 tid);
-};
-
-//*****************************************************************************
-
-class ALARM_MAGIC : public IALARM
-{
-public:
-    ALARM_MAGIC(const string& val_str, UINT32 tid, UINT32 count,
-                 BOOL need_ctxt, ALARM_MANAGER* manager);
-
-private:
-    static const UINT32 SIM_CMD_MARKER = 4;
-    UINT32 _a, _b;
-
-    VOID Activate();
-    static VOID Trace(TRACE trace, VOID* v);
-
-    static ADDRINT PIN_FAST_ANALYSIS_CALL
-        ShouldFire(IALARM* alarm, ADDRINT eax, ADDRINT ebx, ADDRINT ecx,
-                   UINT32 a, UINT32 b, UINT32 tid);
-};
-
-//*****************************************************************************
-
-class ALARM_PCONTROL : public IALARM
-{
-public:
-    ALARM_PCONTROL(const string& region, UINT32 tid, UINT32 count,
-                   BOOL need_ctxt, ALARM_MANAGER* manager):
-    IALARM(tid, count, need_ctxt, manager){
-        _region = region;
-        Activate();
-    }
-
-private:
-    string _region;
-
-    VOID Activate();
-    static VOID Rtn(RTN rtn, VOID *v);
-
-    static VOID OnMpiPcontrol(ALARM_PCONTROL* alarm, CONTEXT* ctxt, ADDRINT ip,
-                              ADDRINT region_app, UINT32 tid);
-};
-
-//*****************************************************************************
-class ALARM_TIMEOUT : public IALARM
-{
-public:
-    ALARM_TIMEOUT(const string& timeout_str, UINT32 tid, UINT32 count, 
-                 BOOL need_ctxt, ALARM_MANAGER* manager):
-      IALARM(tid, count, need_ctxt, manager) {
-
-          _timeout_passed = FALSE;
-          _seconds_timeout = PARSER::StringToUint32(timeout_str);
-
-          Activate();
-      }
-
-private:
- 
-    // Private timeout data members
-    UINT32 _seconds_timeout;
-    BOOL _timeout_passed;
-
-    
-    VOID Activate();
-
-    // Internal thread routine
-    static VOID WaitForTimeout(VOID* v);
-
-    // Instrumentation routines 
-    static VOID Trace(TRACE trace, VOID* v);
-    static VOID InsertIfCall_CheckTime(ALARM_TIMEOUT* alarm, INS ins);
-
-    // Analysis routines
-    static ADDRINT PIN_FAST_ANALYSIS_CALL CheckTime(ALARM_TIMEOUT* ialarm, UINT32 tid);
-};
-
-//*****************************************************************************
 
 } //namespace
 #endif

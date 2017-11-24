@@ -22,6 +22,12 @@ TEST_TOOL_ROOTS :=
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
 TEST_ROOTS :=
 
+# This defines a list of tests that should run in the "short" sanity. Tests in this list must also
+# appear either in the TEST_TOOL_ROOTS or the TEST_ROOTS list.
+# If the entire directory should be tested in sanity, assign TEST_TOOL_ROOTS and TEST_ROOTS to the
+# SANITY_SUBSET variable in the tests section below (see example in makefile.rules.tmpl).
+SANITY_SUBSET :=
+
 # This defines the tools which will be run during the the tests, and were not already defined in
 # TEST_TOOL_ROOTS.
 TOOL_ROOTS :=
@@ -48,6 +54,16 @@ LIB_ROOTS :=
 
 ###### Place OS-specific definitions here ######
 
+# Android
+ifeq ($(TARGET_OS),android)
+    TEST_ROOTS += modify_ldt load_far_pointer gcc_thread_local_vars
+    APP_ROOTS += modify_ldt load_far_pointer gcc_thread_local_vars_app
+    ifeq ($(TARGET),ia32)
+        TEST_ROOTS += set_thread_area1 set_thread_area2 set_thread_area3 fixed_base_reg
+        APP_ROOTS += set_thread_area1 set_thread_area2 set_thread_area3 fixed_base_reg
+    endif
+endif
+
 # Linux
 ifeq ($(TARGET_OS),linux)
     TEST_ROOTS += modify_ldt load_far_pointer gcc_thread_local_vars
@@ -58,18 +74,16 @@ ifeq ($(TARGET_OS),linux)
     endif
 endif
 
-###### Define the sanity subset ######
-
-# This defines the list of tests that should run in sanity. It should include all the tests listed in
-# TEST_TOOL_ROOTS and TEST_ROOTS excluding only unstable tests.
-SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
-
 
 ##############################################################
 #
 # Test recipes
 #
 ##############################################################
+
+###### Finalize sanity here ######
+
+SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 
 # This section contains recipes for tests other than the default.
 # See makefile.default.rules for the default test rules.

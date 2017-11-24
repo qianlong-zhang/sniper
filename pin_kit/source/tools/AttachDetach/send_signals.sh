@@ -10,14 +10,17 @@ fi
 
 echo "sending signal $2 to process $1 "
 
-kill -0 $pid > /dev/null 2>&1
+ps h --pid $pid
 status=$?
 if [ $status -eq 0 ]; then
 	echo "Sending signal $signo"
 	kill -s $signo $pid
 	sleep 5
 else
-    echo "process $1 doesn't exist"
-    exit 0
+    if [ $i -eq 1 ]; then
+         echo "process $1 doesn't exist"
+         exit 0
+    fi
+	exit 0
 fi
 

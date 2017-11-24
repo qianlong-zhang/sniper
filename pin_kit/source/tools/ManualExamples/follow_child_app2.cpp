@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,39 +28,13 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
-/*! @file
- * In addition to what this test checks, we also check these:
- * - Checking if an environment variable which is set after Pin took over the application is being passed to
- *   the current application which was executed by the previous application
- */
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <assert.h>
-#include <iostream>
 
-using namespace std;
-
-int main(int argc, char **argv, char * envp[])
+int main(int argc, char **argv)
 {
-    printf("child:%u-%u\n", getppid(), getpid());
-
-    int i = 0;
-
-    // Verifying that 'ParentEnv' environment variable which was set by the application (after Pin tool over)
-    // which executed the current application was passed as expected
-    bool parentEnvPassed = false;
-    while (envp[i] != 0)
-    {
-        if (string(envp[i]).compare(string("ParentEnv=1")) == 0)
-        {
-            parentEnvPassed = true;
-        }
-        i++;
-    }
-
-    assert(parentEnvPassed);
-
+    printf("child:%u-%u\n", getppid(), getpid());    
     return 0;
 }

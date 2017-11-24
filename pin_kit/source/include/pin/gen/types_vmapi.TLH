@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,10 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+//
+// @ORIGINAL_AUTHOR: Robert Cohn
+//
+
 /*! @file */
 /*
  * This file contains types that are in LEVEL_VM and are part of the Pin
@@ -59,10 +63,7 @@ GLOBALTYPE struct CONTEXT
     /*!
      *  Construct the CONTEXT object with the default (canonical) implementation.
      */
-    CONTEXT() : _impl(DEFAULT_CONTEXT_IMPL)
-    {
-        memset(_state, 0, sizeof(CHAR) * ARCH_STATE_SIZE);
-    }
+    CONTEXT() : _impl(DEFAULT_CONTEXT_IMPL) {}
 
     ADDRINT _impl;                              ///< implementation-specific data
     CHAR    _state[ARCH_STATE_SIZE];            ///< architectural state
@@ -74,7 +75,7 @@ GLOBALTYPE struct CONTEXT
 GLOBALTYPE struct PHYSICAL_CONTEXT
 {
    /*!
-    *  Constructor of the PHYSICAL_CONTEXT object
+    *  Constructor of the PHYSICAL_CONTEXT object 
     */
     PHYSICAL_CONTEXT(CONTEXT * pCtxt) : _pCtxt(pCtxt) {}
 
@@ -105,7 +106,7 @@ GLOBALTYPE typedef struct CONTEXT CONTEXT;
 
 /*! @ingroup PHYSICAL_CONTEXT_API
  *  Physical state of the processor.\n
- *  The tool should not read or modify data members of this structure directly,
+ *  The tool should not read or modify data members of this structure directly, 
  *  but must treat the structure as logically opaque and use the @ref PHYSICAL_CONTEXT_API
  *  functions to manage it.
  */
@@ -149,7 +150,7 @@ enum EXCEPT_HANDLING_RESULT
     EHR_UNHANDLED,              ///< Exception is not handled.
                                 ///< Execute default system procedure for unhandled exceptions (Windows) or abort the process (Unix)
 
-    EHR_CONTINUE_SEARCH         ///< Execute next (upper level) exception filter function, if any.
+    EHR_CONTINUE_SEARCH         ///< Execute next (upper level) exception filter function, if any. 
                                 ///< For the uppermost filter, this is the same as EHR_UNHANDLED semantics
 };
 
@@ -160,12 +161,12 @@ enum EXCEPT_HANDLING_RESULT
  * invocations when an instruction has multiple analysis calls.
  * CALL_ORDER_DEFAULT is the default call order when @ref IARG_CALL_ORDER
  * is not specified. You can use integral values relative to the predefined values to have a
- * fine-grained control over the instrumentation order
+ * fine-grained control over the instrumentation order 
  * (e.g., CALL_ORDER_DEFAULT + 5, CALL_ORDER_LAST - 10, etc).
  *
- * Pin guarantees that multiple analysis calls with the same CALL_ORDER on the same instruction,
+ * Pin guarantees that multiple analysis calls with the same CALL_ORDER on the same instruction, 
  * added in the context of the same instrumentation callback (e.g,. @ref INS_INSTRUMENT_CALLBACK),
- * will be invoked according to their insertion order. For all other cases, the invocation order
+ * will be invoked according to their insertion order. For all other cases, the invocation order 
  * for analysis calls with the same CALL_ORDER on the same instruction depends on the implementation
  * and may change without notice.
  */
@@ -181,26 +182,25 @@ GLOBALTYPE enum CALL_ORDER
  * Determines the arguments that are passed to the analysis call.
  * All argument lists must end with IARG_END.
  */
-GLOBALTYPE typedef enum
+GLOBALTYPE typedef enum 
 {
     IARG_INVALID,
     IARG_ADDRINT, ///< Type: ADDRINT. Constant value (additional arg required)
     IARG_PTR, ///< Type: "VOID *". Constant value (additional pointer arg required)
     IARG_BOOL, ///< Type: BOOL. Constant (additional BOOL arg required)
     IARG_UINT32, ///< Type: UINT32. Constant (additional integer arg required)
-    IARG_UINT64, ///< Type: UINT64. Constant (additional UINT64 arg required)
 
     /*!
      * Type: ADDRINT. The address of the instrumented instruction. This value does not change at IPOINT_AFTER.
      * This is simply shorthand for <tt>IARG_ADDRINT, INS_Address(ins)</tt>.
      */
-    IARG_INST_PTR,
+    IARG_INST_PTR, 
 
     /*!
-     * Type: ADDRINT for integer registers. Value of a register (additional register arg required) @ref REG_BASIC_API
-     * Basically, this cannot be used to retrieve the value of registers whose size is larger than ADDRINT
-     * (e.g. x87 FPU/XMM/YMM/ZMM/opmask) or registeres which are not architectural (REG_PIN_*), but there are some
-     * exceptions to this rule.
+     * Type: ADDRINT for integer register. Value of a register (additional register arg required) @ref REG_BASIC_API
+     * Basically, this cannot be used to retrieve the value of registers whose size is different than ADDRINT's
+     * (i.e.: x87/XMM/YMM/ZMM registers) or registeres which are not architectural (REG_PIN_*), but there are some
+     * exceptions for this rule.
      */
     IARG_REG_VALUE,
 
@@ -219,38 +219,14 @@ GLOBALTYPE typedef enum
     IARG_MEMORYREAD_EA, ///< Type: ADDRINT. Effective address of a memory read, only valid if INS_IsMemoryRead is true and at IPOINT_BEFORE
     IARG_MEMORYREAD2_EA, ///< Type: ADDRINT. Effective address of a 2nd memory read (e.g. 2nd operand in cmps on ia32), only valid at IPOINT_BEFORE
     IARG_MEMORYWRITE_EA,///< Type: ADDRINT. Effective address of a memory write, only valid at IPOINT_BEFORE
-    /*!
-     * Type: UINT32. Size in bytes of memory read.
-     * This IARG is applicable for all instructions for which @ref INS_hasKnownMemorySize returns TRUE. For other
-     * instructions e.g. vgather/vscater see @ref IARG_MULTI_MEMORYACCESS_EA.
-     * For the varying memory size read instruction, XRSTOR, the size is based on the XSAVE area header. If the header
-     * indicates compact mode it will provide the compact size. Otherwise it will provide the standard size.
-     * The minimum size for the XRSTOR instruction (not including FXRSTOR) is 576 (i.e the XSAVE area size up
-     * to and including the header).
-     */
-    IARG_MEMORYREAD_SIZE,
-    /*!
-     * Type: UINT32. Size in bytes of memory write.
-     * This IARG is applicable for all instructions for which @ref INS_hasKnownMemorySize returns TRUE. For other
-     * instructions e.g. vgather/vscater see @ref IARG_MULTI_MEMORYACCESS_EA.
-     * For varying size memory write instructions, the supported instructions are the XSAVE family of instructions.
-     * For XSAVE, the size of the XSAVE area used is based on user request and supported features in the machine. This will
-     * provide the exact size used.
-     * For XSAVEOPT, the size is calculated the same as if XSAVE was used. This may provide in some cases an upper
-     * bound to the actual used memory.
-     * For XSAVEC, in IPOINT_BEFORE the size is calculated based on user request only. This may provide in some cases
-     * an upper bound to the actual size.
-     * If used in IPOINT_AFTER it will provide the exact compact size as defined in the XSAVE area header.
-     * The minimum size for the XSAVE family write instructions (not including FXSAVE) is 576 (i.e the XSAVE area
-     * size up to and including the header).
-     */
-    IARG_MEMORYWRITE_SIZE,
+    IARG_MEMORYREAD_SIZE, ///< Type: UINT32. Size in bytes of memory read
+    IARG_MEMORYWRITE_SIZE,///< Type: UINT32. Size in bytes of memory write
 
     // Those *_PTR types can be modified by using memory translation callback
-    IARG_MEMORYREAD_PTR, ///< Same as IARG_MEMORYREAD_EA, but allows registering a @ref MEMORY_ADDR_TRANS_CALLBACK
-    IARG_MEMORYREAD2_PTR, ///< Same as IARG_MEMORYREAD2_EA, but allows registering a @ref MEMORY_ADDR_TRANS_CALLBACK
-    IARG_MEMORYWRITE_PTR,///< Same as IARG_MEMORYWRITE_EA, but allows registering a @ref MEMORY_ADDR_TRANS_CALLBACK
-    IARG_MEMORYOP_PTR,  ///< Same as IARG_MEMORYOP_EA, but allows registering a @ref MEMORY_ADDR_TRANS_CALLBACK
+    IARG_MEMORYREAD_PTR, ///< Same as IARG_MEMORYREAD_EA, but allows registering a @ref MEMORY_ADDR_TRANS_CALLBACK 
+    IARG_MEMORYREAD2_PTR, ///< Same as IARG_MEMORYREAD2_EA, but allows registering a @ref MEMORY_ADDR_TRANS_CALLBACK 
+    IARG_MEMORYWRITE_PTR,///< Same as IARG_MEMORYWRITE_EA, but allows registering a @ref MEMORY_ADDR_TRANS_CALLBACK 
+    IARG_MEMORYOP_PTR,  ///< Same as IARG_MEMORYOP_EA, but allows registering a @ref MEMORY_ADDR_TRANS_CALLBACK 
 
     IARG_MULTI_MEMORYACCESS_EA,///< Type: PIN_MULTI_MEM_ACCESS_INFO* the addresses read by the various vgather* instructions
 
@@ -262,14 +238,14 @@ GLOBALTYPE typedef enum
     IARG_EXECUTING, ///< Type: BOOL. False if the instruction will not be executed because of predication, otherwise true.
     IARG_FIRST_REP_ITERATION, ///< Type: BOOL. True if INS_HasRealRep(ins) and this the first iteration of the REP sequence, otherwise false.
     IARG_PREDICATE, ///< Reserved. Do not use
-
+    
     // These are internal only
     IARG_STACK_VALUE, ///< Reserved. Do not use
     IARG_STACK_REFERENCE, ///< Reserved. Do not use
     IARG_MEMORY_VALUE,      ///< Reserved. IA32(e) only
     IARG_MEMORY_REFERENCE,  ///< Reserved. IA32(e) only
 
-
+    
     // Syscall stuff
     IARG_SYSCALL_NUMBER, ///< Type: ADDRINT. System call number. Valid for IPOINT_BEFORE at the system call instruction
     IARG_SYSARG_REFERENCE, ///< Type: "ADDRINT *". Pointer to system call argument n. Valid for IPOINT_BEFORE at the system call instruction.  (First argument number is 0.)
@@ -277,29 +253,29 @@ GLOBALTYPE typedef enum
     IARG_SYSARG_VALUE, ///< Type: ADDRINT. System call argument n. Valid for IPOINT_BEFORE at the system call instruction.  (First argument number is 0.)
     IARG_SYSRET_VALUE, ///< Type: ADDRINT. System call return value. On Linux and MacOS the value is -1 if the system call failed. (IPOINT_AFTER only)
     IARG_SYSRET_ERRNO, ///< Type: INT32. System call errno (IPOINT_AFTER_only).
-
+    
     // function arguments
     /*!
      * Type: "ADDRINT *". Pointer to integer argument n. Valid only at the call site.  (First argument number is 0.)
     */
-    IARG_FUNCARG_CALLSITE_REFERENCE,
+    IARG_FUNCARG_CALLSITE_REFERENCE, 
     /*!
      * Type: ADDRINT. Integer argument n. Valid only at the call site.  (First argument number is 0.)
      */
-    IARG_FUNCARG_CALLSITE_VALUE,
+    IARG_FUNCARG_CALLSITE_VALUE, 
     /*!
      * Type: "ADDRINT *". Pointer to integer argument n. Valid only at the entry point of a routine.  (First argument number is 0.)
      */
-    IARG_FUNCARG_ENTRYPOINT_REFERENCE,
+    IARG_FUNCARG_ENTRYPOINT_REFERENCE, 
     /*!
      * Type: ADDRINT. Integer argument n. Valid only at the entry point of a routine.  (First argument number is 0.)
      */
-    IARG_FUNCARG_ENTRYPOINT_VALUE,
+    IARG_FUNCARG_ENTRYPOINT_VALUE, 
     IARG_FUNCRET_EXITPOINT_REFERENCE, ///< Type: "ADDRINT *". Pointer to function result. Valid only at return instruction.
     IARG_FUNCRET_EXITPOINT_VALUE, ///< Type: ADDRINT. Function result. Valid only at return instruction.
 
     IARG_RETURN_IP,     ///< Type: ADDRINT. Return address for function call, valid only at the function entry point.
-
+ 
     IARG_ORIG_FUNCPTR, ///< Type: AFUNPTR. Function pointer to the relocated entry of the original uninstrumented function.
 
     IARG_PROTOTYPE, ///< Type: PROTO.  The function prototype of the application function. See @ref PROTO
@@ -307,76 +283,91 @@ GLOBALTYPE typedef enum
     IARG_THREAD_ID, ///< Type: THREADID. Application thread id.
 
     /*!
-     * Type: @ref CONTEXT *. Handle to access a context (architectural state).  When passed at
-     * @ref IPOINT_AFTER or @ref IPOINT_TAKEN_BRANCH, PC points to the next instruction.  Upon return from
-     * the analysis routine, Pin ignores any changes you've made to the @ref CONTEXT.  If you want
-     * to change register values, use @ref IARG_REG_REFERENCE, @ref IARG_RETURN_REGS, or @ref PIN_ExecuteAt.
+     * Type: "CONTEXT *". Handle to access a context (architectural state).  When passed at
+     * IPOINT_AFTER or IPOINT_TAKEN_BRANCH, PC points to the next instruction.  Upon return from
+     * the analysis routine, Pin ignores any changes you've made to the CONTEXT.  If you want
+     * to change register values, use IARG_REG_REFERENCE, IARG_RETURN_REGS, or PIN_ExecuteAt().
      * See @ref PROBE_IARGS for probe mode restrictions.  Not supported with the Buffering APIs.
      */
     IARG_CONTEXT,
     /*!
-     * Type: @ref CONTEXT *.
-     * Like @ref IARG_CONTEXT, but tool receives a read-only @ref CONTEXT*.
-     * @ref PIN_SetContextReg, @ref PIN_SetContextRegval and @ref PIN_SetContextFPState will not work with
-     * @ref IARG_CONST_CONTEXT.
-     * The overhead of @ref IARG_CONST_CONTEXT is considerably lower than that of @ref IARG_CONTEXT.
-     * Tools that need a @ref CONTEXT* and only read from it should use @ref IARG_CONST_CONTEXT.
-     * Tools that need a @ref CONTEXT* and only occasionally write into it should also use @ref IARG_CONST_CONTEXT.
-     * One example of a tool that needs a @ref CONTEXT * and only occasionally writes into it, would be an
-     * emulator that would need to write into the @ref CONTEXT * only when an exception occurs, and then
-     * raise an exception with the @ref CONTEXT *.
-     * @ref PIN_SaveContext can be used by the tool to get a writable copy of the @ref CONTEXT *.
-     * @ref IARG_CONST_CONTEXT is available only in Jit mode.
+     * Type: "CONTEXT *". 
+     * Like IARG_CONTEXT, but tool receives a read-only CONTEXT*. 
+     * PIN_SetContextReg and PIN_SetContextFPState will not work with IARG_CONST_CONTEXT.
+     * The overhead of IARG_CONST_CONTEXT is considerably lower than that of IARG_CONTEXT.
+     * Tools that need a CONTEXT* and only read from it should use IARG_CONST_CONTEXT.
+     * Tools that need a CONTEXT* and only occasionally write into it should also use IARG_CONST_CONTEXT.
+     * One example of a tool that needs a CONTEXT* and only occasionally writes into it, would be an
+     * emulator that would need to write into the CONTEXT* only when an exception occurs, and then
+     * raise an exception with the CONTEXT*.
+     * PIN_SaveContext can be used by the tool to get a writable copy of the CONTEXT*.
+     * IARG_CONST_CONTEXT is available only in Jit mode, and is silently deprecated to IARG_CONTEXT 
+     * in probe mode
      */
     IARG_CONST_CONTEXT,
-    /*!
-     * Type: @ref CONTEXT *. Additional two @ref REGSET * arguments are needed 'inSet' and 'outSet'.
-     * Like @ref IARG_CONTEXT, but tool needs to define also which registers set it needs to read (inSet)
-     * and which registers set it may write (outSet).
-     * @ref PIN_SetContextReg, @ref PIN_SetContextRegval and @ref PIN_SetContextFPState will work only on registers
-     * that are in the outSet. These functions will change the actual application registers so there is no need
-     * to perform @ref PIN_ExecuteAt as need to be done with @ref IARG_CONTEXT.
-     * @ref PIN_GetContextReg, @ref PIN_GetContextRegval and @ref PIN_GetContextFPState will return unexpected values
-     * for registers not defined in the 'inSet'.
-     * The overhead of @ref IARG_PARTIAL_CONTEXT may lower than that of @ref IARG_CONTEXT as there is no need to perform
-     * @ref PIN_ExecuteAt to update registers.
-     * Tools that know which application registers are needed to be read should use @ref IARG_PARTIAL_CONTEXT instead of
-     * @ref IARG_CONST_CONTEXT. Thus may reduce the overhead as not fully updated context for read need to be provided.
-     * Tools that know which application registers other than @ref REG_INST_PTR should use @ref IARG_PARTIAL_CONTEXT
-     * instead of combination of @ref IARG_CONTEXT and the use of @ref PIN_ExecuteAt for registers update.
-     * If @ref REG_INST_PTR needs to be updated @ref PIN_ExecuteAt still needs to be used.
-     * Any updates to a register from the inSet of an @ref IARG_PARTIAL_CONTEXT will be propagated to the application upon
-     * return from the analysis routine. Tools that want to update @ref CONTEXT registers without affecting application
-     * registers should use @ref IARG_CONTEXT.
-     * @ref IARG_PARTIAL_CONTEXT is available only in Jit mode.
-     */
     IARG_PARTIAL_CONTEXT,
 
      /*!
-     * Type: @ref REGSET *.
+     * Type: "REGSET *". 
      * Used to specify registers whose values will be the same upon return from the analysis routine.
      * Should be used to specify caller-saved registers which are preserved by the analysis routine.
      * When a non-inlinable analysis routine preserves caller-saved registers, Pin can avoid generating
      * code to preserve these registers, across the analysis call, if they are specified in the IARG_PRESERVE.
      * e.g. if a non-inlinable analysis routine preserves the values in the x87 registers, then Pin
      * can avoid generating code to preserve these registers, across the analysis call, if REG_X87 is specified in
-     * the @ref IARG_PRESERVE
+     * the IARG_PRESERVE
      * e.g. if a non-inlinable analysis routine preserves the values in XMM caller saved registers, then Pin
-     * can avoid generating code to preserve these registers, across the analysis call, if those preserved XMM
-     * registers are specified in the @ref IARG_PRESERVE
-     * @ref IARG_PRESERVE must be followed by a @ref REGSET* that points to the @ref REGSET containing the registers preserved.
-     * See the @ref REGSET_AddAll "(REGSET_*)" functions defined under @ref REG_CPU_IA32 for @ref REGSET construction and manipulation.
+     * can avoid generating code to preserve these registers, across the analysis call, if those preserved XXM
+     * registers are specified in the IARG_PRESERVE
+     * IARG_PRESERVE must be followed by a REGSET* that points to the REGSET containing the registers preserved.
+     * See @ref the REGSET_* macros defined under @ref REG_CPU_IA32 for REGSET construction and manipulation.
      */
     IARG_PRESERVE,
 
-
+    
     IARG_RETURN_REGS,  ///< Register to write analysis function return value (additional register arg required).  Not supported in Probe mode.
 
     IARG_CALL_ORDER,   ///< Type: CALL_ORDER. Determine order of analysis calls. See @ref CALL_ORDER.
+    
+    IARG_REG_NAT_VALUE, ///< Type: BOOL. Nat value of register. Ipf only
+    IARG_REG_OUTPUT_FRAME_VALUE, ///< Type: ADDRINT for integer registers. Like IARG_REG_VALUE, but use index into RSE output frame instead of register name. IA64 only
+    IARG_REG_OUTPUT_FRAME_REFERENCE, ///< Type: "ADDRINT *". Like IARG_REG_REFERENCE, but use index into RSE output frame instead of register name. IA64 only
 
     IARG_IARGLIST, ///< Type: IARGLIST. List of IARGS which can be constructed one IARG at a time.
 
     IARG_FAST_ANALYSIS_CALL, ///< No type: Use a fast linkage to call the analysis function. See @ref PIN_FAST_ANALYSIS_CALL
+    
+    IARG_SYSCALL_ARG0, ///< DEPRECATED, see IARG_SYSARG_CALLSITE_{VALUE,REFERENCE}
+    IARG_SYSCALL_ARGBASE = IARG_SYSCALL_ARG0, 
+    IARG_SYSCALL_ARG1, ///< DEPRECATED, see IARG_SYSARG_CALLSITE_{VALUE,REFERENCE}
+    IARG_SYSCALL_ARG2, ///< DEPRECATED, see IARG_SYSARG_CALLSITE_{VALUE,REFERENCE}
+    IARG_SYSCALL_ARG3, ///< DEPRECATED, see IARG_SYSARG_CALLSITE_{VALUE,REFERENCE}
+    IARG_SYSCALL_ARG4, ///< DEPRECATED, see IARG_SYSARG_CALLSITE_{VALUE,REFERENCE}
+    IARG_SYSCALL_ARG5, ///< DEPRECATED, see IARG_SYSARG_CALLSITE_{VALUE,REFERENCE}
+    IARG_SYSCALL_ARGLAST = IARG_SYSCALL_ARG5,
+
+
+    IARG_G_RESULT0, ///< DEPRECATED, see IARG_SYSRET_{VALUE,REFERENCE}
+    IARG_G_RETBASE = IARG_G_RESULT0,
+    IARG_G_RESULTLAST = IARG_G_RESULT0,
+
+    IARG_G_ARG0_CALLEE, ///< DEPRECATED, see IARG_FUNCARG_CALLSITE_{VALUE,REFERENCE}
+    IARG_G_ARGBASE_CALLEE = IARG_G_ARG0_CALLEE,
+    IARG_G_ARG1_CALLEE, ///< DEPRECATED, see IARG_FUNCARG_CALLSITE_{VALUE,REFERENCE}
+    IARG_G_ARG2_CALLEE, ///< DEPRECATED, see IARG_FUNCARG_CALLSITE_{VALUE,REFERENCE}
+    IARG_G_ARG3_CALLEE, ///< DEPRECATED, see IARG_FUNCARG_CALLSITE_{VALUE,REFERENCE}
+    IARG_G_ARG4_CALLEE, ///< DEPRECATED, see IARG_FUNCARG_CALLSITE_{VALUE,REFERENCE}
+    IARG_G_ARG5_CALLEE, ///< DEPRECATED, see IARG_FUNCARG_CALLSITE_{VALUE,REFERENCE}
+    IARG_G_ARGLAST_CALLEE = IARG_G_ARG5_CALLEE,
+
+    IARG_G_ARG0_CALLER, ///< DEPRECATED, see IARG_FUNCARG_ENTRYPOINT_{VALUE,REFERENCE}
+    IARG_G_ARGBASE_CALLER = IARG_G_ARG0_CALLER,
+    IARG_G_ARG1_CALLER, ///< DEPRECATED, see IARG_FUNCARG_ENTRYPOINT_{VALUE,REFERENCE}
+    IARG_G_ARG2_CALLER, ///< DEPRECATED, see IARG_FUNCARG_ENTRYPOINT_{VALUE,REFERENCE}
+    IARG_G_ARG3_CALLER, ///< DEPRECATED, see IARG_FUNCARG_ENTRYPOINT_{VALUE,REFERENCE}
+    IARG_G_ARG4_CALLER, ///< DEPRECATED, see IARG_FUNCARG_ENTRYPOINT_{VALUE,REFERENCE}
+    IARG_G_ARG5_CALLER, ///< DEPRECATED, see IARG_FUNCARG_ENTRYPOINT_{VALUE,REFERENCE}
+    IARG_G_ARGLAST_CALLER = IARG_G_ARG5_CALLER,
 
     IARG_MEMORYOP_EA,  ///< Type: ADDRINT. Effective address of a memory op (memory op index is next arg); only valid at IPOINT_BEFORE
     IARG_MEMORYOP_MASKED_ON,///< Type: BOOL. TRUE if the this memory op (memory op index is next arg) is masked on; only valid at IPOINT_BEFORE
@@ -404,10 +395,10 @@ GLOBALTYPE typedef enum
  *
  * Controls the type of probe
  */
-GLOBALTYPE typedef enum
+GLOBALTYPE typedef enum 
 {
     PROBE_INVALID,                  ///< Invalid
-    PROBE_REDIRECT,                 ///< Redirects control flow only.
+    PROBE_REDIRECT,                 ///< Redirects control flow only. 
                                     //   The region is started from original or probed code (supports probe-on-probe).
     PROBE_REDIRECT_TO_ORIGINAL,     ///< Redirects control flow. The region should be built from original code
                                     //   only.
@@ -418,7 +409,11 @@ GLOBALTYPE typedef enum
     PROBE_RELOCATE                  ///< Relocate entire function (simple function only)
 } PROBE_TYPE;
 
+#ifdef TARGET_MIC
 LOCALCONST UINT32 MAX_BYTES_PER_PIN_REG = 64;
+#else
+LOCALCONST UINT32 MAX_BYTES_PER_PIN_REG = 32;
+#endif
 LOCALCONST UINT32 MAX_WORDS_PER_PIN_REG = (MAX_BYTES_PER_PIN_REG/2);
 LOCALCONST UINT32 MAX_DWORDS_PER_PIN_REG = (MAX_WORDS_PER_PIN_REG/2);
 LOCALCONST UINT32 MAX_QWORDS_PER_PIN_REG = (MAX_DWORDS_PER_PIN_REG/2);
@@ -457,10 +452,9 @@ GLOBALTYPE typedef enum
 {
     CALLINGSTD_INVALID,
     CALLINGSTD_DEFAULT,
-    CALLINGSTD_CDECL,
+    CALLINGSTD_CDECL, 
     CALLINGSTD_REGPARMS,
-    CALLINGSTD_STDCALL,
-    CALLINGSTD_ART
+    CALLINGSTD_STDCALL
 } CALLINGSTD_TYPE;
 
 
@@ -583,12 +577,12 @@ GLOBALTYPE typedef IARGLIST_CLASS * IARGLIST;
 
  @begincode
 VOID PIN_FAST_ANALYSIS_CALL docount(int j);
-
+ 
  INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(docount), IARG_FAST_ANALYSIS_CALL, IARG_UINT32, 3, IARG_END);
  @endcode
  *
  * You will gain the most benefit from using PIN_FAST_ANALYSIS_CALL if
- * - you are instrumenting a 32 bit process (the 64 bit calling conventions already pass
+ * - you are instrumenting a 32 bit process (the 64 bit calling conventions already pass 
  *   arguments in registers)
  * - your analysis routine is not inlined (if it is inlined there is no
  *   call to optimize)
@@ -610,7 +604,7 @@ VOID PIN_FAST_ANALYSIS_CALL docount(int j);
  *
  * used in the Type whose address is passed to analysis routine when IARG_MULTI_MEMORYACCESS_EA is requested
  */
-GLOBALTYPE typedef enum
+GLOBALTYPE typedef enum 
 {
     PIN_MEMOP_LOAD,
     PIN_MEMOP_STORE
@@ -620,7 +614,7 @@ GLOBALTYPE typedef enum
  *
  * used in the Type whose address is passed to analysis routine when IARG_MULTI_MEMORYACCESS_EA is requested
  */
-GLOBALTYPE typedef struct
+GLOBALTYPE typedef struct 
 {
     ADDRINT        memoryAddress;
     PIN_MEMOP_ENUM memopType;
@@ -632,13 +626,13 @@ GLOBALTYPE typedef struct
 /*! @ingroup INST_ARGS
  *
  */
-GLOBALCONST int MAX_MULTI_MEMOPS = 16;
+GLOBALCONST int MAX_MULTI_MEMOPS = 8;
 
 /*! @ingroup INST_ARGS
  *
  * address of this Type is passed to analysis routine when IARG_MULTI_MEMORYACCESS_EA is requested
  */
-GLOBALTYPE typedef struct
+GLOBALTYPE typedef struct 
 {
     UINT32              numberOfMemops; // only the first numberOfMemops elements in the memop[] array
                                         // are valid
@@ -654,13 +648,13 @@ GLOBALTYPE typedef struct
 GLOBALTYPE typedef PROTO_CLASS * PROTO;
 
 /*! @ingroup BUFFERING_API
- *
+ * 
  * Tool buffer ID assigned by Pin.
  */
 GLOBALTYPE typedef UINT32 BUFFER_ID;
 
 /*! @ingroup BUFFERING_API
- *
+ * 
  * ID returned if defining a buffer fails.
  */
 GLOBALCONST BUFFER_ID BUFFER_ID_INVALID = 0;
@@ -690,17 +684,17 @@ GLOBALCONST PIN_THREAD_UID INVALID_PIN_THREAD_UID = static_cast<PIN_THREAD_UID>(
 /*! @ingroup PIN_THREAD_API
  *  Thread ID assigned by OS.
  */
-GLOBALTYPE typedef NATIVE_TID OS_THREAD_ID;
+GLOBALTYPE typedef UINT32 OS_THREAD_ID;
 
 /*! @ingroup PIN_THREAD_API
  *  Invalid value of the OS_THREAD_ID type.
  */
-GLOBALCONST OS_THREAD_ID INVALID_OS_THREAD_ID = INVALID_NATIVE_TID;
+GLOBALCONST OS_THREAD_ID INVALID_OS_THREAD_ID = 0;
 
 /*! @ingroup PIN_THREAD_API
  *  Main (starting) function of a thread.
- *  @param[in] arg  argument of the main thread function, as specified by the
- *                  thread creator.
+ *  @param[in] arg  argument of the main thread function, as specified by the 
+ *                  thread creator.  
  */
 GLOBALTYPE typedef VOID ROOT_THREAD_FUNC(VOID * arg);
 
@@ -713,6 +707,11 @@ GLOBALCONST size_t DEFAULT_THREAD_STACK_SIZE = 256*sizeof(ADDRINT)*1024;
  *  Process ID assigned by OS.
  */
 GLOBALTYPE typedef UINT32 OS_PROCESS_ID;
+
+/*! @ingroup PIN_THREAD_PRIVATE
+ *  Opaque type that represents JIT context of a thread in the Pin API for applications (pinapp library).
+ */
+GLOBALTYPE typedef VOID * THREAD_CONTEXT;
 
 /*! @ingroup APPDEBUG_API
  * Possible status codes telling the state of application level debugging.
@@ -871,27 +870,26 @@ struct DEBUGGER_REG_DESCRIPTION
  * used in for memory address translation callback
  */
 
-GLOBALTYPE typedef union
+GLOBALTYPE typedef union  
 {
     UINT32 data;
-    struct
+    struct 
     {
         UINT32 isAtomic:1;
         UINT32 isRmw:1;
         UINT32 isPrefetch:1;
-        UINT32 isFromPin:1;
     } bits;
 } PIN_MEM_TRANS_FLAGS;
 
-GLOBALTYPE typedef struct
+GLOBALTYPE typedef struct 
 {
     // because this structure is allocated on the stack before
     // the call to CallMemoryAddrTrans and a function may
     // write into the 48bytes above it's rsp
-    UINT8 dummySpace[32];
+    UINT8 dummySpace[32]; 
     THREADID threadIndex;
     ADDRINT addr;
-    size_t bytes;
+    size_t bytes; 
     PIN_MEMOP_ENUM memOpType;
     ADDRINT ip;
     PIN_MEM_TRANS_FLAGS flags;
@@ -904,15 +902,5 @@ GLOBALTYPE typedef struct
 {
     UINT32 native:1;   ///< When set, PIN executes the function without instrumenting it (default: FALSE)
 } CALL_APPLICATION_FUNCTION_PARAM;
-
-/*! @ingroup PIN_CONTROL
-* Types of Pin callbacks.
-* These type could be used with the function @ref PIN_SetAllowedConcurrentCallbacks()
-*/
-GLOBALTYPE enum PIN_CALLBACK_TYPE
-{
-    PIN_CALLBACK_TYPE_NONE    = 0, ///< None of the callback types.
-    PIN_CALLBACK_TYPE_SYSCALL = 1 ///< Syscall entry/exit callback.
-};
 
 #endif

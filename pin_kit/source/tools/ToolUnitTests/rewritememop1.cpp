@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -49,15 +49,13 @@ KNOB<BOOL> KnobUseIargConstContext(KNOB_MODE_WRITEONCE, "pintool",
 static ofstream out;
 static UINT64 rewritten = 0;
 static UINT64 afterBranch = 0;
-static BOOL rewriteOp[32];
-
-#define STRINGIZE(v) #v
-#define REGENTRY(n) { REG_##n, STRINGIZE(n) }
+static BOOL rewriteOp[2];
 
 /* ===================================================================== */
 /* Tracing code. It prints each instruction, and, after it, the register state
  * changes it made.
  */
+#define STRINGIZE(v) #v
 
 /* Information for each thread. */
 class threadState
@@ -70,7 +68,7 @@ public:
 static threadState threadStates[32];
 
 /************************************************************************/
-/* We simply allocate space for the dis-assembled instruction strings and
+/* We simply allocate space for the dis-assembled instruction strings and 
  * let them leak.
  */
 static char const * formatInstruction(INS ins)
@@ -80,28 +78,29 @@ static char const * formatInstruction(INS ins)
     char * res = new char [formatted.length()+1];
 
     strcpy (res, formatted.c_str());
-
+    
     return res;
 }
 
 // This function is called before every instruction is executed
 // and prints the pre-formatted dis-assembled instruction
 static VOID printInstruction(THREADID thread, ADDRINT disas)
-{
+{ 
     threadState * s = &threadStates[thread];
     UINT32 seqNo = ++s->iCount;
 
     out << dec << seqNo << ":" << ((const char *)Addrint2VoidStar(disas)) << endl;
 }
 
+# define REGENTRY(n) { REG_##n, STRINGIZE(n) }
 
 // Table of registers to check and display
-static const struct
+static const struct 
 {
     REG regnum;
     const char * name;
-} checkedRegisters[] =
-#if defined(TARGET_IA32E)
+} checkedRegisters[] = 
+#if defined(TARGET_IA32E) || defined(TARGET_MIC)
 {
     REGENTRY(RFLAGS),
     REGENTRY(RAX),
@@ -138,7 +137,7 @@ static const struct
 #endif
 
 static VOID printRegisterDiffs(THREADID tid, CONTEXT *ctx)
-{
+{    
     threadState * s = &threadStates[tid];
     UINT32 seqNo    = s->iCount;
     CONTEXT * savedCtx = &s->context;
@@ -235,7 +234,7 @@ static VOID RewriteIns(INS ins)
 
     if (KnobTrace)
     {
-        INS_InsertCall(ins, IPOINT_BEFORE,
+        INS_InsertCall(ins, IPOINT_BEFORE, 
                        AFUNPTR(printRegisterDiffs),
                        IARG_THREAD_ID,
                        (KnobUseIargConstContext)?IARG_CONST_CONTEXT:IARG_CONTEXT,
@@ -245,7 +244,7 @@ static VOID RewriteIns(INS ins)
                        IARG_THREAD_ID,
                        IARG_ADDRINT, formatInstruction(ins),
                        IARG_END);
-
+                       
     }
 
     if (memops && doTranslate(ins))
@@ -266,14 +265,14 @@ static VOID RewriteIns(INS ins)
                                IARG_UINT32, i,
                                IARG_MEMORYOP_EA, i,
                                IARG_INST_PTR,
-                               IARG_RETURN_REGS, REG_INST_G0+i,
+                               IARG_RETURN_REGS, REG_INST_G0+i, 
                                IARG_END);
             }
         }
 
         if (INS_IsBranchOrCall(ins))
         { // Check that IPOINT_TAKEN_BRANCH instrumentation is called.
-            INS_InsertCall(ins, IPOINT_TAKEN_BRANCH,
+            INS_InsertCall(ins, IPOINT_TAKEN_BRANCH, 
                            AFUNPTR (BranchTaken),
                            IARG_INST_PTR,
                            IARG_END);
@@ -325,6 +324,6 @@ int main(int argc, char * argv[])
 
     // Never returns
     PIN_StartProgram();
-
+    
     return 0;
 }

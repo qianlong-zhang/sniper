@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,13 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Elena Demikhovsky
+*/
+/* ===================================================================== */
+
 #include <stdlib.h>
 #include <stdint.h>
 
@@ -42,18 +49,6 @@ ofstream outfile;
 
 using namespace std;
 
-bool FindAddressInImage(IMG img, ADDRINT addr)
-{
-    for (UINT32 i = 0; i < IMG_NumRegions(img); i++)
-    {
-        if ((addr >= IMG_RegionLowAddress(img, i)) && (addr <= IMG_RegionHighAddress(img, i)))
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
 void InstImage(IMG img, void *v)
 {
     outfile << "-----------" << endl <<"Image name = " << IMG_Name(img) << endl << flush;
@@ -64,34 +59,30 @@ void InstImage(IMG img, void *v)
     outfile << "mapped start " << mappedStart << " mapped end " << mappedEnd << endl;
     
     
-    for (UINT32 i = 0; i < IMG_NumRegions(img); i++)
-    {
-        outfile << "Region #"<< i << ": low addr " << IMG_RegionLowAddress(img, i) << " high address " << IMG_RegionHighAddress(img, i) << endl;
-    }
+    ADDRINT virtStart = IMG_LowAddress(img);
+    ADDRINT virtEnd = IMG_HighAddress(img);
+    
+    outfile << "low addr " << virtStart << " high address " << virtEnd << endl;
     
     for (SEC sec = IMG_SecHead(img); SEC_Valid(sec); sec = SEC_Next(sec))
     {
-        ADDRINT secAddr = SEC_Address(sec);
-        if (!SEC_Size(sec) && (secAddr == (IMG_HighAddress(img) +1)))
-        {
-            continue;
-        }
         ADDRINT secData = reinterpret_cast <ADDRINT > (SEC_Data(sec));
         if (secData)
         {
             if ((secData < mappedStart) || (secData >= mappedEnd))
             {
                 cout << "ERROR: Image " << IMG_Name(img) << " Section " << SEC_Name(sec) << " data wrong ptr: " << secData << endl;
-                PIN_ExitProcess(-1);
+                exit(-1);
             }
         }
+        ADDRINT secAddr = SEC_Address(sec);
         if (secAddr)
         {
-            if (!FindAddressInImage(img, secAddr))
+            if ((secAddr < virtStart) || (secAddr >= virtEnd))
             {
                 cout << "ERROR: Image " << IMG_Name(img) << "Section " << SEC_Name(sec) << " address wrong ptr: " << secAddr << endl;
-                PIN_ExitProcess(-1);
-            }
+                exit(-1);
+            }            
         }
         outfile << "Section \"";
         outfile.width(30);

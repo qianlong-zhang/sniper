@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -29,6 +29,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
 /*
+** <ORIGINAL-AUTHOR>: Greg Lueck
 ** <COMPONENT>: asm
 ** <FILE-TYPE>: component public header
 */
@@ -42,12 +43,5 @@ END_LEGAL */
 #define ASM_REGARG3 rcx
 #define ASM_REGARG4 r8
 #define ASM_REGARG5 r9
-
-#define ASM_REGARG0D edi
-#define ASM_REGARG1D esi
-#define ASM_REGARG2D edx
-#define ASM_REGARG3D ecx
-#define ASM_REGARG4D r8d
-#define ASM_REGARG5D r9d
 
 #endif /*file guard*/

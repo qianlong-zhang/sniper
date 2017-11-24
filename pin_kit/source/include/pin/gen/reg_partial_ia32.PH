@@ -7,10 +7,10 @@
 inline BOOL REG_is_Half16(const REG reg)
 {
 
-    const REG_CLASS_BITS  rh16Mask =
-        (_REGCBIT(REG_CLASS_GRH16))   |
-        (_REGCBIT(REG_CLASS_FLAGS16)) |
-        (_REGCBIT(REG_CLASS_IP16))    |
+    const REG_CLASS_BITS  rh16Mask = 
+        (_REGCBIT(REG_CLASS_GRH16))   | 
+        (_REGCBIT(REG_CLASS_FLAGS16)) | 
+        (_REGCBIT(REG_CLASS_IP16))    | 
         (_REGCBIT(REG_CLASS_PIN_GRH16));
 
     return ((_regClassBitMapTable[reg] & rh16Mask) != 0);
@@ -47,8 +47,8 @@ inline BOOL REG_is_Upper8(const REG reg)
 inline BOOL REG_is_Any8(const REG reg)
 {
 
-    const REG_CLASS_BITS  r8Mask
-        = (_REGCBIT(REG_CLASS_GRU8)) | (_REGCBIT(REG_CLASS_PIN_GRU8))
+    const REG_CLASS_BITS  r8Mask 
+        = (_REGCBIT(REG_CLASS_GRU8)) | (_REGCBIT(REG_CLASS_PIN_GRU8)) 
         | (_REGCBIT(REG_CLASS_GRL8)) | (_REGCBIT(REG_CLASS_PIN_GRL8));
     return ((_regClassBitMapTable[reg] & r8Mask) != 0);
 }

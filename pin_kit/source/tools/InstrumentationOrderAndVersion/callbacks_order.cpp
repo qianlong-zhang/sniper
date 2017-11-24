@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -43,26 +43,14 @@ static KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
 
 static ofstream * out;
 
-THREADID myThread = INVALID_THREADID;
-
 static VOID ThreadStart(THREADID threadIndex, CONTEXT *ctxt, INT32 flags, VOID *v)
 {
-    if (INVALID_THREADID == myThread)
-    {
-        myThread = threadIndex;
-    }
-    if (threadIndex == myThread)
-    {
-        *out << dec << "ThreadStart " << ADDRINT(v) << endl;
-    }
+    *out << dec << "ThreadStart " << ADDRINT(v) << endl;
 }
 
 static VOID ThreadFini(THREADID tid, CONTEXT const * c, INT32 code, VOID *v)
 {
-    if (tid == myThread)
-    {
-        *out << dec << "ThreadFini " << ADDRINT(v) << endl;
-    }
+    *out << dec << "ThreadFini " << ADDRINT(v) << endl;
 }
 
 static VOID FiniB(INT32 code, VOID *v)
@@ -84,15 +72,16 @@ int main(INT32 argc, CHAR **argv)
     out = new ofstream(KnobOutputFile.Value().c_str(), std::ofstream::out);
 
     PIN_CALLBACK cbThreadFini0 = PIN_AddThreadFiniFunction(ThreadFini, (VOID*)0);
-    PIN_CALLBACK cbThreadFini3 = PIN_AddThreadFiniFunction(ThreadFini, (VOID*)3);
     PIN_CALLBACK cbThreadFini4 = PIN_AddThreadFiniFunction(ThreadFini, (VOID*)4);
+    PIN_CALLBACK cbThreadFini3 = PIN_AddThreadFiniFunction(ThreadFini, (VOID*)3);
 
     PIN_CALLBACK cbAppFiniA = PIN_AddFiniFunction(FiniA, 0);
     PIN_CALLBACK cbAppFiniB = PIN_AddFiniFunction(FiniB, 0);
 
+    PIN_CALLBACK cbThreadStart2 = PIN_AddThreadStartFunction(ThreadStart, (VOID*)2);
     PIN_CALLBACK cbThreadStart0 = PIN_AddThreadStartFunction(ThreadStart, (VOID*)0);
     PIN_CALLBACK cbThreadStart1 = PIN_AddThreadStartFunction(ThreadStart, (VOID*)1);
-    PIN_CALLBACK cbThreadStart2 = PIN_AddThreadStartFunction(ThreadStart, (VOID*)2);
+
 
     CALLBACK_SetExecutionPriority(cbThreadFini0, CALL_ORDER_DEFAULT+0);
     CALLBACK_SetExecutionPriority(cbThreadFini4, CALL_ORDER_DEFAULT+4);

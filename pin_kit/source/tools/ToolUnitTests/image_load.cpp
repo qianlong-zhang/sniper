@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -65,18 +65,12 @@ VOID ImageUnload(IMG img, VOID *v)
 
 VOID ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, VOID *v)
 {
-    static THREADID myThread = INVALID_THREADID;
-    if (INVALID_THREADID == myThread)
-    {
-        myThread = threadid;
-        printf("Got thread start notification\n");
-    }
-    fflush(stdout);
+    printf("Got thread start notification\n");
+    fflush(stdout);    
 }
 
 void FiniCore()
 {
-    printf("Application finished\n");
     fflush(stdout);
 }
 
@@ -100,23 +94,6 @@ VOID AppStart(VOID *v)
     fflush(stdout);
 }
 
-VOID AppThreadStart()
-{
-    printf("Got thread start notification\n");
-    fflush(stdout);
-}
-
-//Instrument the app thread rtn
-VOID InstrumentRtn(RTN rtn, VOID *)
-{
-    if (PIN_UndecorateSymbolName(RTN_Name(rtn), UNDECORATION_NAME_ONLY) == "ThreadProc")
-    {
-        RTN_Open(rtn);
-        RTN_InsertCall(rtn, IPOINT_BEFORE, AFUNPTR(AppThreadStart), IARG_END);
-        RTN_Close(rtn);
-    }
-}
-
 // argc, argv are the entire command line, including pin -t <toolname> -- ...
 int main(int argc, char * argv[])
 { 
@@ -126,41 +103,39 @@ int main(int argc, char * argv[])
     // Initialize pin
     PIN_Init(argc, argv);
     
-    RTN_AddInstrumentFunction(InstrumentRtn, NULL);
-    
     // Register ImageLoad to be called when an image is loaded
-    IMG_AddInstrumentFunction(ImageLoad, NULL);
+    IMG_AddInstrumentFunction(ImageLoad, 0);
 
     // Register ImageUnload to be called when an image is unloaded
-    IMG_AddUnloadFunction(ImageUnload, NULL);
+    IMG_AddUnloadFunction(ImageUnload, 0);
     
     printf("In tool's main, probed = %d\n", PIN_IsProbeMode()); 
     
-    if (KnobLoadSystemDlls)
+    if(KnobLoadSystemDlls)
     {
         WIND::HMODULE h1 = WIND::LoadLibrary("RPCRT4.dll");
-        if (h1 == NULL)
+        if(h1 == NULL)
         {
             printf("Failed to load RPCRT4\n");
             fflush(stdout);
             exit(-1);
         }     
         WIND::HMODULE h2 = WIND::LoadLibrary("advapi32.dll");
-        if (h1 == NULL)
+        if(h1 == NULL)
         {
             printf("Failed to load advapi32\n");
             fflush(stdout);
             exit(-1);
         }
         WIND::HMODULE h3 = WIND::LoadLibrary("dbghelp.dll");
-        if (h1 == NULL)
+        if(h1 == NULL)
         {
             printf("Failed to load dbghelp\n");
             fflush(stdout);
             exit(-1);
         }
         WIND::HMODULE h4 = WIND::LoadLibrary("user32.dll");
-        if (h1 == NULL)
+        if(h1 == NULL)
         {
             printf("Failed to load user32\n");
             fflush(stdout);
@@ -168,19 +143,20 @@ int main(int argc, char * argv[])
         }       
     }    
 
+    // Never returns
     if ( PIN_IsProbeMode() )
     {
         static PROBE_FINI_OBJECT finiObject;      
-        PIN_AddApplicationStartFunction(AppStart, NULL);     
+        PIN_AddApplicationStartFunction(AppStart, 0);     
         PIN_StartProgramProbed();
     }
     else
     {
-        PIN_AddThreadStartFunction(ThreadStart, NULL);
-        PIN_AddFiniFunction(Fini, NULL);
+        PIN_AddThreadStartFunction(ThreadStart, 0);
+        PIN_AddFiniFunction(Fini, 0);     
         PIN_StartProgram();
     }    
-    // Never returns
-
-    return 1;
+        
+    return 0;
 }
+

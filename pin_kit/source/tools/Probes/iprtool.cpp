@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -36,8 +36,6 @@ END_LEGAL */
 
 #include "pin.H"
 #include <iostream>
-#include "tool_macros.h"
-
 using namespace std;
 
 /* ===================================================================== */
@@ -89,7 +87,7 @@ int RegIprelProbe()
 
 VOID ImageLoad(IMG img, VOID *v)
 {
-    RTN iprelImmRtn = RTN_FindByName(img, C_MANGLE("iprel_imm"));
+    RTN iprelImmRtn = RTN_FindByName(img, "iprel_imm");
     if (RTN_Valid(iprelImmRtn))
     {
         pf_iprel_imm = (void (*)()) RTN_ReplaceProbed(iprelImmRtn,
@@ -97,7 +95,7 @@ VOID ImageLoad(IMG img, VOID *v)
         cerr << "Inserted probe for iprel_imm:" << IMG_Name(img) << endl;
     }
     
-    RTN iprelRegRtn = RTN_FindByName(img, C_MANGLE("iprel_reg"));
+    RTN iprelRegRtn = RTN_FindByName(img, "iprel_reg");
     if (RTN_Valid(iprelRegRtn))
     {
         pf_iprel_reg = (void (*)(int)) RTN_ReplaceProbed(iprelRegRtn,
@@ -105,7 +103,7 @@ VOID ImageLoad(IMG img, VOID *v)
         cerr << "Inserted probe for iprel_reg:" << IMG_Name(img) << endl;
     }
 
-    RTN regIprelRtn = RTN_FindByName(img, C_MANGLE("reg_iprel"));
+    RTN regIprelRtn = RTN_FindByName(img, "reg_iprel");
     if (RTN_Valid(regIprelRtn))
     {
         pf_reg_iprel = (int (*)()) RTN_ReplaceProbed(regIprelRtn,

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -48,38 +48,22 @@ extern "C" VOID UpdateIcountByAdd(UINT64 *icount_ptr);
 extern "C" VOID UpdateIcountByInc(UINT64 *icount_ptr);
 extern "C" VOID UpdateIcountByDecInc(UINT64 *icount_ptr);
 extern "C" VOID UpdateIcountBySub(UINT64 *icount_ptr);
-extern "C" ADDRINT IfFuncWithAddThatCannotBeChangedToLea(UINT64 *icount_ptr);
+extern "C" VOID IfFuncWithAddThatCannotBeChangedToLea(UINT64 *icount_ptr);
 
 VOID ThenFuncThatShouldNeverBeCalled()
 {
     thenCount++;
 }
-
-THREADID myThread = INVALID_THREADID;
-
-ADDRINT IfMyThread(THREADID threadId)
-{
-    return threadId == myThread;
-}
-
-ADDRINT myThreadIfFuncWithAddThatCannotBeChangedToLea(THREADID threadId)
-{
-    return threadId == myThread && IfFuncWithAddThatCannotBeChangedToLea(NULL);
-}
     
 VOID Instruction(INS ins, VOID *v)
-{    
-    INS_InsertIfCall(ins, IPOINT_BEFORE, (AFUNPTR)IfMyThread, IARG_THREAD_ID, IARG_END);
-    INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)docount, IARG_END);
-    INS_InsertIfCall(ins, IPOINT_BEFORE, (AFUNPTR)IfMyThread, IARG_THREAD_ID, IARG_END);
-    INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)UpdateIcountByAdd, IARG_PTR, &icount2, IARG_END);
-    INS_InsertIfCall(ins, IPOINT_BEFORE, (AFUNPTR)IfMyThread, IARG_THREAD_ID, IARG_END);
-    INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)UpdateIcountByInc, IARG_PTR, &icount3, IARG_END);
-    INS_InsertIfCall(ins, IPOINT_BEFORE, (AFUNPTR)IfMyThread, IARG_THREAD_ID, IARG_END);
-    INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)UpdateIcountByDecInc, IARG_PTR, &icount4, IARG_END);
-    INS_InsertIfCall(ins, IPOINT_BEFORE, (AFUNPTR)IfMyThread, IARG_THREAD_ID, IARG_END);
-    INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)UpdateIcountBySub, IARG_PTR, &icount5, IARG_END);
-    INS_InsertIfCall(ins, IPOINT_BEFORE, (AFUNPTR)myThreadIfFuncWithAddThatCannotBeChangedToLea, IARG_THREAD_ID, IARG_END);
+{
+    
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)docount, IARG_END);
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)UpdateIcountByAdd, IARG_PTR, &icount2, IARG_END);
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)UpdateIcountByInc, IARG_PTR, &icount3, IARG_END);
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)UpdateIcountByDecInc, IARG_PTR, &icount4, IARG_END);
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)UpdateIcountBySub, IARG_PTR, &icount5, IARG_END);
+    INS_InsertIfCall(ins, IPOINT_BEFORE, (AFUNPTR)IfFuncWithAddThatCannotBeChangedToLea, IARG_END);
     INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)ThenFuncThatShouldNeverBeCalled, IARG_END);
 }
 
@@ -113,14 +97,6 @@ VOID Fini(INT32 code, VOID *v)
     }
 }
 
-VOID ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, VOID *v)
-{
-    if (myThread == INVALID_THREADID)
-    {
-        myThread = threadid;
-    }
-}
-
 /* ===================================================================== */
 /* Print Help Message                                                    */
 /* ===================================================================== */
@@ -143,13 +119,11 @@ int main(int argc, char * argv[])
     // Initialize pin
     if (PIN_Init(argc, argv)) return Usage();
 
-    PIN_AddThreadStartFunction(ThreadStart, NULL);
-    
     // Register Instruction to be called to instrument instructions
-    INS_AddInstrumentFunction(Instruction, NULL);
+    INS_AddInstrumentFunction(Instruction, 0);
 
     // Register Fini to be called when the application exits
-    PIN_AddFiniFunction(Fini, NULL);
+    PIN_AddFiniFunction(Fini, 0);
     
     // Start the program, never returns
     PIN_StartProgram();

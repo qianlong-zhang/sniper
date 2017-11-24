@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -37,24 +37,46 @@ using namespace std;
 
 //Wait for a process completion
 //Verify it returned the expected exit code
-bool WaitAndVerify(HANDLE process)
+bool WaitAndVerify(HANDLE process, HANDLE thread, DWORD pid)
 {
     DebugSetProcessKillOnExit(FALSE);
-
-    if (WaitForSingleObject(process, INFINITE) == WAIT_FAILED)
+    DEBUG_EVENT lastEvent;
+    DWORD continueStatus = DBG_CONTINUE;
+    bool stopDebug = false;
+    while(1)
     {
-        cout << "WaitForSingleObject failed" << endl << flush;
+        if(stopDebug)
+        {
+            break;
+        }
+
+        WaitForDebugEvent(&lastEvent, INFINITE);
+        switch (lastEvent.dwDebugEventCode) 
+        {
+            case EXIT_PROCESS_DEBUG_EVENT:
+            {
+                stopDebug = true;
+                break;
+            } 
+        }
+        ContinueDebugEvent(lastEvent.dwProcessId, lastEvent.dwThreadId, continueStatus);
+    }
+    DebugActiveProcessStop(pid);
+
+    if(WaitForSingleObject( process, INFINITE ) == WAIT_FAILED)
+    {
+        cout << "WaitForSingleObject failed" << endl;
         return FALSE;
     }
     DWORD processExitCode;
-    if (GetExitCodeProcess(process, &processExitCode) == FALSE)
+    if(GetExitCodeProcess (process, &processExitCode) == FALSE)
     {
-        cout << "GetExitCodeProcess Failed" << endl << flush;
+        cout << "GetExitCodeProcess Failed" << endl;
         return FALSE;
     }
-    if (processExitCode != 0)
+    if(processExitCode != 0)
     {
-        cout << "Got unexpected exit code" << endl << flush;
+        cout << "Got unexpected exit code" << endl;
         return FALSE;
     }
     return TRUE;
@@ -76,11 +98,10 @@ string SplitString(string * input, const string & delimiter = " ")
 {
     string::size_type pos = input->find(delimiter);
     string substr = input->substr(0, pos);
-    if (pos != string::npos)
+    if(pos != string::npos)
     {
         *input = input->substr(pos + 1);
-    }
-    else
+    } else
     {
         *input = "";
     }
@@ -102,16 +123,16 @@ int main(int argc, char * argv[])
         if (!CreateProcess(NULL, (LPSTR)cmdLine.c_str(), NULL, NULL, TRUE, DEBUG_ONLY_THIS_PROCESS, 
                            NULL, NULL, &si, &pi))
         {
-            cout << "Couldn't create child process, command line = " << cmdLine << ", system error = "
-                 << GetLastError() << endl << flush;
+            cout <<  "Couldn't create child process, command line = " << cmdLine << ", system error =  "  << GetLastError() << endl;
             exit(-1);
         }
-        if (WaitAndVerify(pi.hProcess) == FALSE)
+        if(WaitAndVerify(pi.hProcess, pi.hThread, pi.dwProcessId) == FALSE)
         {
             exit(-1);
         }
-        cout << "First Child Process was created successfully!" << endl << flush;
+        cout << "First Child Process was created successfully!" << endl;
     }
       
     return 0;
 }
+

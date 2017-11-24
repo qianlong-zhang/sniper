@@ -58,9 +58,6 @@ extern UINT64 INS_OperandImmediate(INS ins, UINT32 n);
 extern BOOL INS_OperandIsImplicit(INS ins, UINT32 n);
 
                                                                   /* DO NOT EDIT */
-extern BOOL INS_RegIsImplicit(INS ins, REG reg);
-
-                                                                  /* DO NOT EDIT */
 extern UINT32 INS_OperandWidth(INS ins, UINT32 n);
 
                                                                   /* DO NOT EDIT */

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -33,7 +33,7 @@ END_LEGAL */
 #include "windows.h"
 #define EXPORT_CSYM extern "C" __declspec( dllexport )
 #else
-#define EXPORT_CSYM extern "C"
+#define EXPORT_CSYM extern "C" 
 #endif
 
 #if defined(__cplusplus)
@@ -297,7 +297,7 @@ static void get_xmm_regA(xmm_reg_t& xmm_reg)
 static void set_xmm_reg0(xmm_reg_t& xmm_reg)
 {
     asm volatile("movdqu %0, %%xmm0" :  : "m" (xmm_reg) : "%xmm0"  );
-}
+} 
 
 static void get_xmm_reg0(xmm_reg_t& xmm_reg)
 {
@@ -308,7 +308,7 @@ static void get_xmm_reg0(xmm_reg_t& xmm_reg)
 static void set_xmm_reg1(xmm_reg_t& xmm_reg)
 {
     asm volatile("movdqu %0, %%xmm1" :  : "m" (xmm_reg) : "%xmm1"  );
-}
+} 
 
 static void get_xmm_reg1(xmm_reg_t& xmm_reg)
 {
@@ -320,7 +320,7 @@ static void get_xmm_reg1(xmm_reg_t& xmm_reg)
 static void set_xmm_reg2(xmm_reg_t& xmm_reg)
 {
     asm volatile("movdqu %0, %%xmm2" :  : "m" (xmm_reg) : "%xmm2"  );
-}
+} 
 
 static void get_xmm_reg2(xmm_reg_t& xmm_reg)
 {
@@ -330,7 +330,7 @@ static void get_xmm_reg2(xmm_reg_t& xmm_reg)
 static void set_xmm_reg3(xmm_reg_t& xmm_reg)
 {
     asm volatile("movdqu %0, %%xmm3" :  : "m" (xmm_reg) : "%xmm3"  );
-}
+} 
 
 static void get_xmm_reg3(xmm_reg_t& xmm_reg)
 {
@@ -340,7 +340,7 @@ static void get_xmm_reg3(xmm_reg_t& xmm_reg)
 static void set_xmm_reg4(xmm_reg_t& xmm_reg)
 {
     asm volatile("movdqu %0, %%xmm4" :  : "m" (xmm_reg) : "%xmm4"  );
-}
+} 
 
 static void get_xmm_reg4(xmm_reg_t& xmm_reg)
 {
@@ -350,7 +350,7 @@ static void get_xmm_reg4(xmm_reg_t& xmm_reg)
 static void set_xmm_reg5(xmm_reg_t& xmm_reg)
 {
     asm volatile("movdqu %0, %%xmm5" :  : "m" (xmm_reg) : "%xmm5"  );
-}
+} 
 
 static void get_xmm_reg5(xmm_reg_t& xmm_reg)
 {
@@ -360,7 +360,7 @@ static void get_xmm_reg5(xmm_reg_t& xmm_reg)
 static void set_xmm_reg6(xmm_reg_t& xmm_reg)
 {
     asm volatile("movdqu %0, %%xmm6" :  : "m" (xmm_reg) : "%xmm6"  );
-}
+} 
 
 static void get_xmm_reg6(xmm_reg_t& xmm_reg)
 {
@@ -370,7 +370,7 @@ static void get_xmm_reg6(xmm_reg_t& xmm_reg)
 static void set_xmm_reg7(xmm_reg_t& xmm_reg)
 {
     asm volatile("movdqu %0, %%xmm7" :  : "m" (xmm_reg) : "%xmm7"  );
-}
+} 
 
 static void get_xmm_reg7(xmm_reg_t& xmm_reg)
 {
@@ -576,7 +576,7 @@ set_xmm_reg(xmm_reg_t& xmm_reg, UINT32 reg_no)
 #endif
     }
 
-}
+} 
 static void
 get_xmm_reg(xmm_reg_t& xmm_reg, UINT32 reg_no)
 {
@@ -643,8 +643,8 @@ void write_xmm_reg(UINT32 reg_no, UINT32 val)
     xmm.dword[1] = val;
     xmm.dword[2] = val;
     xmm.dword[3] = val;
-
-    set_xmm_reg(xmm, reg_no);
+    
+    set_xmm_reg(xmm, reg_no); 
 }
 
 void read_xmm_reg(UINT32 reg_no, xmm_reg_t& xmm)
@@ -654,8 +654,8 @@ void read_xmm_reg(UINT32 reg_no, xmm_reg_t& xmm)
     xmm.dword[1] = 0;
     xmm.dword[2] = 0;
     xmm.dword[3] = 0;
-
-    get_xmm_reg(xmm, reg_no);
+    
+    get_xmm_reg(xmm, reg_no); 
 }
 
 
@@ -690,7 +690,7 @@ int main()
     var2=2.0;
     var3=2.0;
 
-    // the test_iarg_preserve tool will insert a call to an analysis routine
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
     // after the third fld1 in Fld1Fstp that sets the first 3 x87 regs to 0
     Fld1Fstp_a();
 
@@ -706,11 +706,11 @@ int main()
     var2=2.0;
     var3=2.0;
 
-    // the test_iarg_preserve tool will insert a call to an analysis routine
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
     // after the third fld1 in Fld1Fstp that sets the first 3 x87 regs to 0
     Fld1Fstp_b();
 
-
+    
     // make sure the values were NOT changed by the tool test_iarg_preserve - since that tool
     // specified that it's analysis routine does not preserve the x87 regs
     if (var1 != 1.0 || var2 != 1.0 || var3 != 1.0)
@@ -718,42 +718,42 @@ int main()
         printf ("***Error in x87 values_2 var1 %f var2 %f var3 %f\n", var1, var2, var3 );
        return (-1);
     }
-
+    
     var1=2.0;
     var2=2.0;
     var3=2.0;
 
-    // the test_iarg_preserve tool will insert a call to an analysis routine
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
     // after the third fld1 in Fld1Fstp that sets the first 3 x87 regs to 0
     Fld1Fstp_c();
-
+    
     // make sure the values were NOT changed by the tool test_iarg_preserve - since that tool
-    // did not specify any IARG_PRESERVE and Pin saves the x87 state by default
+    // did not specify any IARG_PRESERVE and Pin saves the x87 state by default 
     if (var1 != 1.0 || var2 != 1.0 || var3 != 1.0)
     {
         printf ("***Error in x87 values_3\n");
        return (-1);
     }
-
+    
 
     var1=2.0;
     var2=2.0;
     var3=2.0;
 
-    // the test_iarg_preserve tool will insert a call to an analysis routine
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
     // after the third fld1 in Fld1Fstp that sets the first 3 x87 regs to 0
     Fld1Fstp_d();
 
-
+    
     // make sure the values were NOT changed by the tool test_iarg_preserve - since that tool
-    // used IARG_PRESERVE to specify that no regs are preserved at Pin saves the x87 state by default
+    // used IARG_PRESERVE to specify that no regs are preserved at Pin saves the x87 state by default 
     if (var1 != 1.0 || var2 != 1.0 || var3 != 1.0)
     {
         printf ("***Error in x87 values_4\n");
        return (-1);
     }
 
-
+    
     xmm_reg_t xmm_regs[NUM_XMM_SCRATCH_REGS];
     for (UINT32 i=0; i<NUM_XMM_SCRATCH_REGS; i++)
     {
@@ -781,7 +781,7 @@ int main()
         write_xmm_reg(i, 0xdeadbeef);
     }
 
-    // the test_iarg_preserve tool will insert a call to an analysis routine
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
     // after the third fld1 in Fld1Fstp that sets the xmmregs to 0
     Fld1Fstp_e();
 
@@ -797,7 +797,7 @@ int main()
             xmm_regs[i].dword[2]==0 && xmm_regs[i].dword[3]==0))
         {
             printf ("***Error in xmm regs values_1 xmm%d\n", i);
-            return (-1);
+           return (-1);
         }
     }
 
@@ -806,7 +806,7 @@ int main()
         write_xmm_reg(i, 0xdeadbeef);
     }
 
-    // the test_iarg_preserve tool will insert a call to an analysis routine
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
     // after the third fld1 in Fld1Fstp that sets the xmmregs to 0
     Fld1Fstp_f();
 
@@ -831,12 +831,12 @@ int main()
         write_xmm_reg(i, 0xdeadbeef);
     }
 
-    // the test_iarg_preserve tool will insert a call to an analysis routine
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
     // after the third fld1 in Fld1Fstp that sets the xmmregs to 0
     Fld1Fstp_g();
 
     // make sure the values were NOT changed by the tool test_iarg_preserve - since that tool
-    // did not specify any IARG_PRESERVE at Pin saves the xmm regs
+    // did not specify any IARG_PRESERVE at Pin saves the xmm regs 
     for (UINT32 i=0; i<NUM_XMM_SCRATCH_REGS; i++)
     {
         read_xmm_reg(i, xmm_regs[i]);
@@ -857,12 +857,12 @@ int main()
         write_xmm_reg(i, 0xdeadbeef);
     }
 
-    // the test_iarg_preserve tool will insert a call to an analysis routine
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
     // after the third fld1 in Fld1Fstp that sets the xmmregs to 0
     Fld1Fstp_h();
 
     // make sure the values were NOT changed by the tool test_iarg_preserve - since that tool
-    // did not specify any IARG_PRESERVE at Pin saves the xmm regs
+    // did not specify any IARG_PRESERVE at Pin saves the xmm regs 
     for (UINT32 i=0; i<NUM_XMM_SCRATCH_REGS; i++)
     {
         read_xmm_reg(i, xmm_regs[i]);
@@ -882,12 +882,12 @@ int main()
         write_xmm_reg(i, 0xdeadbeef);
     }
 
-    // the test_iarg_preserve tool will insert a call to an analysis routine
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
     // after the third fld1 in Fld1Fstp that sets the xmmregs to 0
     Fld1Fstp_i();
 
     // make sure the values were NOT changed by the tool test_iarg_preserve - since that tool
-    // did not specify any IARG_PRESERVE
+    // did not specify any IARG_PRESERVE 
     for (UINT32 i=0; i<NUM_XMM_SCRATCH_REGS; i++)
     {
         read_xmm_reg(i, xmm_regs[i]);
@@ -910,7 +910,7 @@ int main()
     savedGax = get_gax(); // must be first
     savedGcx = get_gcx();
     savedGdx = get_gdx();
-#ifdef TARGET_IA32E
+#ifdef TARGET_IA32E 
     savedR8 = get_r8();
     savedR9 = get_r9();
     savedR10 = get_r10();
@@ -921,7 +921,7 @@ int main()
 #endif
 #endif
 
-    // the test_iarg_preserve tool will insert a call to an analysis routine
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
     // after the third fld1 in IntScratchFld1Fstp_a that sets the scratch registers to 0
     IntScratchFld1Fstp_a();
 
@@ -929,13 +929,13 @@ int main()
     // make sure values were changed by the tool test_iarg_preserve - since that tool
     // specified that it's analysis routine preserved the integer scratch regs when it doesn't
     // NOTE - due to Pin's register allocation, it may be that some of the scratch registers
-    // are NOT changed - because they were in the spill area, this is OK. We assume that at
+    // are NOT changed - because they were in the spill area, this is OK. We assume that at 
     // least one of the scratch registers will not be in the spill area
     regGax = get_gax(); // must be first
     regGcx = get_gcx();
     regGdx = get_gdx();
-
-#ifdef TARGET_IA32E
+    
+#ifdef TARGET_IA32E 
     regR8 = get_r8();
     regR9 = get_r9();
     regR10 = get_r10();
@@ -947,12 +947,12 @@ int main()
 #endif
 
     // reset the values to what they were
-    set_gax(savedGax);
+    set_gax(savedGax); 
 #if defined( __GNUC__)
     set_gcx(savedGcx);
 #endif
     set_gdx(savedGdx);
-#ifdef TARGET_IA32E
+#ifdef TARGET_IA32E 
     set_r8(savedR8);
     set_r9(savedR9);
     set_r10(savedR10);
@@ -966,7 +966,7 @@ int main()
     set_gcx(savedGcx);
 #endif
 
-    if (!(regGax==0 || regGcx==0 || regGdx==0
+    if (!(regGax==0 || regGcx==0 || regGdx==0 
 #ifdef TARGET_IA32E
            || regR8==0 || regR9==0 || regR10==0 || regR11==0
 #if defined( __GNUC__)
@@ -982,21 +982,21 @@ int main()
 
 #endif
 
-    // the test_iarg_preserve tool will insert a call to an analysis routine
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
     // after the third fld1 in IntScratchFld1Fstp_a that sets the scratch registers to 0
     IntScratchFld1Fstp_b();
 
     // make sure the values were NOT changed by the tool test_iarg_preserve - since that tool
     // specified that it's analysis routine does not preserve the integer scratch regs
     regGax = get_gax(); // must be first
-    regGcx = get_gcx();
-    regGdx = get_gdx();
+    regGcx = get_gcx(); 
+    regGdx = get_gdx(); 
     if (!(regGax==0xdeadbeef && regGcx==0xdeadbeef && regGdx==0xdeadbeef))
     {
         printf ("***Error in int scratch regs values_2\n");
         return (-1);
     }
-#ifdef TARGET_IA32E
+#ifdef TARGET_IA32E 
     regR8 = get_r8();
     regR9 = get_r9();
     regR10 = get_r10();
@@ -1004,7 +1004,7 @@ int main()
     if (!(regR8==0xdeadbeef && regR9==0xdeadbeef && regR10==0xdeadbeef && regR11==0xdeadbeef))
     {
         printf ("***Error in int scratch regs values_2_ia32e regR8 %p regR9 %p regR10 %p regR11 %p\n",
-                reinterpret_cast<void *>(regR8), reinterpret_cast<void *>(regR9),
+                reinterpret_cast<void *>(regR8), reinterpret_cast<void *>(regR9), 
                 reinterpret_cast<void *>(regR10), reinterpret_cast<void *>(regR11));
         return (-1);
     }
@@ -1019,21 +1019,21 @@ int main()
 #endif
 #endif
 
-    // the test_iarg_preserve tool will insert a call to an analysis routine
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
     // after the third fld1 in IntScratchFld1Fstp_a that sets the scratch registers to 0
     IntScratchFld1Fstp_c();
 
     // make sure the values were NOT changed by the tool test_iarg_preserve - since that tool
     // did not specify any IARG_PRESERVE
     regGax = get_gax(); // must be first
-    regGcx = get_gcx();
+    regGcx = get_gcx(); 
     regGdx = get_gdx();
     if (!(regGax==0xdeadbeef && regGcx==0xdeadbeef && regGdx==0xdeadbeef))
     {
         printf ("***Error in int scratch regs values_3\n");
         return (-1);
     }
-#ifdef TARGET_IA32E
+#ifdef TARGET_IA32E 
     regR8 = get_r8();
     regR9 = get_r9();
     regR10 = get_r10();
@@ -1054,23 +1054,23 @@ int main()
 #endif
 #endif
 
-    // the test_iarg_preserve tool will insert a call to an analysis routine
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
     // after the third fld1 in IntScratchFld1Fstp_a that sets the scratch registers to 0
     IntScratchFld1Fstp_d();
 
     // make sure the values were NOT changed by the tool test_iarg_preserve - since that tool
     // did not specify any IARG_PRESERVE
     regGax = get_gax(); // must be first
-    regGcx = get_gcx();
-    regGdx = get_gdx();
-
+    regGcx = get_gcx(); 
+    regGdx = get_gdx(); 
+    
     if (!(regGax==0xdeadbeef && regGcx==0xdeadbeef && regGdx==0xdeadbeef))
     {
         printf ("***Error in int scratch regs values_4\n");
         return (-1);
     }
-
-#ifdef TARGET_IA32E
+    
+#ifdef TARGET_IA32E 
     regR8 = get_r8();
     regR9 = get_r9();
     regR10 = get_r10();
@@ -1105,7 +1105,7 @@ int main()
         printf ("***Error1 in masking the divide by zero exception mask in mxcsr\n");
         return (-1);
     }
-    // the test_iarg_preserve tool will insert a call to an analysis routine
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
     // after the third fld1 in Fld1Fstp that unmasks the divide by zero exception mask in mxcsr
     Fld1Fstp_j();
 
@@ -1126,7 +1126,7 @@ int main()
         return (-1);
     }
 
-    // the test_iarg_preserve tool will insert a call to an analysis routine
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
     // after the third fld1 in Fld1Fstp that unmasks the divide by zero exception mask in mxcsr
     Fld1Fstp_k();
 
@@ -1147,8 +1147,8 @@ int main()
         return (-1);
     }
 
-
-    // the test_iarg_preserve tool will insert a call to an analysis routine
+    
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
     // after the third fld1 in Fld1Fstp that unmasks the divide by zero exception mask in mxcsr
     Fld1Fstp_l();
 
@@ -1193,16 +1193,16 @@ int main()
     var1=2.0;
     var2=2.0;
     var3=2.0;
-    // the test_iarg_preserve tool will insert a call to an analysis routine
-    // after the third fld1 that sets the first 3 x87 regs to 0
-
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
+    // after the third fld1 that sets the first 3 x87 regs to 0 
+    
     Fld1FstpSetXmmsMaskMxcsr();
     for (UINT32 i=0; i<NUM_XMM_SCRATCH_REGS; i++)
     {
         read_xmm_reg(i, xmm_regs[i]);
     }
     // make sure the values were NOT changed by the tool test_iarg_preserve - since that tool
-    // did not specify any IARG_PRESERVE and Pin saves the x87 state by default
+    // did not specify any IARG_PRESERVE and Pin saves the x87 state by default 
     if (var1 != 1.0 || var2 != 1.0 || var3 != 1.0)
     {
         printf ("***Error in x87 values_3\n");
@@ -1218,7 +1218,7 @@ int main()
             return (-1);
         }
     }
-    // make sure the  divide by zero exception mask in mxcsr is not unmasked
+    // make sure the  divide by zero exception mask in mxcsr is not unmasked 
     curMxcsr = GetMxcsr();
     if (!(curMxcsr & 0x200))
     {
@@ -1230,7 +1230,7 @@ int main()
     var2=2.0;
     var3=2.0;
 
-    Fld1Fstp_m((TestIargPreserveInReplacement)); // this function calls TestIargPreserveInReplacement, which is replaced by the tool
+    Fld1Fstp_m((TestIargPreserveInReplacement)); // this function calls TestIargPreserveInReplacement, which is replaced by the tool 
 
     // make sure the values were changed by the tool test_iarg_preserve - since that tool
     // specified that it's replacement routine preserved the x87 regs when it doesn't
@@ -1244,7 +1244,7 @@ int main()
     var2=2.0;
     var3=2.0;
 
-    Fld1Fstp_n((TestIargPreserveInReplacement1)); // this function calls TestIargPreserveInReplacement, which is replaced by the tool
+    Fld1Fstp_n((TestIargPreserveInReplacement1)); // this function calls TestIargPreserveInReplacement, which is replaced by the tool 
 
     // make sure the values were NOT changed by the tool test_iarg_preserve - since that tool
     // specified that it's replacement routine does not preserve the x87 regs
@@ -1278,14 +1278,14 @@ int main()
     }
 
     Fld1_x();
-    Fld1Fstp_n1((TestIargPreserveInReplacement2)); // this function calls TestIargPreserveInReplacement2, which is replaced by the tool
+    Fld1Fstp_n1((TestIargPreserveInReplacement2)); // this function calls TestIargPreserveInReplacement2, which is replaced by the tool 
     Fstp_x();
 
     for (UINT32 i=0; i<NUM_XMM_SCRATCH_REGS; i++)
     {
         read_xmm_reg(i, xmm_regs[i]);
     }
-
+    
     for (UINT32 i=0; i<NUM_XMM_SCRATCH_REGS; i++)
     {
         if (!(xmm_regs[i].dword[0]==0xbaadf00d && xmm_regs[i].dword[1]==0xbaadf00d &&

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -70,12 +70,6 @@ enum retValues {         // VALUE   DESCRIPTION                                 
 const int READ = 0;
 const int WRITE = 1;
 
-#ifdef TARGET_LINUX
-#define WAITPID_FLAGS (__WCLONE | __WALL)
-#elif defined(TARGET_MAC)
-#define WAITPID_FLAGS 0
-#endif
-
 // This function is replaced by the tool. When it is called, it detaches Pin.
 extern "C" void TellPinToDetach(unsigned long *updateWhenReady)
 {
@@ -117,7 +111,7 @@ int doParent(pid_t child, int fd[]) {
     pthread_t secTh;
     pthread_create (&secTh, 0, doSecondaryThread, fd);
     do {
-        retCh = waitpid(0, &status, WAITPID_FLAGS);
+        retCh = waitpid(0, &status, __WCLONE | __WALL);
         if (retCh < 0) { // handle system call error
             if (errno == EINTR) {
                 continue;

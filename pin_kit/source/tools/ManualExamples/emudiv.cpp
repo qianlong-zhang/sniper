@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -34,6 +34,7 @@ END_LEGAL */
 
 #include <stdio.h>
 #include "pin.H"
+#include "pin_isa.H"
 #include <iostream>
 #include <fstream>
 
@@ -41,7 +42,7 @@ END_LEGAL */
 /* Handlers                                                              */
 /* ===================================================================== */
 
-EXCEPT_HANDLING_RESULT GlobalHandler(THREADID threadIndex, EXCEPTION_INFO * pExceptInfo,
+EXCEPT_HANDLING_RESULT GlobalHandler(THREADID threadIndex, EXCEPTION_INFO * pExceptInfo, 
                                       PHYSICAL_CONTEXT * pPhysCtxt, VOID *v)
 {
     cout << "GlobalHandler: Caught unexpected exception. " << PIN_ExceptionToString(pExceptInfo) << endl << flush;
@@ -49,10 +50,10 @@ EXCEPT_HANDLING_RESULT GlobalHandler(THREADID threadIndex, EXCEPTION_INFO * pExc
 }
 
 
-EXCEPT_HANDLING_RESULT DivideHandler(THREADID tid, EXCEPTION_INFO * pExceptInfo,
+EXCEPT_HANDLING_RESULT DivideHandler(THREADID tid, EXCEPTION_INFO * pExceptInfo, 
                                         PHYSICAL_CONTEXT * pPhysCtxt, VOID *appContextArg)
 {
-    if(PIN_GetExceptionCode(pExceptInfo) == EXCEPTCODE_INT_DIVIDE_BY_ZERO)
+    if(PIN_GetExceptionCode(pExceptInfo) == EXCEPTCODE_INT_DIVIDE_BY_ZERO) 
     {
 #if 1
         //Temporary work-around, Remove when Mantis #1986 is resolved
@@ -65,7 +66,7 @@ EXCEPT_HANDLING_RESULT DivideHandler(THREADID tid, EXCEPTION_INFO * pExceptInfo,
         CONTEXT * appCtxt = (CONTEXT *)appContextArg;
         ADDRINT faultIp = PIN_GetContextReg(appCtxt, REG_INST_PTR);
         PIN_SetExceptionAddress(pExceptInfo, faultIp);
-        PIN_RaiseException(appCtxt, tid, pExceptInfo); //never returns
+        PIN_RaiseException(appCtxt, tid, pExceptInfo); //never returns 
     }
     return EHR_CONTINUE_SEARCH;
 }
@@ -91,7 +92,7 @@ VOID EmulateMemDivide(ADDRINT * pGdx, ADDRINT * pGax, ADDRINT *pDivisor, unsigne
 {
     ADDRINT divisor = 0;
     PIN_SafeCopy(&divisor, pDivisor, opSize);
-
+    
     PIN_TryStart(tid, DivideHandler, ctxt);
 
     UINT64 dividend = *pGdx;

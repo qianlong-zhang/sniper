@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,12 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Artur Klauser
+*/
+
+/* ===================================================================== */
 /*! @file
  *  This file contains a guard tool against inadvertent or adversary
  *  attempts to modify program text.
@@ -47,7 +53,6 @@ END_LEGAL */
  *
  */
 
-#include <os-apis.h>
 #include <iostream>
 #include <string>
 #include <map>
@@ -56,6 +61,7 @@ END_LEGAL */
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/mman.h>
 
 #include "pin.H"
 
@@ -178,13 +184,19 @@ VOID SANDBOX::PrintMessage(string msg)
 const char * SANDBOX::AllocatePage(const char * page)
 {
     
-    const char * pageFrameStart = NULL;
-    OS_RETURN_CODE ret = OS_AllocateMemory(NATIVE_PID_CURRENT,
-                                  OS_PAGE_PROTECTION_TYPE_READ | OS_PAGE_PROTECTION_TYPE_WRITE,
-                                  PageSize, OS_MEMORY_FLAGS_PRIVATE, (void**)&pageFrameStart);
-    if (!OS_RETURN_CODE_IS_SUCCESS(ret))
+    const char * pageFrameStart = reinterpret_cast<const char *>
+#if defined(TARGET_MAC)
+    // OS X*
+        (mmap(0, PageSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0));
+#else
+    // linux
+        (mmap(0, PageSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
+#endif
+
+
+    if (pageFrameStart == MAP_FAILED)
     {
-        Error("Can't get page frame for page " + hexstr(page) + "\n" + strerror(ret.os_specific_err));
+        Error("Can't get page frame for page " + hexstr(page) + "\n" + strerror(errno));
     }
 
     _pages[page] = pageFrameStart;
@@ -195,11 +207,11 @@ const char * SANDBOX::AllocatePage(const char * page)
 // protect a page read-only
 VOID SANDBOX::ProtectPage(const char * page)
 {
-    OS_RETURN_CODE result = OS_ProtectMemory(NATIVE_PID_CURRENT, const_cast<char *>(page), PageSize, OS_PAGE_PROTECTION_TYPE_READ);
+    int result = mprotect(const_cast<char *>(page), PageSize, PROT_READ);
 
-    if (!OS_RETURN_CODE_IS_SUCCESS(result))
+    if (result != 0)
     {
-        Error("Can't read-protect page " + hexstr(page) + "\n" + strerror(result.os_specific_err));
+        Error("Can't read-protect page " + hexstr(page) + "\n" + strerror(errno));
     }
 }
 

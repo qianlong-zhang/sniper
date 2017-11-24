@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,9 +28,16 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Robert Cohn, Elena Demikhovsky
+*/
+
+/* ===================================================================== */
 /*! @file
  The test shows how wrappers may be implemented in DLL loaded in runtime.
- The dopen() is being called from application space. But it can't be called
+ The dopen() is being called from application space. But it can't be called 
  before libc is initialized.
  In this example I call dlopen before main().
  */
@@ -42,16 +49,17 @@ END_LEGAL */
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "tool_macros.h"
 
-#ifdef TARGET_MAC
-# define MALLOC_LIB "libsystem_malloc.dylib"
-#else
-# define MALLOC_LIB "libc.so"
-#endif
 
 using namespace std;
 
+
+/* ===================================================================== */
+/* Commandline Switches */
+/* ===================================================================== */
+
+KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
+    "o", "malloctrace2.outfile", "specify trace file name");
 
 /* ===================================================================== */
 
@@ -127,7 +135,7 @@ VOID MainRtnCallback()
     cout << "In main callback" << endl;
     // inject libmallocwrappers.so into application by executing application dlopen
 
-    MallocTraceHandle = AppDlopen(SHARED_LIB("libmallocwrappers"), RTLD_LAZY);
+    MallocTraceHandle = AppDlopen("libmallocwrappers.so", RTLD_LAZY);
     ASSERTX(MallocTraceHandle);
 
     // Get function pointers for the wrappers
@@ -147,7 +155,7 @@ VOID ImageLoad(IMG img, VOID *v)
     {
         // Get the function pointer for the application dlopen:
         // dlopen@@GLIBC_2.1 is the official, versioned name.
-        //
+        // 
         // The exact suffix must match the ABI of the libdl header files
         // this source code gets compiled against. Makefile/configure
         // trickery would be needed to figure this suffix out, so it
@@ -157,7 +165,7 @@ VOID ImageLoad(IMG img, VOID *v)
         // versions, this code also checks for backwards compatibility
         // versions of the calls as they would be provided in such a
         // future version.
-
+        
 #if defined(TARGET_IA32E)
 # define DLOPEN_VERSION "GLIBC_2.2.5"
 # define DLSYM_VERSION "GLIBC_2.2.5"
@@ -167,22 +175,22 @@ VOID ImageLoad(IMG img, VOID *v)
 #else
 # error symbol versions unknown for this target
 #endif
-
+            
         RTN dlopenRtn = RTN_FindByName(img, "dlopen@@" DLOPEN_VERSION);
-        if (!RTN_Valid(dlopenRtn))
+        if (!RTN_Valid(dlopenRtn)) 
         {
             dlopenRtn = RTN_FindByName(img, "dlopen@" DLOPEN_VERSION);
         }
 
-        if (!RTN_Valid(dlopenRtn))
+        if (!RTN_Valid(dlopenRtn)) 
         {
             // fallback for the cases in which symbols do not have a version
             dlopenRtn = RTN_FindByName(img, "dlopen");
         }
-
+        
         ASSERTX(RTN_Valid(dlopenRtn));
         AppDlopen = DlopenType(RTN_Funptr(dlopenRtn));
-
+        
         // Get the function pointer for the application dlsym
         RTN dlsymRtn = RTN_FindByName(img, "dlsym@@" DLSYM_VERSION);
         if (!RTN_Valid(dlsymRtn)) {
@@ -192,36 +200,17 @@ VOID ImageLoad(IMG img, VOID *v)
             // fallback for the cases in which symbols do not have a version
             dlsymRtn = RTN_FindByName(img, "dlsym");
         }
-
+        
         ASSERTX(RTN_Valid(dlsymRtn));
         AppDlsym = DlsymType(RTN_Funptr(dlsymRtn));
 
-
-    }
-    if (strstr(IMG_Name(img).c_str(), "libdyld.dylib"))
-    {
-        RTN dlopenRtn = RTN_FindByName(img, C_MANGLE("dlopen") );
-
-        // Get the function pointer for the application dlsym
-        RTN dlsymRtn = RTN_FindByName(img, C_MANGLE("dlsym") );
-
-        // In some systems, dlsym and dlopen symbols don't exist.
-        // In this case, exit with special return code.
-        if (!RTN_Valid(dlsymRtn) && !RTN_Valid(dlopenRtn))
-        {
-            cerr << "Error: dlsym and dlopen not found" << endl;
-            PIN_ExitApplication(13);
-        }
-
-        AppDlopen = DlopenType(RTN_Funptr(dlopenRtn));
-        AppDlsym = DlsymType(RTN_Funptr(dlsymRtn));
-
+        
     }
 
-    if (strstr(IMG_Name(img).c_str(), MALLOC_LIB))
+    if (strstr(IMG_Name(img).c_str(), "libc.so"))
     {
         // Replace malloc and free in application libc with wrappers in libmallocwrappers.so
-        RTN mallocRtn = RTN_FindByName(img, C_MANGLE("malloc"));
+        RTN mallocRtn = RTN_FindByName(img, "malloc");
         ASSERTX(RTN_Valid(mallocRtn));
 
         if ( ! RTN_IsSafeForProbedReplacement( mallocRtn ) )
@@ -229,7 +218,7 @@ VOID ImageLoad(IMG img, VOID *v)
             cout << "Cannot replace malloc in " << IMG_Name(img) << endl;
             exit(1);
         }
-        RTN freeRtn = RTN_FindByName(img, C_MANGLE("free"));
+        RTN freeRtn = RTN_FindByName(img, "free");
         ASSERTX(RTN_Valid(freeRtn));
 
         if ( ! RTN_IsSafeForProbedReplacement( freeRtn ) )
@@ -237,13 +226,13 @@ VOID ImageLoad(IMG img, VOID *v)
             cout << "Cannot replace free in " << IMG_Name(img) << endl;
             exit(1);
         }
-
+        
         origMalloc = (MallocType)RTN_ReplaceProbed(mallocRtn, AFUNPTR(MallocWrapperInTool));
-
+        
         origFree = (FreeType)RTN_ReplaceProbed(freeRtn, AFUNPTR(FreeWrapperInTool));
 
     }
-
+    
     /* I call dopen before main. If this point is too late for you,
     catch init() of libc and call dlopen after init() is done
     */
@@ -262,7 +251,7 @@ VOID ImageLoad(IMG img, VOID *v)
     }
 }
 
-
+                    
 
 /* ===================================================================== */
 /* main */
@@ -271,16 +260,16 @@ VOID ImageLoad(IMG img, VOID *v)
 int main(int argc, CHAR *argv[])
 {
     PIN_InitSymbols();
-
+    
     if( PIN_Init(argc,argv) )
     {
         return Usage();
     }
-
+    
     IMG_AddInstrumentFunction(ImageLoad, 0);
-
+        
     PIN_StartProgramProbed();
-
+    
     return 0;
 }
 

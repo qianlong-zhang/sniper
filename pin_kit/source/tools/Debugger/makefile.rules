@@ -5,6 +5,9 @@
 #
 ##############################################################
 
+# WRL does not have a native debugger, we don't test this directory on that OS.
+# See the exceptions section to see how that's done.
+
 ###### Additional includes that are specific to this directory ######
 
 include $(TOOLS_ROOT)/Config/makefile.debug.rules
@@ -25,6 +28,12 @@ TEST_TOOL_ROOTS :=
 
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
 TEST_ROOTS :=
+
+# This defines a list of tests that should run in the "short" sanity. Tests in this list must also
+# appear either in the TEST_TOOL_ROOTS or the TEST_ROOTS list.
+# If the entire directory should be tested in sanity, assign TEST_TOOL_ROOTS and TEST_ROOTS to the
+# SANITY_SUBSET variable in the tests section below (see example in makefile.rules.tmpl).
+SANITY_SUBSET :=
 
 # This defines the tools which will be run during the the tests, and were not already defined in
 # TEST_TOOL_ROOTS.
@@ -60,8 +69,8 @@ ifeq ($(TARGET_OS),linux)
                   pindb-simultaneous-toolbreak-serialize pindb-simultaneous-toolbreak-squash pindb-invalidate-regs \
                   pindb-simultaneous-toolbreak-change pindb-simultaneous-toolbreak-step pindb-simple-simultaneous-multi \
                   pindb-simple-simultaneous-multi-serialize simple execfail fork breaktool breaktool_const_context \
-                  breaktool-wait breaktool-nodebugger bp-icount action-pending thread launch-gdb stack-debugger pindb-zmm \
-                  debugger-shell-breakpoints debugger-shell-tracepoints start-fini intercept-breakpoint emu-simple ymm zmm \
+                  breaktool-wait breaktool-nodebugger bp-icount action-pending thread launch-gdb stack-debugger \
+                  debugger-shell-breakpoints debugger-shell-tracepoints start-fini intercept-breakpoint emu-simple ymm \
                   pc-change-bp pc-change-async interpreter-remove mt-exit debugger-type signal-step siginfo xmm-$(TARGET) \
                   pindb-attach-after-custom-stop allow-remote set-mode gdb-detach-reattach invalid-write bptest-$(TARGET) \
                   pindb-pthread-step-exit gdb-pthread-step-exit pindb-pthread-cont-exitgroup simultaneous-toolbreak \
@@ -71,7 +80,7 @@ ifeq ($(TARGET_OS),linux)
                   simultaneous-toolbreak_const_context xmm-$(TARGET)_with_set_xmm_scratch_regs_before_breakpoint_tool \
                   xmm-$(TARGET)_with_set_xmm_scratch_regs_before_breakpoint_tool_const_context \
                   xmm-$(TARGET)_with_set_xmm_scratch_regs_before_breakpoint_tool_and_set_xmm_reg \
-                  app-pause-in-app-thread app-pause-in-int-thread bphandler gdb-svr4-libraries-extension simple-pindb-attach
+                  app-pause-in-app-thread app-pause-in-int-thread bphandler gdb-svr4-libraries-extension
     TOOL_ROOTS += stack-debugger start-fini-callback simple-command-tool use-debugger-shell simultaneous-toolbreak \
                   breaktool int3-count action-pending-tool checkpoint watchpoint launch-gdb-tool intercept-tool \
                   pc-change-async-tool interpreter-remove mt-exit-tool debugger-type set-mode-tool invalidate-regs \
@@ -81,25 +90,11 @@ ifeq ($(TARGET_OS),linux)
     APP_ROOTS += simple-pindb simple simple-static exec fork action-pending-app thread checkpoint-app bptest-$(TARGET) \
                  watchpoint-app callerapp fibonacci sleep-unix intercept-app pc-change-bp pc-change-async xmm-$(TARGET) \
                  mt-exit signal-catch reattach-loop pthread-bare-exit pthread-bare-exitgroup thread-$(OS_TYPE) \
-                 ymm-$(TARGET) zmm-$(TARGET) debugger-shell-app-$(TARGET) app-pause-app pick-random-port bphandler_app \
-                 dlopen-dlclose
-    OBJECT_ROOTS += simple-pindb-asm-$(TARGET_OS)-$(TARGET) zmm-asm-$(TARGET)
+                 ymm-$(TARGET) debugger-shell-app-$(TARGET) app-pause-app pick-random-port bphandler_app dlopen-dlclose
+    OBJECT_ROOTS += simple-pindb-asm-$(TARGET_OS)-$(TARGET)
     ifeq ($(TARGET),ia32)
         TEST_ROOTS += access-64-on-32
-    endif
-
-    ifeq ($(shell $(TOOLS_ROOT)/Utils/testStaticLibs), 1)
-        TEST_ROOTS := $(filter-out bp-icount, $(TEST_ROOTS))
-        TOOL_ROOTS := $(filter-out int3-count, $(TOOL_ROOTS))
-        APP_ROOTS := $(filter-out simple-static, $(APP_ROOTS))
-    endif
-endif
-
-# OS X*
-ifeq ($(TARGET_OS),mac)
-    TEST_ROOTS += app-pause-in-app-thread app-pause-in-int-thread
-    TOOL_ROOTS += app-pause-in-app-thread-tool app-pause-in-int-thread-tool
-    APP_ROOTS += app-pause-app
+    endif 
 endif
 
 # Windows
@@ -111,16 +106,16 @@ ifeq ($(TARGET_OS),windows)
                   pindb-simultaneous-toolbreak-change pindb-simultaneous-toolbreak-step pindb-simple-simultaneous-multi \
                   pindb-simple-simultaneous-multi-serialize pindb-win-unhandled-exception pindb-win-handled-exception \
                   pindb-win-continued-exception1 pindb-win-continued-exception2 pindb-win-software-exception \
-                  pindb-win-cpp-exception pindb-win-squash-exception pindb-win-step-exception pindb-zmm \
+                  pindb-win-cpp-exception pindb-win-squash-exception pindb-win-step-exception \
                   pindb-win-library-notifications pindb-win-step-library pindb-win-thread-stress \
-                  pindb-win-exception-after-exit app-pause-in-app-thread app-pause-in-int-thread simple-pindb-attach
+                  app-pause-in-app-thread app-pause-in-int-thread
     TOOL_ROOTS += stack-debugger start-fini-callback simple-command-tool use-debugger-shell simultaneous-toolbreak \
                   invalidate-regs app-pause-in-app-thread-tool app-pause-in-int-thread-tool
     APP_ROOTS += simple-pindb simple win-unhandled-exception win-handled-exception win-continued-exception1 \
                  win-continued-exception2 win-software-exception win-cpp-exception win-load-library \
-                 win-thread-stress thread-$(OS_TYPE) app-pause-app win-exception-after-exit zmm-$(TARGET)
-    OBJECT_ROOTS += simple-pindb-asm-$(TARGET_OS)-$(TARGET) win-foo-library zmm-asm-$(TARGET)
-    DLL_ROOTS += win-foo-library win-exception-after-exit-dll
+                 win-thread-stress thread-$(OS_TYPE) app-pause-app
+    OBJECT_ROOTS += simple-pindb-asm-$(TARGET_OS)-$(TARGET)
+    DLL_ROOTS += win-foo-library
     ifeq ($(TARGET),ia32)
         TEST_ROOTS += access-64-on-32
     endif
@@ -128,22 +123,19 @@ endif
 
 ###### Handle exceptions here ######
 
-# This test is disabled until Mantis 1839 is fixed.
-TEST_ROOTS := $(filter-out simple-pindb-attach, $(TEST_ROOTS))
-
 # These two tests trigger a compiler bug when building on 32-bit Windows with ICC versions 11.x.  It's difficult
 # to disable the tests only for those compiler versions, so we disable them whenever we build with ICC.  These
 # lines should be removed when we migrate to ICC 12.x.  See Mantis #2444.
 #
 ifeq ($(TARGET)-$(TARGET_OS),ia32-windows)
     ifneq ($(ICC),)
-        TEST_ROOTS := $(filter-out pindb-win-continued-exception1 pindb-win-continued-exception2, $(TEST_ROOTS))
+        TEST_ROOTS := $(filter-out pindb-win-continued-exception1 pindb-win-continued-exception2, $(TEST_ROOTS))        
     endif
 endif
 
 #pindb-win-step-exception fails on pinw32-12. Mantis: 3072. 
 ifeq ($(TARGET_OS),windows)
-    TEST_ROOTS := $(filter-out pindb-win-step-exception, $(TEST_ROOTS))
+    TEST_ROOTS := $(filter-out pindb-win-step-exception, $(TEST_ROOTS)) 
 endif
 
 # There is a bug with PinADX when using early-injection (the default) on 32-bit applications when running
@@ -156,7 +148,7 @@ ifeq ($(findstring CYGWIN_NT-5,$(osname))-$(HOST_ARCH)-$(TARGET),CYGWIN_NT-5-int
 endif
 
 ifeq ($(TARGET_OS),linux)
-    GDB_VERSION_IF_BEFORE_66 := $(strip $(shell $(GDB) --version | head -1 | $(GREP) -E -o " [6]\.[2-5]+"))
+    GDB_VERSION_IF_BEFORE_66 :=  $(strip $(shell $(GDB) --version | head -1 | $(GREP) -E -o " [6]\.[2-5]+"))
     GDB_VERSION_IF_AFTER_74 := $(strip $(shell $(GDB) --version | head -1 | $(GREP) -E -o " [7-9]\.[4-9]+"))
     ifneq ($(GDB_VERSION_IF_BEFORE_66),"")
 #   Versions of gdb older than 6.6 do not understand the XMM registers, so disable the xmm tests.
@@ -178,11 +170,33 @@ ifeq ($(TARGET_OS),linux)
     endif
 endif
 
-###### Define the sanity subset ######
+# WRL does not have a native debugger, therefore don't test this directory on that OS.
+osrel := $(shell uname -r)
+ifeq ($(findstring WR,$(osrel)),WR)
+    TEST_TOOL_ROOTS :=
+    TEST_ROOTS :=
+    SANITY_SUBSET :=
+    TOOL_ROOTS :=
+    SA_TOOL_ROOTS :=
+    APP_ROOTS :=
+    OBJECT_ROOTS :=
+    DLL_ROOTS :=
+    LIB_ROOTS :=
+endif
 
-# This defines the list of tests that should run in sanity. It should include all the tests listed in
-# TEST_TOOL_ROOTS and TEST_ROOTS excluding only unstable tests.
-SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
+# TODO: Debugger integration is not yet supported on MIC
+# See Mantis 2925
+ifeq ($(TARGET),mic)
+    TEST_TOOL_ROOTS :=
+    TEST_ROOTS :=
+    SANITY_SUBSET :=
+    TOOL_ROOTS :=
+    SA_TOOL_ROOTS :=
+    APP_ROOTS :=
+    OBJECT_ROOTS :=
+    DLL_ROOTS :=
+    LIB_ROOTS :=
+endif
 
 
 ##############################################################
@@ -190,6 +204,10 @@ SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 # Test recipes
 #
 ##############################################################
+
+###### Finalize sanity here ######
+
+SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 
 # This section contains recipes for tests other than the default.
 # See makefile.default.rules for the default test rules.
@@ -520,10 +538,11 @@ thread-static.test: $(OBJDIR)thread-static$(EXE_SUFFIX)
 	$(RM) -f $(OBJDIR)$(@:.test=.out) $(OBJDIR)$(@:.test=.gdbin) $(OBJDIR)$(@:.test=.gdbout)
 
 # Simple test of the 'pindb' debugger.  We launch Pin separatly and pindb attaches.
+# TODO: This is disabled until Mantis #1839 is fixed.
 #
 simple-pindb-attach.test: $(OBJDIR)simple-pindb$(EXE_SUFFIX) $(OBJDIR)stack-debugger$(PINTOOL_SUFFIX)
 	$(OBJDIR)simple-pindb$(EXE_SUFFIX) basic $(OBJDIR)$(@:.test=.pindbin) $(OBJDIR)$(@:.test=.compare)
-	$(PYTHON) launch-pin-attach-debugger.py --pin=$(BARE_PIN) --pin-exe=$(BARE_PIN) \
+	$(PYTHON) launch-pin-attach-debugger.py --pin=$(PIN_NOFLAGS) --pin-exe=$(BARE_PIN) \
 	    --pindb=$(PINDB) --pindb-libpath=$(PINDB_LIBPATH) \
 	    --tool=$(OBJDIR)stack-debugger$(PINTOOL_SUFFIX) --app=$(OBJDIR)simple-pindb$(EXE_SUFFIX) \
 	    --cpu=$(TARGET) --timeout=$(TLIMIT) \
@@ -767,7 +786,6 @@ pindb-start-fini.test: $(OBJDIR)start-fini-callback$(PINTOOL_SUFFIX) $(OBJDIR)si
 	$(PINDB_WITH_LIBPATH) --pin=$(BARE_PIN) --timeout=$(TLIMIT) --cpu=$(TARGET) --noprompt \
 	    $(PINDB_USERFLAGS) < $(OBJDIR)$(@:.test=.pindbin) > $(OBJDIR)$(@:.test=.pindbout)
 	$(DIFF) start-fini.reference $(OBJDIR)$(@:.test=.toolout)
-	$(SYNC)
 	$(RM) -f $(OBJDIR)$(@:.test=.toolout) $(OBJDIR)$(@:.test=.pindbin) $(OBJDIR)$(@:.test=.pindbout)
 
 stop-resume-when-suspended.test: $(OBJDIR)stop-resume-when-suspended$(PINTOOL_SUFFIX) $(OBJDIR)simple$(EXE_SUFFIX)
@@ -778,7 +796,6 @@ stop-resume-when-suspended.test: $(OBJDIR)stop-resume-when-suspended$(PINTOOL_SU
 	cat $(@:.test=.pindb) >> $(OBJDIR)$(@:.test=.pindbin)
 	$(PINDB_WITH_LIBPATH) --pin=$(BARE_PIN) --timeout=$(TLIMIT) --cpu=$(TARGET) --noprompt \
 	    $(PINDB_USERFLAGS) < $(OBJDIR)$(@:.test=.pindbin) > $(OBJDIR)$(@:.test=.pindbout)
-	sleep 5
 	$(DIFF) stop-resume-when-suspended.reference $(OBJDIR)$(@:.test=.toolout)
 	$(QGREP) "Sum is 55" $(OBJDIR)$(@:.test=.pindbout)
 	$(RM) -f $(OBJDIR)$(@:.test=.toolout) $(OBJDIR)$(@:.test=.pindbin) $(OBJDIR)$(@:.test=.pindbout)
@@ -851,36 +868,6 @@ ymm_with_set_xmm_scratch_regs_tool.test: $(OBJDIR)set_xmm_scratches_for_ymmtest$
 	$(QGREP) instrumented set_xmm_scratches_for_ymmtest.out
 	$(RM) -f $(OBJDIR)$(@:.test=.out) $(OBJDIR)$(@:.test=.gdbin) $(OBJDIR)$(@:.test=.gdbout)
 	$(RM) -f instrumented set_xmm_scratches_for_ymmtest.out
-
-# Verify that the debugger can print the value of a ZMM register when running on native AVX512 hardware.
-# This test will pass even when run on non-AVX512 hardware.  However, it's only effective when run on
-# AVX512 hardware and when run with a GDB that supports AVX512.
-#
-zmm.test: $(OBJDIR)zmm-$(TARGET)$(EXE_SUFFIX)
-	$(RM) -f $(OBJDIR)$(@:.test=.out)
-	$(PIN) $(PINFLAGS_DEBUG) -- $(OBJDIR)zmm-$(TARGET)$(EXE_SUFFIX) > $(OBJDIR)$(@:.test=.out) &
-	count=0; \
-	until $(GREP) 'target remote' $(OBJDIR)$(@:.test=.out) > /dev/null || $(BASHTEST) $$count -gt $(TLIMIT); \
-	    do sleep 1; count=`expr $$count + 1`; done
-	echo 'set remotetimeout $(TLIMIT)' > $(OBJDIR)$(@:.test=.gdbin)
-	$(GREP) 'target remote' $(OBJDIR)$(@:.test=.out) >> $(OBJDIR)$(@:.test=.gdbin)
-	cat $(@:.test=.gdb) >> $(OBJDIR)$(@:.test=.gdbin)
-	$(GDB) -batch -x $(OBJDIR)$(@:.test=.gdbin) -n $(OBJDIR)zmm-$(TARGET)$(EXE_SUFFIX) > $(OBJDIR)$(@:.test=.gdbout)
-	if ! $(QGREP) "HandleSigill" $(OBJDIR)$(@:.test=.gdbout) ; then \
-	  $(PYCOMPARE) -p $(@:.test=.compare) -c $(OBJDIR)$(@:.test=.gdbout); \
-	fi
-	$(RM) -f $(OBJDIR)$(@:.test=.out) $(OBJDIR)$(@:.test=.gdbin) $(OBJDIR)$(@:.test=.gdbout)
-
-pindb-zmm.test: $(OBJDIR)zmm-$(TARGET)$(EXE_SUFFIX)
-	echo "set pinargs " > $(OBJDIR)$(@:.test=.pindbin)
-	echo "run $(OBJDIR)zmm-$(TARGET)$(EXE_SUFFIX)" >> $(OBJDIR)$(@:.test=.pindbin)
-	cat $(@:.test=.pindb) >> $(OBJDIR)$(@:.test=.pindbin)
-	$(PINDB_WITH_LIBPATH) --pin=$(BARE_PIN) --timeout=$(TLIMIT) --cpu=$(TARGET) --noprompt \
-	    $(PINDB_USERFLAGS) < $(OBJDIR)$(@:.test=.pindbin) > $(OBJDIR)$(@:.test=.pindbout)
-	if ! $(QGREP) "Processor does not support AVX512" $(OBJDIR)$(@:.test=.pindbout) ; then \
-	  $(PYCOMPARE) -p $(@:.test=.compare) -c $(OBJDIR)$(@:.test=.pindbout); \
-	fi
-	$(RM) -f $(OBJDIR)$(@:.test=.pindbin) $(OBJDIR)$(@:.test=.pindbout)
 
 # Verify that the debugger change the the PC when stopped after an indirect JMP instruction.
 #
@@ -1114,19 +1101,6 @@ pindb-win-step-exception.test: $(OBJDIR)win-unhandled-exception$(EXE_SUFFIX)
 	$(PYCOMPARE) -p $(@:.test=.compare) -c $(OBJDIR)$(@:.test=.pindbout)
 	$(RM) -f $(OBJDIR)$(@:.test=.pindbin) $(OBJDIR)$(@:.test=.pindbout)
 
-# Test that Pin properly handles exception which happens after beginning of process exit flow
-# when PinADX is disabled.
-#
-pindb-win-exception-after-exit.test: $(OBJDIR)win-exception-after-exit$(EXE_SUFFIX)
-	echo "set pinargs $(PIN_USERFLAGS)" > $(OBJDIR)$(@:.test=.pindbin)
-	echo "run $(OBJDIR)win-exception-after-exit$(EXE_SUFFIX)" >> $(OBJDIR)$(@:.test=.pindbin)
-	cat $(@:.test=.pindb) >> $(OBJDIR)$(@:.test=.pindbin)
-	$(PINDB_WITH_LIBPATH) --pin=$(BARE_PIN) --timeout=$(TLIMIT) --cpu=$(TARGET) \
-	    --noprompt $(PINDB_USERFLAGS) < $(OBJDIR)$(@:.test=.pindbin) > $(OBJDIR)$(@:.test=.pindbout)
-	sleep 2
-	$(QGREP) "Caught exception C0000005" $(OBJDIR)$(@:.test=.pindbout)
-	$(RM) -f $(OBJDIR)$(@:.test=.pindbin) $(OBJDIR)$(@:.test=.pindbout)
-
 # Test DLL load / unload notifications with PinDB.
 #
 pindb-win-library-notifications.test: $(OBJDIR)win-load-library$(EXE_SUFFIX) $(OBJDIR)$(DLL_PREFIX)win-foo-library$(DLL_SUFFIX)
@@ -1260,7 +1234,7 @@ gdb-detach-reattach.test: $(OBJDIR)reattach-loop$(EXE_SUFFIX)
 	$(PYCOMPARE) -p $(@:.test=-gdb-1.compare) -c $(OBJDIR)$(@:.test=-1.gdbout)
 	$(PYCOMPARE) -p $(@:.test=-gdb-2.compare) -c $(OBJDIR)$(@:.test=-2.gdbout)
 	$(PYCOMPARE) -p $(@:.test=-app.compare) -c $(OBJDIR)$(@:.test=.out)
-	$(RM) -f $(OBJDIR)$(@:.test=.out) $(OBJDIR)$(@:.test=.port) $(OBJDIR)$(@:.test=-1.gdbin) \
+	$(RM) -f $(OBJDIR)$(@:.test=.out) $(OBJDIR)$(@:.test=.out) $(OBJDIR)$(@:.test=.port) $(OBJDIR)$(@:.test=-1.gdbin) \
 	      $(OBJDIR)$(@:.test=-1.gdbout) $(OBJDIR)$(@:.test=-2.gdbin) $(OBJDIR)$(@:.test=-2.gdbout)
 
 # Test that GDB can detach from Pin and then re-attach later.
@@ -1702,7 +1676,6 @@ check-if-thread-stopped.test: $(OBJDIR)thread-$(OS_TYPE)$(EXE_SUFFIX) $(OBJDIR)c
 	cat $(@:.test=.pindb) >> $(OBJDIR)$(@:.test=.pindbin)
 	$(PINDB_WITH_LIBPATH) --pin=$(BARE_PIN) --timeout=$(TLIMIT) --cpu=$(TARGET) --noprompt \
 	    $(PINDB_USERFLAGS) < $(OBJDIR)$(@:.test=.pindbin) > $(OBJDIR)$(@:.test=.pindbout)
-	sleep 5
 	$(PYCOMPARE) -p $(@:.test=.compare) -c $(OBJDIR)$(@:.test=.pindbout)
 	$(QGREP) "Finished" $(OBJDIR)$(@:.test=.toolout)
 	$(RM) -f $(OBJDIR)$(@:.test=.pindbin) $(OBJDIR)$(@:.test=.pindbout) $(OBJDIR)$(@:.test=.toolout)
@@ -1713,8 +1686,9 @@ check-if-thread-stopped.test: $(OBJDIR)thread-$(OS_TYPE)$(EXE_SUFFIX) $(OBJDIR)c
 # base address.
 #
 gdb-svr4-libraries-extension.test: $(OBJDIR)dlopen-dlclose$(EXE_SUFFIX) $(OBJDIR)library-load-tool$(PINTOOL_SUFFIX)
+	$(RM) -f $(OBJDIR)$(@:.test=.out)
 	$(PIN) $(PINFLAGS_DEBUG) -t $(OBJDIR)library-load-tool$(PINTOOL_SUFFIX) -- \
-	    $(OBJDIR)dlopen-dlclose$(EXE_SUFFIX) `$(CXX) $(COMP_OBJ) /dev/null -print-file-name=libm.so` > $(OBJDIR)$(@:.test=.out) &
+	    $(OBJDIR)dlopen-dlclose$(EXE_SUFFIX) `$(CXX) $(COMP_OBJ) /dev/null -print-file-name=libgcc_s.so` > $(OBJDIR)$(@:.test=.out) &
 	count=0; \
 	until $(GREP) 'target remote' $(OBJDIR)$(@:.test=.out) > /dev/null || $(BASHTEST) $$count -gt $(TLIMIT); \
 	    do sleep 1; count=`expr $$count + 1`; done
@@ -1812,9 +1786,6 @@ $(OBJDIR)intercept-app$(EXE_SUFFIX): intercept-app.cpp intercept-app-asm-$(TARGE
 $(OBJDIR)ymm-$(TARGET)$(EXE_SUFFIX): ymm.cpp ymm-asm-$(TARGET).s
 	$(APP_CXX) $(APP_CXXFLAGS_NOOPT) $(DBG_INFO_CXX_ALWAYS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS_NOOPT) $(APP_LIBS) $(DBG_INFO_LD_ALWAYS)
 
-$(OBJDIR)zmm-$(TARGET)$(EXE_SUFFIX): zmm.cpp $(OBJDIR)zmm-asm-$(TARGET)$(OBJ_SUFFIX)
-	$(APP_CXX) $(APP_CXXFLAGS_NOOPT) $(DBG_INFO_CXX_ALWAYS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS_NOOPT) $(APP_LIBS) $(DBG_INFO_LD_ALWAYS)
-
 $(OBJDIR)pc-change-bp$(EXE_SUFFIX): pc-change-bp.cpp pc-change-bp-asm-$(TARGET).s
 	$(APP_CXX) $(APP_CXXFLAGS_NOOPT) $(DBG_INFO_CXX_ALWAYS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS_NOOPT) $(APP_LIBS) $(DBG_INFO_LD_ALWAYS)
 
@@ -1845,14 +1816,11 @@ $(OBJDIR)win-software-exception$(EXE_SUFFIX): win-software-exception.cpp
 $(OBJDIR)win-cpp-exception$(EXE_SUFFIX): win-cpp-exception.cpp
 	$(APP_CXX) $(APP_CXXFLAGS_NOOPT) $(DBG_INFO_CXX_ALWAYS) $(COMP_EXE)$@ $< $(APP_LDFLAGS_NOOPT) $(APP_LIBS) $(DBG_INFO_LD_ALWAYS)
 
-$(OBJDIR)win-exception-after-exit$(EXE_SUFFIX): win-exception-after-exit.cpp $(OBJDIR)$(DLL_PREFIX)win-exception-after-exit-dll$(DLL_SUFFIX)
-	$(APP_CXX) $(APP_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(APP_LIBS) $(OBJDIR)win-exception-after-exit-dll$(LIB_SUFFIX)
-
 $(OBJDIR)win-load-library$(EXE_SUFFIX): win-load-library.cpp
 	$(APP_CXX) $(APP_CXXFLAGS_NOOPT) $(DBG_INFO_CXX_ALWAYS) $(COMP_EXE)$@ $< $(APP_LDFLAGS_NOOPT) $(APP_LIBS) $(DBG_INFO_LD_ALWAYS)
 
 $(OBJDIR)reattach-loop$(EXE_SUFFIX): reattach-loop.cpp
-	$(APP_CXX) $(APP_CXXFLAGS_NOOPT) $(NO_PIC) $(DBG_INFO_CXX_ALWAYS) $(COMP_EXE)$@ $< $(APP_LDFLAGS_NOOPT) $(APP_LIBS) $(DBG_INFO_LD_ALWAYS)
+	$(APP_CXX) $(APP_CXXFLAGS_NOOPT) $(DBG_INFO_CXX_ALWAYS) $(COMP_EXE)$@ $< $(APP_LDFLAGS_NOOPT) $(APP_LIBS) $(DBG_INFO_LD_ALWAYS)
 
 $(OBJDIR)win-thread-stress$(EXE_SUFFIX): win-thread-stress.cpp
 	$(APP_CXX) $(APP_CXXFLAGS_NOOPT) $(DBG_INFO_CXX_ALWAYS) $(COMP_EXE)$@ $< $(APP_LDFLAGS_NOOPT) $(APP_LIBS) $(DBG_INFO_LD_ALWAYS)
@@ -1896,6 +1864,3 @@ $(OBJDIR)set_xmm_scratches_asm$(OBJ_SUFFIX): set_xmm_scratches_$(TARGET)$(ASM_SU
 
 $(OBJDIR)$(DLL_PREFIX)win-foo-library$(DLL_SUFFIX): $(OBJDIR)win-foo-library$(OBJ_SUFFIX)
 	$(LINKER) $(APP_LDFLAGS_NOOPT) $(DLL_LDFLAGS) $(LINK_EXE)$@ $< $(APP_LIBS) $(DBG_INFO_LD_ALWAYS)
-
-$(OBJDIR)$(DLL_PREFIX)win-exception-after-exit-dll$(DLL_SUFFIX): win-exception-after-exit-dll.cpp
-	$(APP_CXX) $(APP_CXXFLAGS) $(DLL_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(DLL_LDFLAGS) $(APP_LIBS)

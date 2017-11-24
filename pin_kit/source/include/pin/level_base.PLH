@@ -1,33 +1,6 @@
-/*BEGIN_LEGAL 
-Intel Open Source License 
-
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
- 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer.  Redistributions
-in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or
-other materials provided with the distribution.  Neither the name of
-the Intel Corporation nor the names of its contributors may be used to
-endorse or promote products derived from this software without
-specific prior written permission.
- 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE INTEL OR
-ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-END_LEGAL */
+//
+// @ORIGINAL_AUTHOR: Robert Muth
+//
 /*! @file
   
  */
@@ -38,9 +11,13 @@ END_LEGAL */
 #define LEVEL_BASE_H
 
 // Define macros used by the "extras/components" headers.
-#if defined(TARGET_LINUX)
+#if defined(TARGET_LINUX) && !defined(TARGET_ANDROID)
 #define FUND_TC_HOSTOS      FUND_OS_LINUX
 #define FUND_TC_TARGETOS    FUND_OS_LINUX
+#endif
+#if defined(TARGET_ANDROID)
+#define FUND_TC_HOSTOS      FUND_OS_ANDROID
+#define FUND_TC_TARGETOS    FUND_OS_ANDROID
 #endif
 #if defined(TARGET_WINDOWS)
 #define FUND_TC_HOSTOS      FUND_OS_WINDOWS
@@ -61,6 +38,12 @@ END_LEGAL */
 #endif
 #if defined(TARGET_IA32E)
 #define FUND_TC_TARGETCPU   FUND_CPU_INTEL64
+#endif
+#if defined(HOST_MIC)
+#define FUND_TC_HOSTCPU     FUND_CPU_MIC
+#endif
+#if defined(TARGET_MIC)
+#define FUND_TC_TARGETCPU   FUND_CPU_MIC
 #endif
 
 
@@ -92,13 +75,15 @@ namespace LEVEL_BASE
 }
 
 #include "util/intel-fp.hpp"
-#include "atomic.hpp"
 #include "pinsync.hpp"
+#include "pin_api_version.TLH"
 
+#if defined(TARGET_IA32) || defined(TARGET_IA32E) || defined(TARGET_MIC)
 extern "C" {
 #include "xed-iclass-enum.h"
 #include "xed-category-enum.h"
 }
+#endif
 
 namespace LEVEL_BASE
 {
@@ -107,18 +92,40 @@ namespace LEVEL_BASE
 #include "knob.PH"
 #include "lock.PH"
 
+#if defined(TARGET_IA32) || defined(TARGET_IA32E) || defined(TARGET_MIC)
+
 #if defined(TARGET_IA32)
 #include "fpstate_ia32.PH"
 #endif
 #if defined(TARGET_IA32E)
 #include "fpstate_ia32e.PH"
 #endif
+#if defined(TARGET_MIC)
+#include "fpstate_mic.PH"
+#endif
 
 #include "reginfo_ia32.PH"
 #include "reg_ia32.PH"
 #include "reg_partial_ia32.PH"
 #include "base_ia32.PH"
+GLOBALTYPE typedef xed_category_enum_t CATEGORY;
 GLOBALTYPE typedef PREDICATE_IA32 PREDICATE;
+
+#elif defined(TARGET_DOXYGEN)
+
+/*! @ingroup TYPES_BASE
+  Categorization of instructions, can be @ref CATEGORY_IA32, @ref CATEGORY_ARM, or @ref CATEGORY_IPF
+*/
+GLOBALTYPE typedef XXX CATEGORY;
+
+/*! @ingroup TYPES_BASE
+  Can be @ref PREDICATE_IA32, @ref PREDICATE_ARM, or @ref PREDICATE_IPF
+*/
+GLOBALTYPE typedef XXX PREDICATE;
+
+#else
+#error "no target arch defined"
+#endif
 
 #include "tls.PH"
 #include "exception.PH"

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -34,19 +34,17 @@ END_LEGAL */
 #include <unistd.h>
 #include <sys/wait.h>
 #include <errno.h>
-#include <signal.h>
 
 #define NUM_OF_THREADS 5
 #define CHILD_TIMEOUT 30 //30 seconds
 #define TIMEOUT 600      //10 minutes
 
-void RunApp()
+void RunApp(char *app)
 {
 	pid_t child = fork();
 	if (child == 0)
 	{
-		write(1, ".", 1);
-		_exit(0);
+		execv(app, 0);
 	}
 	else
 	{
@@ -80,16 +78,14 @@ void RunApp()
 	}
 }
 		
-void *ThreadFunc(void* arg)
+void *ThreadFunc(void *arg)
 {
+	char * app = (char*) arg;
 	while (1)
 	{
-		RunApp();
+		RunApp(app);
 		sleep(1);
 	}
-        fprintf(stderr, "APPLICATION ERROR: Reached unreachable code.\n");
-        exit(1);
-	return NULL;
 }
 
 
@@ -101,6 +97,11 @@ static void TimeoutHandler(int a)
 
 int main(int argc, char **argv)
 {
+	if (argc <=1)
+	{
+		printf("Specify application to run\n");
+		return -1;
+	}
 	pthread_t thHandle[NUM_OF_THREADS];
 
     struct sigaction sigact_timeout;
@@ -118,12 +119,12 @@ int main(int argc, char **argv)
 
 	for (unsigned int i=0; i < NUM_OF_THREADS; ++i)
 	{
-		pthread_create(&thHandle[i], NULL, ThreadFunc, NULL);
+		pthread_create(&thHandle[i], NULL, ThreadFunc, (void *)argv[1]);
 	}
 	
 	while (1)
 	{
-		RunApp();
+		RunApp(argv[1]);
 		sleep(1);
 	}
 

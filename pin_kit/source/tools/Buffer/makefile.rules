@@ -23,6 +23,12 @@ TEST_TOOL_ROOTS := bufferaddr two_buffers allocate mlog_buffer buffer-then buffe
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
 TEST_ROOTS :=
 
+# This defines a list of tests that should run in the "short" sanity. Tests in this list must also
+# appear either in the TEST_TOOL_ROOTS or the TEST_ROOTS list.
+# If the entire directory should be tested in sanity, assign TEST_TOOL_ROOTS and TEST_ROOTS to the
+# SANITY_SUBSET variable in the tests section below (see example in makefile.rules.tmpl).
+SANITY_SUBSET :=
+
 # This defines the tools which will be run during the the tests, and were not already defined in
 # TEST_TOOL_ROOTS.
 TOOL_ROOTS :=
@@ -47,12 +53,6 @@ DLL_ROOTS :=
 # This defines any static libraries (archives), that need to be built.
 LIB_ROOTS :=
 
-###### Define the sanity subset ######
-
-# This defines the list of tests that should run in sanity. It should include all the tests listed in
-# TEST_TOOL_ROOTS and TEST_ROOTS excluding only unstable tests.
-SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
-
 
 ##############################################################
 #
@@ -60,22 +60,26 @@ SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 #
 ##############################################################
 
+###### Finalize sanity here ######
+
+SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
+
 # This section contains recipes for tests other than the default.
 # See makefile.default.rules for the default test rules.
 # All tests in this section should adhere to the naming convention: <testname>.test
 
 bufferaddr.test: $(OBJDIR)bufferaddr$(PINTOOL_SUFFIX) $(TESTAPP)
 	$(PIN) -xyzzy -mesgon log_buffer -logfile $(OBJDIR)bufferaddr.log -t $(OBJDIR)bufferaddr$(PINTOOL_SUFFIX) \
-	  -o $(OBJDIR)bufferaddr.out -- $(TESTAPP) makefile $(OBJDIR)bufferaddr.makefile.copy
+	  -- $(TESTAPP) makefile $(OBJDIR)bufferaddr.makefile.copy
 	$(QGREP) -e "Allocated buffer" $(OBJDIR)bufferaddr.log
-	$(RM) $(OBJDIR)bufferaddr.log $(OBJDIR)bufferaddr.makefile.copy $(OBJDIR)bufferaddr.out
+	$(RM) $(OBJDIR)bufferaddr.log $(OBJDIR)bufferaddr.makefile.copy
 
 two_buffers.test: $(OBJDIR)two_buffers$(PINTOOL_SUFFIX) $(TESTAPP)
 	$(PIN) -xyzzy -mesgon log_buffer -logfile $(OBJDIR)two_buffers.log -t $(OBJDIR)two_buffers$(PINTOOL_SUFFIX) \
-	  -o $(OBJDIR)two_buffers.out -- $(TESTAPP) makefile $(OBJDIR)two_buffers.makefile.copy
-	$(QGREP) -e "buffer 1" $(OBJDIR)two_buffers.out
-	$(QGREP) -e "buffer 2" $(OBJDIR)two_buffers.out
-	$(RM) $(OBJDIR)two_buffers.log $(OBJDIR)two_buffers.makefile.copy $(OBJDIR)two_buffers.out
+	  -- $(TESTAPP) makefile $(OBJDIR)two_buffers.makefile.copy
+	$(QGREP) -e "buffer 1" two_buffers.out
+	$(QGREP) -e "buffer 2" two_buffers.out
+	$(RM) $(OBJDIR)two_buffers.log $(OBJDIR)two_buffers.makefile.copy
 
 allocate.test: $(OBJDIR)allocate$(PINTOOL_SUFFIX) $(TESTAPP)
 	$(PIN) -xyzzy -mesgon log_buffer -logfile $(OBJDIR)allocate.log \
@@ -83,23 +87,15 @@ allocate.test: $(OBJDIR)allocate$(PINTOOL_SUFFIX) $(TESTAPP)
 	$(QGREP) -e "found buffer" $(OBJDIR)allocate.log
 	$(RM) $(OBJDIR)allocate.log $(OBJDIR)allocate.makefile.copy $(OBJDIR)allocate.out
 
-mlog_buffer.test: $(OBJDIR)mlog_buffer$(PINTOOL_SUFFIX) $(TESTAPP)
-	$(PIN) -t $(OBJDIR)mlog_buffer$(PINTOOL_SUFFIX) -o $(OBJDIR)mlog_buffer.tool.out \
-	  -- $(TESTAPP) makefile $(OBJDIR)mlog_buffer.makefile.copy > $(OBJDIR)mlog_buffer.out 2>&1
-	$(CMP) makefile $(OBJDIR)mlog_buffer.makefile.copy
-	$(RM) $(OBJDIR)mlog_buffer.out $(OBJDIR)mlog_buffer.makefile.copy $(OBJDIR)mlog_buffer.tool.out*
-
 buffer-then.test: $(OBJDIR)buffer-then$(PINTOOL_SUFFIX) $(TESTAPP)
-	$(PIN) -t $(OBJDIR)buffer-then$(PINTOOL_SUFFIX) -o $(OBJDIR)buffer-then.out \
-	  -- $(TESTAPP) makefile $(OBJDIR)buffer-then.makefile.copy > $(OBJDIR)buffer-then.out 2>&1
-	$(CMP) makefile $(OBJDIR)buffer-then.makefile.copy
-	$(RM) $(OBJDIR)buffer-then.out $(OBJDIR)buffer-then.makefile.copy $(OBJDIR)buffer-then.out.*
+	$(PIN) -t $(OBJDIR)buffer-then$(PINTOOL_SUFFIX) -- $(TESTAPP) makefile $(OBJDIR)buffer-then.makefile.copy \
+	  > $(OBJDIR)buffer-then.out 2>&1
+	$(RM) $(OBJDIR)buffer-then.out $(OBJDIR)buffer-then.makefile.copy
 
 buffer-predicate.test: $(OBJDIR)buffer-predicate$(PINTOOL_SUFFIX) $(TESTAPP)
-	$(PIN) -t $(OBJDIR)buffer-predicate$(PINTOOL_SUFFIX) -o $(OBJDIR)buffer-predicate.out \
+	$(PIN) -t $(OBJDIR)buffer-predicate$(PINTOOL_SUFFIX) \
 	  -- $(TESTAPP) makefile $(OBJDIR)buffer-predicate.makefile.copy > $(OBJDIR)buffer-predicate.out 2>&1
-	$(CMP) makefile $(OBJDIR)buffer-predicate.makefile.copy
-	$(RM) $(OBJDIR)buffer-predicate.out $(OBJDIR)buffer-predicate.makefile.copy $(OBJDIR)buffer-predicate.out.*
+	$(RM) $(OBJDIR)buffer-predicate.out $(OBJDIR)buffer-predicate.makefile.copy
 
 buffer-lengths.test: $(OBJDIR)buffer-lengths$(PINTOOL_SUFFIX) $(TESTAPP)
 	$(PIN) -t $(OBJDIR)buffer-lengths$(PINTOOL_SUFFIX) \
@@ -110,10 +106,10 @@ buffer-lengths.test: $(OBJDIR)buffer-lengths$(PINTOOL_SUFFIX) $(TESTAPP)
 # This is a negative test, it should fail.
 buffererror.test: $(OBJDIR)buffererror$(PINTOOL_SUFFIX) $(TESTAPP)
 	-$(PIN) -xyzzy -mesgon log_buffer -logfile $(OBJDIR)buffererror.log -t $(OBJDIR)buffererror$(PINTOOL_SUFFIX) \
-	  -o $(OBJDIR)buffererror.out -- $(TESTAPP) makefile $(OBJDIR)buffererror.makefile.copy
+	  -- $(TESTAPP) makefile $(OBJDIR)buffererror.makefile.copy
 	echo "buffererror is a negative test.  Ignore the failure."
 	$(QGREP) "IARG_REG_REFERENCE" $(OBJDIR)buffererror.log
-	$(RM) $(OBJDIR)buffererror.log $(OBJDIR)buffererror.out
+	$(RM) $(OBJDIR)buffererror.log
 
 buffer_invalid_reg.test: $(OBJDIR)buffer_invalid_reg$(PINTOOL_SUFFIX) $(TESTAPP)
 	$(RM) -f $(OBJDIR)buffer_invalid_reg.makefile.copy $(OBJDIR)buffer_invalid_reg.err
@@ -126,7 +122,7 @@ buffer_invalid_reg.test: $(OBJDIR)buffer_invalid_reg$(PINTOOL_SUFFIX) $(TESTAPP)
 	$(QGREP) "Invalid REG for IARG_REG_.* xmm0" $(OBJDIR)buffer_invalid_reg.err
 	$(PIN) -t $(OBJDIR)buffer_invalid_reg$(PINTOOL_SUFFIX) -r cs \
 	  -- $(TESTAPP) makefile $(OBJDIR)buffer_invalid_reg.makefile.copy
-	$(RM) -f $(OBJDIR)buffer_invalid_reg.makefile.copy $(OBJDIR)buffer_invalid_reg.err pin.log
+	$(RM) -f $(OBJDIR)buffer_invalid_reg.makefile.copy $(OBJDIR)buffer_invalid_reg.err
 
 
 ##############################################################

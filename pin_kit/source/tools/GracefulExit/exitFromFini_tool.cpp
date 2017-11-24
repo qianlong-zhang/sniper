@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -37,11 +37,9 @@ END_LEGAL */
 #include <cstring>
 #include <cassert>
 #include <fstream>
-#include <set>
 #include "pin.H"
 
 using std::ofstream;
-using std::set;
 
 
 /**************************************************
@@ -65,14 +63,11 @@ KNOB<string> KnobThreadsFinisFile(KNOB_MODE_WRITEONCE,  "pintool",
 
 // Knob for specifying the scenario to be tested.
 KNOB<int> KnobScenario(KNOB_MODE_WRITEONCE, "pintool",
-    "scenario", "0", "specify the current scenario to be checked (1-6)");
+	"scenario", "0", "specify the current scenario to be checked (1-6)");
 
 // Output file streams
 ofstream startsOut;
 ofstream finisOut;
-
-THREADID myThread = INVALID_THREADID;
-set<THREADID> appThreads;
 
 // Scenario
 int scenario = 0;
@@ -103,16 +98,11 @@ static OS_THREAD_ID* GetTLSData(THREADID threadIndex) {
  * Analysis routines                              *
  **************************************************/
 static VOID ThreadStart(THREADID threadIndex, CONTEXT* c, INT32 flags, VOID *v) {
-    if (myThread == INVALID_THREADID) {
-        myThread = threadIndex;
-    }
     ++numOfActiveThreads;
     ++totalNumOfThreads;
     OS_THREAD_ID* tidData = new OS_THREAD_ID(PIN_GetTid());
     PIN_SetThreadData(tidKey, tidData, threadIndex);
-    if (myThread == threadIndex) {
-        startsOut << *tidData << endl;
-    }
+    startsOut << *tidData << endl;
     fprintf(stderr, "TOOL: <%d> thread start, active: %d\n", *tidData, numOfActiveThreads);
     fflush(stderr);
 }
@@ -120,9 +110,7 @@ static VOID ThreadStart(THREADID threadIndex, CONTEXT* c, INT32 flags, VOID *v) 
 static VOID ThreadFini(THREADID threadIndex, CONTEXT const * c, INT32 code, VOID *v) {
     --numOfActiveThreads;
     OS_THREAD_ID* tidData = GetTLSData(threadIndex);
-    if (myThread == threadIndex || appThreads.find(threadIndex) != appThreads.end()) {
-        finisOut << *tidData << endl;
-    }
+    finisOut << *tidData << endl;
     fprintf(stderr, "TOOL: <%d> thread fini, fini: %d\n", *tidData, numOfActiveThreads);
     fflush(stderr);
     switch (scenario) {
@@ -145,39 +133,26 @@ static VOID ThreadFini(THREADID threadIndex, CONTEXT const * c, INT32 code, VOID
 }
 
 static VOID Fini(INT32 code, VOID* v) {
-    OS_THREAD_ID tid = PIN_GetTid();
+	OS_THREAD_ID tid = PIN_GetTid();
     fprintf(stderr, "TOOL: <%d> fini function %d %d\n", tid, numOfActiveThreads, totalNumOfThreads);
     fflush(stderr);
     switch (scenario) {
     case 3:
-        fprintf(stderr, "TOOL: <%d> calling PIN_ExitApplication from application fini\n", tid);
-        fflush(stderr);
-        PIN_ExitApplication(0);
+    	fprintf(stderr, "TOOL: <%d> calling PIN_ExitApplication from application fini\n", tid);
+    	fflush(stderr);
+    	PIN_ExitApplication(0);
     case 6:
-        fprintf(stderr, "TOOL: <%d> calling PIN_ExitProcess from application fini\n", tid);
-        fflush(stderr);
-        PIN_ExitProcess(0);
+    	fprintf(stderr, "TOOL: <%d> calling PIN_ExitProcess from application fini\n", tid);
+    	fflush(stderr);
+    	PIN_ExitProcess(0);
     default:
-        break;
+    	break;
     }
 }
 
-static VOID AppThreadStart(THREADID threadIndex){
-    OS_THREAD_ID* tidData = GetTLSData(threadIndex);
-    startsOut << *tidData << endl;
-    appThreads.insert(threadIndex);
-}
-
-static VOID InstrumentRtn(RTN rtn, VOID *) {
-    if (PIN_UndecorateSymbolName(RTN_Name(rtn), UNDECORATION_NAME_ONLY) == "DoNewThread") {
-        RTN_Open(rtn);
-        RTN_InsertCall(rtn, IPOINT_BEFORE, AFUNPTR(AppThreadStart), IARG_THREAD_ID, IARG_END);
-        RTN_Close(rtn);
-    }
-}
 
 /**************************************************
- * Main function                                  *
+ * Main function 	                              *
  **************************************************/
 int main(INT32 argc, CHAR **argv) {
 
@@ -192,17 +167,16 @@ int main(INT32 argc, CHAR **argv) {
 
     // Verify scenario
     if (KnobScenario.Value() < 1 || KnobScenario > 6) {
-        fprintf(stderr, "TOOL ERROR: Invalid scenario specified\n%s\n", KnobScenario.StringKnobSummary().c_str());
-        return 1;
+    	fprintf(stderr, "TOOL ERROR: Invalid scenario specified\n%s\n", KnobScenario.StringKnobSummary().c_str());
+    	return 1;
     }
 
     scenario = KnobScenario.Value();
 
     // Register callbacks
-    RTN_AddInstrumentFunction(InstrumentRtn, NULL);
-    PIN_AddThreadStartFunction(ThreadStart, NULL);
-    PIN_AddThreadFiniFunction(ThreadFini, NULL);
-    PIN_AddFiniFunction(Fini, NULL);
+    PIN_AddThreadStartFunction(ThreadStart, 0);
+    PIN_AddThreadFiniFunction(ThreadFini, 0);
+    PIN_AddFiniFunction(Fini, 0);
 
     // Start running the application
     PIN_StartProgram(); // Never returns

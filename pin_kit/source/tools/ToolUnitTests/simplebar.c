@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -72,7 +72,7 @@ EXPORT_SYM int Bar2( int one, int two )
 
 EXPORT_SYM long Bar3( long one, long two )
 {
-    printf(" Hello from Bar3: one = %ld, two = %ld!\n ", one, two );
+    printf(" Hello from Bar3: one = %d, two = %d!\n ", one, two );
 
     return one+two;
 }
@@ -95,7 +95,7 @@ EXPORT_SYM int Blue2( int one, int two )
 
 EXPORT_SYM long Blue3( long one, long two )
 {
-    printf(" Hello from Blue3: one = %ld, two = %ld!\n ", one, two );
+    printf(" Hello from Blue3: one = %d, two = %d!\n ", one, two );
 
     return one+two;
 }

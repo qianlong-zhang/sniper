@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -42,7 +42,6 @@ explicitly used in the memory operand of the cmpxchg8b instruction.
 
 */
 
-#include <stdio.h>
 
 int cmpxchg8_with_explicit_ebx();
 

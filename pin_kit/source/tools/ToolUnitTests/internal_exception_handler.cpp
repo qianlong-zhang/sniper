@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -62,7 +62,7 @@ volatile WIND::LPVOID ptr2 = NULL;
 EXCEPT_HANDLING_RESULT AnalysisHandler2(THREADID threadIndex, EXCEPTION_INFO * pExceptInfo, 
                                         PHYSICAL_CONTEXT * pPhysCtxt, VOID *v)
 {
-    cout << "AnalysisHandler2: Caught exception. " << PIN_ExceptionToString(pExceptInfo) << endl << flush;
+    cout << "AnalysisHandler2: Caught exception. " << PIN_ExceptionToString(pExceptInfo) << endl;
 
     // Excercise *PhysicalContext* APIs
     char fpstate[FPSTATE_SIZE];
@@ -72,12 +72,12 @@ EXCEPT_HANDLING_RESULT AnalysisHandler2(THREADID threadIndex, EXCEPTION_INFO * p
     PIN_SetPhysicalContextReg(pPhysCtxt, REG_INST_PTR, ip);
     if(ip != PIN_GetExceptionAddress(pExceptInfo))
     {
-        cout << "AnalysisHandler2: Unmatching exception address. Abort" << endl << flush;
+        cout << "AnalysisHandler2: Unmatching exception address. Abort" << endl;
         return EHR_UNHANDLED;
     }
     else
     {
-        cout << "AnalysisHandler2: Matching exception address. Continue search" << endl << flush;
+        cout << "AnalysisHandler2: Matching exception address. Continue search" << endl;
         return EHR_CONTINUE_SEARCH;
     }
 }
@@ -90,7 +90,7 @@ EXCEPT_HANDLING_RESULT AnalysisHandler1(THREADID tid, EXCEPTION_INFO * pExceptIn
     string str = PIN_ExceptionToString(pExceptInfo);
     printf("AnalysisHandler1: Caught exception. %s\n", str.c_str());
 #else
-    cout << "AnalysisHandler1: Caught exception. " << PIN_ExceptionToString(pExceptInfo) << endl << flush;
+    cout << "AnalysisHandler1: Caught exception. " << PIN_ExceptionToString(pExceptInfo) << endl;
 #endif
     if(isExpected[tid])
     {
@@ -98,7 +98,7 @@ EXCEPT_HANDLING_RESULT AnalysisHandler1(THREADID tid, EXCEPTION_INFO * pExceptIn
         //Temporary work-around, Remove when Mantis #1986 is resolved
         printf("AnalysisHandler1: Raising exception on behalf of the application\n");
 #else
-        cout << "AnalysisHandler1: Raising exception on behalf of the application" << endl << flush;
+        cout << "AnalysisHandler1: Raising exception on behalf of the application" << endl;
 #endif
         isExpected[tid] = FALSE;
         // Raise exception on behalf of the application
@@ -113,18 +113,18 @@ EXCEPT_HANDLING_RESULT AnalysisHandler1(THREADID tid, EXCEPTION_INFO * pExceptIn
 EXCEPT_HANDLING_RESULT GlobalHandler2(THREADID threadIndex, EXCEPTION_INFO * pExceptInfo, 
                                       PHYSICAL_CONTEXT * pPhysCtxt, VOID *v)
 {
-    cout << "GlobalHandler2: Caught exception. " << PIN_ExceptionToString(pExceptInfo) << endl << flush;
+    cout << "GlobalHandler2: Caught exception. " << PIN_ExceptionToString(pExceptInfo) << endl;
     return EHR_CONTINUE_SEARCH;
 }
 
 EXCEPT_HANDLING_RESULT GlobalHandler1(THREADID threadIndex, EXCEPTION_INFO * pExceptInfo, 
                                       PHYSICAL_CONTEXT * pPhysCtxt, VOID *v)
 {
-    cout << "GlobalHandler1: Caught exception. " << PIN_ExceptionToString(pExceptInfo) << endl << flush;
+    cout << "GlobalHandler1: Caught exception. " << PIN_ExceptionToString(pExceptInfo) << endl;
     if(isGlobalExpected1 && (PIN_GetExceptionCode(pExceptInfo) == EXCEPTCODE_RECEIVED_ACCESS_FAULT))
     {
         isGlobalExpected1 = FALSE;
-        cout << "GlobalHandler1: Fixing exception and continuing execution" << endl << flush;
+        cout << "GlobalHandler1: Fixing exception and continuing execution" << endl;
         //Fix and continue execution
         WIND::VirtualAlloc(ptr1, 0x1000, MEM_COMMIT, PAGE_READWRITE);
         return EHR_HANDLED; 
@@ -132,7 +132,7 @@ EXCEPT_HANDLING_RESULT GlobalHandler1(THREADID threadIndex, EXCEPTION_INFO * pEx
     else if(isGlobalExpected2 && (PIN_GetExceptionCode(pExceptInfo) == EXCEPTCODE_RECEIVED_ACCESS_FAULT))
     {
         isGlobalExpected2 = FALSE;
-        cout << "GlobalHandler1: Fixing exception and continuing execution" << endl << flush;
+        cout << "GlobalHandler1: Fixing exception and continuing execution" << endl;
         //Fix and continue execution
         WIND::VirtualAlloc(ptr2, 0x1000, MEM_COMMIT, PAGE_READWRITE);
         return EHR_HANDLED; 
@@ -140,7 +140,7 @@ EXCEPT_HANDLING_RESULT GlobalHandler1(THREADID threadIndex, EXCEPTION_INFO * pEx
     else
     {
         // Message logging
-        cout << "GlobalHandler1: Unexpected exception. Abort" << endl << flush;
+        cout << "GlobalHandler1: Unexpected exception. Abort" << endl;
         // Stop searching for internal handler.
         return EHR_UNHANDLED; 
     }
@@ -230,14 +230,9 @@ static VOID InstrumentRoutine(RTN rtn, VOID *)
 VOID Instruction(INS ins, VOID *v)
 {
     static bool isFirst = true;
-    static ADDRINT ins_address;
-    if (isFirst)
+    if(isFirst)
     {
         isFirst = false;
-        ins_address = INS_Address(ins);
-    }
-    if (ins_address == INS_Address(ins))
-    {
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)OnIns, IARG_END);
     }
 }
@@ -268,11 +263,11 @@ VOID Fini(INT32 code, VOID *v)
     int j = *(int *)ptr1;
     if(j != 0)
     {
-        cout <<  "internal_exception_handler : Unexpected value: " << j << endl << flush;
+        cout <<  "internal_exception_handler : Unexpected value: " << j << endl;
     }
     else
     {
-        cout <<  "internal_exception_handler : Completed successfully" << endl << flush;
+        cout <<  "internal_exception_handler : Completed successfully" << endl;
     }
 }
 

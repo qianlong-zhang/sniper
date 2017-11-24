@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -38,7 +38,6 @@ END_LEGAL */
 #include "pin.H"
 #include <iostream>
 #include <fstream>
-#include "tool_macros.h"
 
 using namespace std;
 
@@ -218,12 +217,12 @@ VOID CheckNonRelocatable(const char *fname, IMG img)
 
 VOID ImageLoad(IMG img, VOID *v)
 {
-    CheckRelocatable(C_MANGLE("relocatable_1"), img, &pf_r1, AFUNPTR(R1));
-    CheckRelocatable1a(C_MANGLE("relocatable_1a"), img, &pf_r1a, AFUNPTR(R1a));
-    CheckRelocatable(C_MANGLE("relocatable_2"), img, &pf_r2, AFUNPTR(R2));
-    CheckRelocatableSig(C_MANGLE("relocatable_3"), img, AFUNPTR(R3));
-    CheckNonRelocatable(C_MANGLE("non_relocatable_1"), img);
-    CheckNonRelocatable(C_MANGLE("non_relocatable_2"), img);    
+    CheckRelocatable("relocatable_1", img, &pf_r1, AFUNPTR(R1));
+    CheckRelocatable1a("relocatable_1a", img, &pf_r1a, AFUNPTR(R1a));
+    CheckRelocatable("relocatable_2", img, &pf_r2, AFUNPTR(R2));
+    CheckRelocatableSig("relocatable_3", img, AFUNPTR(R3));
+    CheckNonRelocatable("non_relocatable_1", img);
+    CheckNonRelocatable("non_relocatable_2", img);    
 }
 
 

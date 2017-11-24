@@ -20,11 +20,17 @@
 TEST_TOOL_ROOTS := 
 
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
-TEST_ROOTS := checkflags
+TEST_ROOTS :=
+
+# This defines a list of tests that should run in the "short" sanity. Tests in this list must also
+# appear either in the TEST_TOOL_ROOTS or the TEST_ROOTS list.
+# If the entire directory should be tested in sanity, assign TEST_TOOL_ROOTS and TEST_ROOTS to the
+# SANITY_SUBSET variable in the tests section below (see example in makefile.rules.tmpl).
+SANITY_SUBSET :=
 
 # This defines the tools which will be run during the the tests, and were not already defined in
 # TEST_TOOL_ROOTS.
-TOOL_ROOTS := checkflags_tool
+TOOL_ROOTS :=
 
 # This defines the static analysis tools which will be run during the the tests. They should not
 # be defined in TEST_TOOL_ROOTS. If a test with the same name exists, it should be defined in
@@ -35,10 +41,10 @@ TOOL_ROOTS := checkflags_tool
 SA_TOOL_ROOTS :=
 
 # This defines all the applications that will be run during the tests.
-APP_ROOTS := checkflags_app
+APP_ROOTS := 
 
 # This defines any additional object files that need to be compiled.
-OBJECT_ROOTS := checkflags_asm
+OBJECT_ROOTS :=
 
 # This defines any additional dlls (shared objects), other than the pintools, that need to be compiled.
 DLL_ROOTS :=
@@ -48,33 +54,14 @@ LIB_ROOTS :=
 
 ###### Place OS-specific definitions here ######
 
-#Linux
+# Linux
 ifeq ($(TARGET_OS),linux)
-    TEST_TOOL_ROOTS += ifunc_complex_resolver
     TOOL_ROOTS += ifuncInstrumentation
     TEST_ROOTS += ifuncInstrumentationStrcmp ifuncInstrumentationGettimeofday
-    APP_ROOTS += ifuncInstrumentationApp ifunc_complex_resolver_app
-    DLL_ROOTS += ifunc_complex_resolver_lib_app
+    APP_ROOTS += ifuncInstrumentationApp
 endif
 
 ###### Handle exceptions here ######
-
-# Linux
-ifeq ($(TARGET_OS),linux)
-    ifneq ($(shell ./is_ifunc_supported.py $(APP_CC) $(TARGET)),IFUNC_SUPPORTED)
-        TEST_TOOL_ROOTS := $(filter-out ifunc_complex_resolver, $(TEST_TOOL_ROOTS))
-        TOOL_ROOTS := $(filter-out ifuncInstrumentation, $(TOOL_ROOTS))
-        TEST_ROOTS := $(filter-out ifuncInstrumentationStrcmp ifuncInstrumentationGettimeofday, $(TEST_ROOTS))
-        APP_ROOTS := $(filter-out ifuncInstrumentationApp ifunc_complex_resolver_app, $(APP_ROOTS))
-        DLL_ROOTS := $(filter-out ifunc_complex_resolver_lib_app, $(DLL_ROOTS))
-    endif
-endif
-
-###### Define the sanity subset ######
-
-# This defines the list of tests that should run in sanity. It should include all the tests listed in
-# TEST_TOOL_ROOTS and TEST_ROOTS excluding only unstable tests.
-SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 
 
 ##############################################################
@@ -82,6 +69,10 @@ SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 # Test recipes
 #
 ##############################################################
+
+###### Finalize sanity here ######
+
+SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 
 # This section contains recipes for tests other than the default.
 # See makefile.default.rules for the default test rules.
@@ -113,23 +104,6 @@ ifuncInstrumentationGettimeofday.test: $(OBJDIR)ifuncInstrumentation$(PINTOOL_SU
 	$(BASHTEST) $$failed -eq 0
 	$(RM) -f $(OBJDIR)ifuncInstrumentation_gettimeofday*
 
-checkflags.test: $(OBJDIR)checkflags_tool$(PINTOOL_SUFFIX) $(OBJDIR)checkflags_app$(EXE_SUFFIX)
-	$(PIN) -t $< -- $(OBJDIR)checkflags_app$(EXE_SUFFIX) > $(OBJDIR)checkflags.out
-	$(QGREP) "In PushfAnalysis" $(OBJDIR)checkflags.out
-	$(RM) $(OBJDIR)checkflags.out
-
-ifunc_complex_resolver.test: $(OBJDIR)ifunc_complex_resolver$(PINTOOL_SUFFIX) $(OBJDIR)ifunc_complex_resolver_lib_app$(DLL_SUFFIX) $(OBJDIR)ifunc_complex_resolver_app$(EXE_SUFFIX)
-	$(RM) -f $(OBJDIR)ifunc_complex_resolver.file $(OBJDIR)ifunc_complex_resolver.out
-	$(PIN) -t $(OBJDIR)ifunc_complex_resolver$(PINTOOL_SUFFIX) \
-	  -- $(OBJDIR)ifunc_complex_resolver_app$(EXE_SUFFIX) > $(OBJDIR)ifunc_complex_resolver.out 2>&1
-	$(QGREP) "Before_ifunc_not_exist" $(OBJDIR)ifunc_complex_resolver.out
-	$(TOUCH) $(OBJDIR)ifunc_complex_resolver.file
-	$(PIN) -t $(OBJDIR)ifunc_complex_resolver$(PINTOOL_SUFFIX) \
-	  -- $(OBJDIR)ifunc_complex_resolver_app$(EXE_SUFFIX) > $(OBJDIR)ifunc_complex_resolver.out 2>&1
-	$(QGREP) "Before_ifunc_exist" $(OBJDIR)ifunc_complex_resolver.out
-	$(RM) -f $(OBJDIR)ifunc_complex_resolver.file $(OBJDIR)ifunc_complex_resolver.out
-
-
 ##############################################################
 #
 # Build rules
@@ -139,27 +113,7 @@ ifunc_complex_resolver.test: $(OBJDIR)ifunc_complex_resolver$(PINTOOL_SUFFIX) $(
 # This section contains the build rules for all binaries that have special build rules.
 # See makefile.default.rules for the default build rules.
 
-ifeq ($(TARGET_OS),windows)
-    CHECKFLAGS_APP_EXPORTS := /EXPORT:CheckFlags
-endif
-
 ###### Special applications' build rules ######
 
 $(OBJDIR)ifuncInstrumentationApp$(EXE_SUFFIX): ifuncInstrumentationApp.c 
 	$(APP_CC) $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@ $< $(APP_LDFLAGS_NOOPT) $(APP_LIBS)
-
-$(OBJDIR)checkflags_app$(EXE_SUFFIX): checkflags_app.c $(OBJDIR)checkflags_asm$(OBJ_SUFFIX)
-	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS) $(CHECKFLAGS_APP_EXPORTS) $(APP_LIBS)
-
-$(OBJDIR)ifunc_complex_resolver_app$(EXE_SUFFIX): ifunc_complex_resolver_app.c $(OBJDIR)$(DLL_PREFIX)ifunc_complex_resolver_lib_app$(DLL_SUFFIX)
-	$(APP_CC) $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@ $< $(APP_LDFLAGS_NOOPT) $(APP_LIBS) $(OBJDIR)$(DLL_PREFIX)ifunc_complex_resolver_lib_app$(DLL_SUFFIX)
-
-###### Special objects' build rules ######
-
-$(OBJDIR)ifunc_complex_resolver_lib_app$(OBJ_SUFFIX): ifunc_complex_resolver_lib_app.c
-	$(APP_CC) $(APP_CXXFLAGS) $(DLL_CXXFLAGS) $(COMP_OBJ)$@ $<
-
-###### Special dlls' build rules ######
-
-$(OBJDIR)$(DLL_PREFIX)ifunc_complex_resolver_lib_app$(DLL_SUFFIX): $(OBJDIR)ifunc_complex_resolver_lib_app$(OBJ_SUFFIX)
-	$(APP_CC) $(APP_CXXFLAGS) $(DLL_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(DLL_LDFLAGS) $(APP_LIBS)

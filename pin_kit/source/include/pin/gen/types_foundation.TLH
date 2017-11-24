@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,11 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+/*
+**
+** @ORIGINAL_AUTHOR: Robert Muth
+*/
+
 /*! @file
  *
  * this headerfile contains defines the types that are the foundation of
@@ -37,18 +42,6 @@ END_LEGAL */
 
 #ifndef TYPES_FOUNDATION_H
 #define TYPES_FOUNDATION_H
-
-#ifdef PIN_CRT
-# include <types.h>
-#endif
-
-#if defined(_MSC_VER)
-    #define PIN_C_ASSERT(e) typedef char __PIN_C_ASSERT__[(e)?1:-1]
-#elif defined(__GNUC__)
-    #define PIN_C_ASSERT(e) extern void  __PIN_C_ASSERT__(int [(e)?1:-1])
-#else
-    #define PIN_C_ASSERT(e)
-#endif
 
 #ifdef  __cplusplus
 typedef bool BOOL;
@@ -63,19 +56,8 @@ typedef unsigned char BOOL;
 #   define FALSE 0
 #endif
 
-typedef signed int      SIZE;
-
-#ifdef PIN_CRT
-using ::UINT32;
-using ::UINT64;
-using ::ADDRINT;
-
-#define STRTOUINT64 strtoull
-#define STRTOINT64  strtoll
-
-#else // !PIN_CRT
 #if !defined(VOID)
-typedef void VOID;
+typedef void VOID; 
 #endif
 
 typedef char            CHAR;
@@ -84,6 +66,7 @@ typedef int             INT;
 typedef double          FLT64;
 typedef float           FLT32;
 typedef unsigned int    USIZE;
+typedef signed int      SIZE;
 
 /*
  * Generic type for three-state logic.
@@ -123,15 +106,15 @@ typedef int64_t INT64;
  * This quantity can be converted to and from an OADDR/IADDR
  *
  * There is an option of overflow and underflow when using ADDRDELTA.
- * For example, let's look at a 32 bit address.
- * 32 bit address is 32 bit unsigned int number.
+ * For example, let's look at a 32 bit address. 
+ * 32 bit address is 32 bit unsigned int number. 
  * This means that the maximum delta between two addresses is (2^32 - 1), which means that the ADDRDELTA which is signed may overflow.
  */
 #if defined(TARGET_IA32)
 typedef UINT32 ADDRINT;
 typedef INT32 ADDRDELTA;
 
-#elif defined(TARGET_IA32E)
+#elif (defined(TARGET_IA32E) || defined(TARGET_MIC))
 typedef UINT64 ADDRINT;
 typedef INT64 ADDRDELTA;
 
@@ -143,25 +126,9 @@ typedef xxx ADDRDELTA;
 #error "Unsupported target architecture"
 #endif
 
-#if defined(_MSC_VER)
-
-#define STRTOUINT64 _strtoui64
-#define STRTOINT64  _strtoi64
-#define ALIGNMENT_OF(t) __alignof(t)
-
-#else
-
-#define STRTOUINT64 strtoull
-#define STRTOINT64  strtoll
-#define ALIGNMENT_OF(t) __alignof__(t)
-
-#endif
-
-#endif // PIN_CRT
-
 #if defined(HOST_IA32)
 typedef UINT32 VOIDINT;
-#elif defined(HOST_IA32E)
+#elif defined(HOST_IA32E) || defined(HOST_MIC)
 typedef UINT64 VOIDINT;
 #else
 typedef ADDRINT VOIDINT;
@@ -180,6 +147,20 @@ typedef UINT32 REG_SUBCLASS_BITS;
 
 #ifndef MIN
 #define MIN(a, b) (((a)<(b))?(a) : (b))
+#endif
+
+#if defined(_MSC_VER)
+
+#define STRTOUINT64 _strtoui64
+#define STRTOINT64  _strtoi64
+#define ALIGNMENT_OF(t) __alignof(t)
+
+#else
+
+#define STRTOUINT64 strtoull
+#define STRTOINT64  strtoll
+#define ALIGNMENT_OF(t) __alignof__(t)
+
 #endif
 
 #endif

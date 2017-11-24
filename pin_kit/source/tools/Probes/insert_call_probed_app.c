@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -30,12 +30,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
 #include <stdio.h>
 
-#ifdef TARGET_MAC
-# define SEGNAME "__DATA,"
-#else
-# define SEGNAME
-#endif
-
 #define __annotation_init() \
     asm (".section MyAnnot, \"wa\"\n"); \
     asm (".text")
@@ -45,7 +39,7 @@ END_LEGAL */
     __asm__ __volatile__ ("." #LABEL ": .byte 0x0F, 0x1F, 0x44, 0x00, 0x00\n")
 
 #define __annotation_add(LABEL, VALUE) \
-    asm (".pushsection " SEGNAME "MyAnnot\n\t" \
+    asm (".pushsection MyAnnot\n\t" \
     ".long ." #LABEL ", " #VALUE "\n\t" \
     ".popsection")
 
@@ -54,7 +48,7 @@ END_LEGAL */
     __asm__ __volatile__ ("." #LABEL ": .byte 0x0F, 0x1F, 0x80, 0x00, 0x00, 0x00, 0x00\n")
 
 #define __annotation_add(LABEL, VALUE) \
-    asm (".pushsection " SEGNAME "MyAnnot\n\t" \
+    asm (".pushsection MyAnnot\n\t" \
     ".quad ." #LABEL ", " #VALUE "\n\t" \
     ".popsection")
 #endif

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,13 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Elena Demikhovsky
+*/
+
+/* ===================================================================== */
 /*! @file
  */
 
@@ -36,7 +43,6 @@ END_LEGAL */
 #include <fstream>
 #include <stdlib.h>
 #include <assert.h>
-#include <tool_macros.h>
 
 using namespace std;
 
@@ -60,12 +66,12 @@ INT32 Usage()
     return -1;
 }
 
-PIN_LOCK pinLock;
+PIN_LOCK lock;
 VOID DetachPinFromMTApplication(unsigned int numOfThreads)
 {
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     TraceFile << "Pin tool: sending detach request" << endl;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
     PIN_Detach();
 }
 
@@ -77,48 +83,45 @@ int HoldAppThread()
 UINT32  threadCounter=0;
 VOID ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, VOID *v)
 {
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     TraceFile << "Thread counter is updated to " << dec <<  (threadCounter+1) << endl;
     ++threadCounter;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 
 }
 BOOL AllThreadsNotifed(unsigned int numOfThreads)
 {
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     // Check that we don't have any extra thread
     assert(threadCounter <= numOfThreads);
     if (threadCounter == numOfThreads)
     {
         TraceFile.close();
-        PIN_ReleaseLock(&pinLock);
+        PIN_ReleaseLock(&lock);
         return TRUE;
     }
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
     return FALSE;
 }
 
 
 VOID ImageLoad(IMG img, void *v)
 {
-	RTN rtn = RTN_FindByName(img, C_MANGLE("DetachPin"));
+	RTN rtn = RTN_FindByName(img, "DetachPin");
 	if (RTN_Valid(rtn))
 	{
-	    TraceFile << "DetachPin instrumented " << endl;
 		RTN_Replace(rtn, AFUNPTR(DetachPinFromMTApplication));
 	}
 	
-	rtn = RTN_FindByName(img, C_MANGLE("ThreadHoldByPin"));
+	rtn = RTN_FindByName(img, "ThreadHoldByPin");
 	if (RTN_Valid(rtn))
 	{
-	    TraceFile << "ThreadHoldByPin instrumented " << endl;
 		RTN_Replace(rtn, AFUNPTR(HoldAppThread));
 	}
 	
-	rtn = RTN_FindByName(img, C_MANGLE("ThreadsReady"));
+	rtn = RTN_FindByName(img, "ThreadsReady");
 	if (RTN_Valid(rtn))
 	{
-	    TraceFile << "ThreadsReady instrumented " << endl;
 		RTN_Replace(rtn, AFUNPTR(AllThreadsNotifed));
 	}
 
@@ -138,7 +141,7 @@ int main(int argc, CHAR *argv[])
     TraceFile << hex;
     TraceFile.setf(ios::showbase);
 
-    PIN_InitLock(&pinLock);
+    PIN_InitLock(&lock);
 
     IMG_AddInstrumentFunction(ImageLoad, 0);
     PIN_AddThreadStartFunction(ThreadStart, 0);

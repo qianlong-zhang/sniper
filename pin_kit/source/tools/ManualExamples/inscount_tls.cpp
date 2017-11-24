@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -33,10 +33,11 @@ END_LEGAL */
 #include "pin.H"
 
 KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
-    "o", "", "specify output file name");
+    "o", "inscount_tls.out", "specify output file name");
 
+PIN_LOCK lock;
 INT32 numThreads = 0;
-ostream* OutFile = NULL;
+ofstream OutFile;
 
 // Force each thread's data to be in its own data cache line so that
 // multiple threads do not contend for the same data cache line.
@@ -52,25 +53,34 @@ class thread_data_t
     UINT8 _pad[PADSIZE];
 };
 
+
 // key for accessing TLS storage in the threads. initialized once in main()
-static  TLS_KEY tls_key = INVALID_TLS_KEY;
+static  TLS_KEY tls_key;
+
+// function to access thread-specific data
+thread_data_t* get_tls(THREADID threadid)
+{
+    thread_data_t* tdata = 
+          static_cast<thread_data_t*>(PIN_GetThreadData(tls_key, threadid));
+    return tdata;
+}
 
 // This function is called before every block
 VOID PIN_FAST_ANALYSIS_CALL docount(UINT32 c, THREADID threadid)
 {
-    thread_data_t* tdata = static_cast<thread_data_t*>(PIN_GetThreadData(tls_key, threadid));
+    thread_data_t* tdata = get_tls(threadid);
     tdata->_count += c;
 }
 
 VOID ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, VOID *v)
 {
+    PIN_GetLock(&lock, threadid+1);
     numThreads++;
+    PIN_ReleaseLock(&lock);
+
     thread_data_t* tdata = new thread_data_t;
-    if (PIN_SetThreadData(tls_key, tdata, threadid) == FALSE)
-    {
-        cerr << "PIN_SetThreadData failed" << endl;
-        PIN_ExitProcess(1);
-    }
+
+    PIN_SetThreadData(tls_key, tdata, threadid);
 }
 
 
@@ -82,24 +92,25 @@ VOID Trace(TRACE trace, VOID *v)
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
     {
         // Insert a call to docount for every bbl, passing the number of instructions.
-
+        
         BBL_InsertCall(bbl, IPOINT_ANYWHERE, (AFUNPTR)docount, IARG_FAST_ANALYSIS_CALL,
                        IARG_UINT32, BBL_NumIns(bbl), IARG_THREAD_ID, IARG_END);
     }
 }
 
-// This function is called when the thread exits
-VOID ThreadFini(THREADID threadIndex, const CONTEXT *ctxt, INT32 code, VOID *v)
-{
-    thread_data_t* tdata = static_cast<thread_data_t*>(PIN_GetThreadData(tls_key, threadIndex));
-    *OutFile << "Count[" << decstr(threadIndex) << "] = " << tdata->_count << endl;
-    delete tdata;
-}
-
 // This function is called when the application exits
 VOID Fini(INT32 code, VOID *v)
 {
-    *OutFile << "Total number of threads = " << numThreads << endl;
+    // Write to a file since cout and cerr maybe closed by the application
+    OutFile << "Total number of threads = " << numThreads << endl;
+    
+    for (INT32 t=0; t<numThreads; t++)
+    {
+        thread_data_t* tdata = get_tls(t);
+        OutFile << "Count[" << decstr(t) << "]= " << tdata->_count << endl;
+    }
+
+    OutFile.close();
 }
 
 /* ===================================================================== */
@@ -110,7 +121,7 @@ INT32 Usage()
 {
     cerr << "This tool counts the number of dynamic instructions executed" << endl;
     cerr << endl << KNOB_BASE::StringKnobSummary() << endl;
-    return 1;
+    return -1;
 }
 
 /* ===================================================================== */
@@ -121,33 +132,27 @@ int main(int argc, char * argv[])
 {
     // Initialize pin
     PIN_InitSymbols();
-    if (PIN_Init(argc, argv))
-        return Usage();
+    if (PIN_Init(argc, argv)) return Usage();
 
-    OutFile = KnobOutputFile.Value().empty() ? &cout : new std::ofstream(KnobOutputFile.Value().c_str());
+    OutFile.open(KnobOutputFile.Value().c_str());
+
+    // Initialize the lock
+    PIN_InitLock(&lock);
 
     // Obtain  a key for TLS storage.
-    tls_key = PIN_CreateThreadDataKey(NULL);
-    if (tls_key == INVALID_TLS_KEY)
-    {
-        cerr << "number of already allocated keys reached the MAX_CLIENT_TLS_KEYS limit" << endl;
-        PIN_ExitProcess(1);
-    }
+    tls_key = PIN_CreateThreadDataKey(0);
 
     // Register ThreadStart to be called when a thread starts.
-    PIN_AddThreadStartFunction(ThreadStart, NULL);
-
-    // Register Fini to be called when thread exits.
-    PIN_AddThreadFiniFunction(ThreadFini, NULL);
-
-    // Register Fini to be called when the application exits.
-    PIN_AddFiniFunction(Fini, NULL);
+    PIN_AddThreadStartFunction(ThreadStart, 0);
 
     // Register Instruction to be called to instrument instructions.
-    TRACE_AddInstrumentFunction(Trace, NULL);
+    TRACE_AddInstrumentFunction(Trace, 0);
+
+    // Register Fini to be called when the application exits.
+    PIN_AddFiniFunction(Fini, 0);
 
     // Start the program, never returns
     PIN_StartProgram();
-
-    return 1;
+    
+    return 0;
 }

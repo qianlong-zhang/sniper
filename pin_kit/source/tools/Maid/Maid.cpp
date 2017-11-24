@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -48,6 +48,7 @@ END_LEGAL */
 #include <iomanip>
 
 #include "pin.H"
+#include "pin_isa.H"
 #include "CallStack.H"
 #include "syscall_names.H"
 #include "argv_readparam.h"
@@ -93,12 +94,12 @@ const string& Target2RtnName(ADDRINT target)
 const string& Target2LibName(ADDRINT target)
 {
     PIN_LockClient();
-
+    
     const RTN rtn = RTN_FindByAddress(target);
     static const string _invalid_rtn("[Unknown image]");
 
     string name;
-
+    
     if( RTN_Valid(rtn) ) {
         name = IMG_Name(SEC_Img(RTN_Sec(rtn)));
     } else {
@@ -129,7 +130,7 @@ void A_UnregisterAddr(void *addr)
 
 void ProcessInst (ADDRINT ip)
 {
-    prevIpDoesPush = IpDoesPush (ip);
+    prevIpDoesPush = IpDoesPush (ip);  
 }
 
 void A_ProcessSyscall(ADDRINT ip, UINT32 num, ADDRINT sp, ADDRINT arg0)
@@ -152,8 +153,8 @@ void A_ProcessIndirectCall(ADDRINT ip, ADDRINT target, ADDRINT sp)
   callStack.ProcessCall(sp, target);
 }
 
-static void
-A_ProcessStub(ADDRINT ip, ADDRINT target, ADDRINT sp)
+static void 
+A_ProcessStub(ADDRINT ip, ADDRINT target, ADDRINT sp) 
 {
   //cout << "Instrumenting stub: " << Target2String(target) << endl;
   //cout << "STUB: ";
@@ -161,7 +162,7 @@ A_ProcessStub(ADDRINT ip, ADDRINT target, ADDRINT sp)
   callStack.ProcessCall(sp, target);
 }
 
-static void
+static void 
 A_ProcessReturn(ADDRINT ip, ADDRINT sp) {
   callStack.ProcessReturn(sp, prevIpDoesPush);
 }
@@ -176,12 +177,12 @@ A_EnterMainImage(ADDRINT ip, ADDRINT target, ADDRINT sp)
   callStack.ProcessMainEntry(sp, target);
 }
 
-static void
+static void 
 A_DoMem(bool isStore, void *ea, ADDRINT pc)
 {
   string filename;
   int lineno;
-  if( addrsToDump.find(ea) != addrsToDump.end() )
+  if( addrsToDump.find(ea) != addrsToDump.end() ) 
   {
     PIN_LockClient();
 
@@ -189,8 +190,8 @@ A_DoMem(bool isStore, void *ea, ADDRINT pc)
 
     PIN_UnlockClient();
 
-    *Output << (isStore ? "store" : "load")
-	    << " pc=" << (void*)pc
+    *Output << (isStore ? "store" : "load") 
+	    << " pc=" << (void*)pc 
 	    << " ea=" << ea << endl;
     if( filename != "") {
       *Output << filename << ":" << lineno;
@@ -242,11 +243,11 @@ static void I_Trace(TRACE trace, void *v)
                                IARG_END);
             }
 #if defined(TARGET_IA32)  && defined (TARGET_WINDOWS)
-            // on ia-32 windows need to identify
-            // push
+            // on ia-32 windows need to identify 
+            // push 
             // ret
             // in order to process callstack correctly
-            if (ins != tail)
+            if (ins != tail) 
             {
                 INS_InsertPredicatedCall(ins, IPOINT_BEFORE,
                                          (AFUNPTR)ProcessInst,
@@ -261,7 +262,7 @@ static void I_Trace(TRACE trace, void *v)
         }
 
 
-
+        
         // All calls and returns
         if( INS_IsSyscall(tail) ) {
             INS_InsertPredicatedCall(tail, IPOINT_BEFORE,
@@ -269,7 +270,7 @@ static void I_Trace(TRACE trace, void *v)
                                      IARG_INST_PTR,
                                      IARG_SYSCALL_NUMBER,
                                      IARG_REG_VALUE, REG_STACK_PTR,
-                                     IARG_SYSARG_VALUE, 0,
+                                     IARG_SYSCALL_ARG0,
                                      IARG_END);
 
         } else {
@@ -292,7 +293,7 @@ static void I_Trace(TRACE trace, void *v)
                 }
             }
             if( IsPLT(trace) ) {
-                INS_InsertCall(tail, IPOINT_BEFORE,
+                INS_InsertCall(tail, IPOINT_BEFORE, 
                                (AFUNPTR)A_ProcessStub,
                                IARG_INST_PTR,
                                IARG_BRANCH_TARGET_ADDR,
@@ -305,21 +306,21 @@ static void I_Trace(TRACE trace, void *v)
                                          IARG_INST_PTR,
                                          IARG_REG_VALUE, REG_STACK_PTR,
                                          IARG_END);
-
+	
             }
         }
     }
 }
 
-static void
-I_ImageLoad(IMG img, void *v)
+static void 
+I_ImageLoad(IMG img, void *v) 
 {
   static bool main_rtn_instrumented = false;
 
   if( !main_rtn_instrumented ) {
     RTN rtn = RTN_FindByName(img, "main");
     if( rtn == RTN_Invalid() ) {
-      rtn = RTN_FindByName(img, "__libc_start_main");
+      rtn = RTN_FindByName(img, "__libc_start_main");      
     }
     // Instrument main
     if( rtn != RTN_Invalid() ) {
@@ -342,14 +343,20 @@ I_ImageLoad(IMG img, void *v)
       ASSERTX(RTN_Valid(rtn));
 
       RTN_Open(rtn);
-      RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)A_RegisterAddr, IARG_FUNCARG_ENTRYPOINT_VALUE, 0, IARG_END);
+      RTN_InsertCall(rtn, IPOINT_BEFORE,
+                     (AFUNPTR)A_RegisterAddr,
+                     IARG_G_ARG0_CALLEE,
+                     IARG_END);
       RTN_Close(rtn);
     } else if( strstr(SYM_Name(sym).c_str(), "MAID_unregister_address" ) ) {
       RTN rtn;
       rtn = RTN_FindByName(img, SYM_Name(sym).c_str());
       ASSERTX(RTN_Valid(rtn));
       RTN_Open(rtn);
-      RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)A_UnregisterAddr, IARG_FUNCARG_ENTRYPOINT_VALUE, 0, IARG_END);
+      RTN_InsertCall(rtn, IPOINT_BEFORE,
+		     (AFUNPTR)A_UnregisterAddr,
+		     IARG_G_ARG0_CALLEE,
+		     IARG_END);
       RTN_Close(rtn);
     }
   }
@@ -365,7 +372,7 @@ main(int argc, char** argv)
 
   PIN_Init(argc, argv);
   PIN_InitSymbols();
-
+  
   if( (strTmp = argv_getString(argc, argv, "--outfile=", NULL)) != NULL ) {
     if( !(Output = new ofstream(strTmp)) ) {
       perror(strTmp);
@@ -389,7 +396,7 @@ main(int argc, char** argv)
       addrsToDump.insert((void *)addr);
     }
   }
-
+  
   IMG_AddInstrumentFunction(I_ImageLoad, 0);
   TRACE_AddInstrumentFunction(I_Trace, 0);
   PIN_StartProgram();

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -76,7 +76,7 @@ void * MemAlloc(size_t size, MEM_PROTECTION protect)
 #if defined(TARGET_MAC) || defined(TARGET_BSD)
     void * addr = mmap(0, size, SysProtection(protect), MAP_ANON | MAP_PRIVATE, -1, 0);
 #else
-    void * addr = mmap(0, size, SysProtection(protect), MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    void * addr = mmap(0, size, SysProtection(protect), MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
 #endif
     if (addr != MAP_FAILED)
     {

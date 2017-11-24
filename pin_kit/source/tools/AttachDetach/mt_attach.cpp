@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,12 +28,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
-#ifdef NDEBUG
-# undef NDEBUG
-#endif
 #include <assert.h>
 #include <stdio.h>
-#include <stdint.h>
 #include <dlfcn.h>
 #include <signal.h>
 #include <sys/types.h>
@@ -45,10 +41,7 @@ END_LEGAL */
 #include <list>
 #include <sys/syscall.h>
 #include <sched.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/select.h>
-#include <sys/socket.h>
+
 
 using namespace std;
 
@@ -67,7 +60,14 @@ unsigned int numOfSecondaryThreads = 4;
  * try to attach pin twice to the same process
  */
 bool attachTwice = false;
-bool endlessSelect = false;
+
+/*
+ * Get thread Id
+ */
+pid_t GetTid()
+{
+     return syscall(__NR_gettid);
+}
 
 void UnblockAllSignals()
 {
@@ -113,26 +113,6 @@ void * ThreadEndlessLoopFunc(void * arg)
     return 0;
 }
 
-void * ThreadEndlessSelectFunc(void * arg)
-{
-    int sock[2];
-    int err = socketpair(PF_LOCAL, SOCK_DGRAM, 0, sock);
-    assert (err >= 0);
-    fd_set fd_read;
-
-    FD_ZERO(&fd_read);
-    FD_SET(sock[1], &fd_read);
-
-    do
-    {
-        err = select(sock[1] + 1, &fd_read, NULL, NULL, NULL);
-        // We expect select() to fail since nobody writes to the write side of the socket
-        assert(-1 == err);
-    }
-    while (err < 0 && errno == EINTR);
-    return 0;
-}
-
 #define DECSTR(buf, num) { buf = (char *)malloc(10); sprintf(buf, "%d", num); }
 
 inline void PrintArguments(char **inArgv)
@@ -160,7 +140,6 @@ pid_t AttachAndInstrument(list <string > * pinArgs)
     
     pid_t child = fork();
 
-    assert(child >= 0);
     if (child) 
     {
         fprintf(stderr, "Pin injector pid %d\n", child);
@@ -206,7 +185,6 @@ void SendSignals(int signo)
     if (pid)
     {
         fprintf(stderr, "Send signals pid %d\n", pid);
-        waitpid(pid, NULL, 0);
         // inside parent
         return;          
     }
@@ -256,17 +234,13 @@ void ParseCommandLine(int argc, char *argv[], list < string>* pinArgs)
                 ++i;
             }
         }
-        else if (arg == "-attach_twice")
+        else if ("-attach_twice")
         {
             attachTwice = true;
         }
-        else if (arg == "-keep_threads")
+        else if ("-keep_threads")
         {
             shouldCancelThreads = false;
-        }
-        else if (arg == "-endless_select")
-        {
-            endlessSelect = true;
         }
     }
     assert(!pinBinary.empty());
@@ -283,9 +257,8 @@ extern "C" int ThreadsReady(unsigned int numOfThreads)
     
 int main(int argc, char *argv[])
 {
-    list <string> pinArgs;
-    int status = 0;
-    ParseCommandLine(argc, argv, &pinArgs);
+   list <string> pinArgs;
+   ParseCommandLine(argc, argv, &pinArgs);
     
     signal(SIGUSR1, SigUsr1Handler);
     
@@ -294,71 +267,38 @@ int main(int argc, char *argv[])
     // start all secondary threads
     // in the secondary threads SIGUSR1 should be blocked
     BlockSignal(SIGUSR1);
-    for (intptr_t i = 0; i < numOfSecondaryThreads; i++)
+    for (unsigned int i = 0; i < numOfSecondaryThreads; i++)
     {
-        pthread_create(&thHandle[i], 0,
-                       endlessSelect?ThreadEndlessSelectFunc:ThreadEndlessLoopFunc,
-                       (void *)i);
+        pthread_create(&thHandle[i], 0, ThreadEndlessLoopFunc, (void *)i);
     }
     UnblockSignal(SIGUSR1);
 
-    sigset_t newMask, oldMask;
-    sigemptyset(&newMask);
-    sigemptyset(&oldMask);
-
-    // If we block SIGTRAP then Pin attach might unblock it - see Mantis #3879
-#ifndef TARGET_LINUX
-    sigaddset(&newMask, SIGTRAP);
-#endif
-    sigaddset(&newMask, SIGHUP);
-    sigaddset(&newMask, SIGQUIT);
-
-    pthread_sigmask(SIG_SETMASK, &newMask, NULL);
-
-    pid_t pinInjectorPid = AttachAndInstrument(&pinArgs);
-    while (pinInjectorPid != waitpid(pinInjectorPid, &status, 0))
-    {
-        assert(errno == EINTR);
-    }
-    if (!WIFEXITED(status))
-    {
-        printf("ERROR: Pin injector exited abnormally: %x\n", status);
-        exit(-1);
-    }
-    if (WEXITSTATUS(status) != 0)
-    {
-        printf("ERROR: Pin injector exited with nonzero exit code: %d\n", WEXITSTATUS(status));
-        exit(-1);
-    }
-
+    AttachAndInstrument(&pinArgs);
+    
     // Give enough time for all threads to get started 
     while (!ThreadsReady(numOfSecondaryThreads+1))
     {
         sched_yield();
-    }
-
-    // Check that the signal mask was not changed due to Pin attach
-    pthread_sigmask(SIG_SETMASK, NULL, &oldMask);
-    assert(0 == memcmp(&newMask, &oldMask, sizeof(newMask)));
-
+    }        
+    
     if (attachTwice)
     {
-        pinInjectorPid = AttachAndInstrument(&pinArgs);
-        while (pinInjectorPid != waitpid(pinInjectorPid, &status, 0))
+        pid_t pinInjectorPid = AttachAndInstrument(&pinArgs);
+        int status = 0;
+        while (1)
         {
-            assert(errno == EINTR);
+            waitpid(pinInjectorPid, &status, 0);
+            if (WIFEXITED(status))
+            {
+                if (WEXITSTATUS(status) == 0)
+                {
+                    printf("ERROR: Pin was injected twice to the same process\n");
+                    exit(-1);
+                }
+                printf("Second attach exited with status %d\n", WEXITSTATUS(status));
+                break;
+            }
         }
-        if (!WIFEXITED(status))
-        {
-            printf("ERROR: Pin injector exited abnormally in second attach: %x\n", status);
-            exit(-1);
-        }
-        if (WEXITSTATUS(status) == 0)
-        {
-            printf("ERROR: Pin was injected twice to the same process\n");
-            exit(-1);
-        }
-        printf("Second attach exited with status %d\n", WEXITSTATUS(status));
     }
     
         

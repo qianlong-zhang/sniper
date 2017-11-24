@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,10 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+/* ===================================================================== */
+// Mark Charney
+
+/* ===================================================================== */
 /*! @file
  * This file exemplifies XED usage on IA-32 and Intel(R) 64 architectures.
  */
@@ -85,8 +89,8 @@ VOID use_xed(ADDRINT pc) {
         *out << hex << std::setw(8) << pc << " ";
         char buf[2048];
 
-        // set the runtime adddress for disassembly
-        xed_uint64_t runtime_address = static_cast<xed_uint64_t>(pc);
+        // set the runtime adddress for disassembly 
+        xed_uint64_t runtime_address = static_cast<xed_uint64_t>(pc); 
 
         xed_format_context(XED_SYNTAX_INTEL, &xedd,
                            buf, 2048, runtime_address, 0, 0);
@@ -99,7 +103,7 @@ VOID use_xed(ADDRINT pc) {
 
 VOID Instruction(INS ins, VOID *v)
 {
-    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)use_xed,
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)use_xed, 
                    IARG_INST_PTR,
                    IARG_END);
 }

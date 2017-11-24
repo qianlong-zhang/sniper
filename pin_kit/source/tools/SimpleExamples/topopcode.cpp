@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,19 +28,26 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Robert Muth and Artur Klauser
+*/
+
+/* ===================================================================== */
 /*! @file
  *  This file contains a real time  opcode  mix profiler
  */
 
 
 
+#include "pin.H"
+#include "portability.H"
 #include <map>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <algorithm> // for sort
 #include <vector>
-#include "pin.H"
 
 /* ===================================================================== */
 /* Commandline Switches */
@@ -136,18 +143,18 @@ LOCALFUN  UINT32 IndexStringLength(BBL bbl, BOOL memory_acess_profile)
 
             if( INS_IsIpRelRead(ins) ) count++;
 
-
+            
             if( INS_IsMemoryWrite(ins) ) count++; // for size
 
             if( INS_IsStackWrite(ins) ) count++;
 
             if( INS_IsIpRelWrite(ins) ) count++;
 
-
+            
             if( INS_IsAtomicUpdate(ins) ) count++;
         }
     }
-
+    
     return count;
 }
 
@@ -167,12 +174,12 @@ LOCALFUN UINT16 *INS_GenerateIndexString(INS ins, UINT16 *stats, BOOL memory_ace
     {
         if( INS_IsMemoryRead(ins) )  *stats++ = MemsizeToIndex( INS_MemoryReadSize(ins), 0 );
         if( INS_IsMemoryWrite(ins) ) *stats++ = MemsizeToIndex( INS_MemoryWriteSize(ins), 1 );
-
+        
         if( INS_IsAtomicUpdate(ins) ) *stats++ = INDEX_MEM_ATOMIC;
-
+        
         if( INS_IsStackRead(ins) ) *stats++ = INDEX_STACK_READ;
         if( INS_IsStackWrite(ins) ) *stats++ = INDEX_STACK_WRITE;
-
+        
         if( INS_IsIpRelRead(ins) ) *stats++ = INDEX_IPREL_READ;
         if( INS_IsIpRelWrite(ins) ) *stats++ = INDEX_IPREL_WRITE;
     }
@@ -206,7 +213,7 @@ LOCALFUN string IndexToOpcodeString( UINT32 index )
     {
         return OPCODE_StringShort(index);
     }
-
+    
 }
 
 /* ===================================================================== */
@@ -288,7 +295,7 @@ VOID DumpHistogram(std::ostream& out)
 
     COUNTER total = 0;
     VEC CountMap;
-
+    
     for (UINT32 index = 0; index <= INDEX_SPECIAL_END; index++)
     {
         total += GlobalStats.unpredicated[index];
@@ -322,7 +329,7 @@ VOID docount(COUNTER * counter)
 
     if( bbl_counter == 0 )
     {
-
+        
 #if defined(TARGET_IA32) || defined(TARGET_IA32E)
         static char buffer[512+16];
 	static char* aligned_bufp =reinterpret_cast<char*>(((reinterpret_cast<ADDRINT>(buffer) + 16) >> 4)<<4);
@@ -331,18 +338,18 @@ VOID docount(COUNTER * counter)
 #else
         __asm {
 	        push eax
-
-	        mov  eax, aligned_bufp
+	        
+	        mov  eax, aligned_bufp 
 	        fxsave [eax]
-
+	
 	        pop eax
         }
 #endif
 #endif
-
+        
         DumpHistogram(Out);
         Out << flush;
-
+            
         FLT64 factor = KnobDecayFactor.Value();
         GlobalStats.Clear(factor);
 
@@ -359,13 +366,13 @@ VOID docount(COUNTER * counter)
 #else
         __asm {
 	        push eax
-
-	        mov  eax, aligned_bufp
+	        
+	        mov  eax, aligned_bufp 
 	        fxrstor [eax]
-
+	
 	        pop eax
         }
-#endif
+#endif      
 #endif
 
     }
@@ -389,18 +396,18 @@ VOID Trace(TRACE trace, VOID *v)
         UINT16 *const stats = new UINT16[ n + 1];
         UINT16 *const stats_end = stats + (n + 1);
         UINT16 *curr = stats;
-
+        
         for (INS ins = head; INS_Valid(ins); ins = INS_Next(ins))
         {
             curr = INS_GenerateIndexString(ins,curr,1);
         }
-
+        
         // string terminator
         *curr++ = 0;
-
+        
         ASSERTX( curr == stats_end );
 
-
+        
         // Insert instrumentation to count the number of times the bbl is executed
         BBLSTATS * bblstats = new BBLSTATS(stats);
         INS_InsertCall(head, IPOINT_BEFORE, AFUNPTR(docount), IARG_PTR, &(bblstats->_counter), IARG_END);
@@ -429,7 +436,7 @@ int main(int argc, CHAR *argv[])
     // Never returns
 
     PIN_StartProgram();
-
+    
     return 0;
 }
 

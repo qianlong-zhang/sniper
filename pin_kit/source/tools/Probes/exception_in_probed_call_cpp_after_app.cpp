@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -33,7 +33,7 @@ END_LEGAL */
   The call instruction is located in code region being replaced by Pin probe.
   Pin translation should not affect propagation of the exception to the C++ exception handler.
 */
-#ifdef TARGET_WINDOWS
+#ifndef TARGET_LINUX
 #include <windows.h>
 #endif
 #include <stdio.h>
@@ -51,7 +51,7 @@ public:
 };
 
 
-#ifdef TARGET_WINDOWS
+#ifndef TARGET_LINUX
 #define FASTCALL __fastcall
 #define DLLEXPORT __declspec(dllexport)
 #else
@@ -70,7 +70,7 @@ extern "C"
 DLLEXPORT
 int FASTCALL foo(int a0, int a1, int a2, int a3, int a4, int a5, int a6)
 {
-#if defined(TARGET_LINUX) || defined(TARGET_MAC)
+#ifdef TARGET_LINUX
     if (!pBar) throw(0);
 #endif
     // May cause exception due to NULL pointer

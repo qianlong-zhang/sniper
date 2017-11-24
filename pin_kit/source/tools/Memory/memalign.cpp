@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -34,26 +34,10 @@ END_LEGAL */
 #ifndef TARGET_MAC
 #include <malloc.h>
 #endif
-#if defined(TARGET_LINUX) || defined(PIN_CRT)
+#ifdef TARGET_LINUX
 #include <unistd.h>
 #endif
 #include "pin.H"
-
-#if defined(PIN_CRT)
-#    define HAVE_POSIX_MEMALIGN
-#    define HAVE_MEMALIGN
-#    define HAVE_VALLOC
-#elif defined(TARGET_WINDOWS)
-#    define HAVE_ALIGNED_MALLOC
-#elif defined(TARGET_MAC)
-#    define HAVE_POSIX_MEMALIGN
-#    define HAVE_VALLOC
-#elif defined(TARGET_LINUX)
-#    define HAVE_POSIX_MEMALIGN
-#    define HAVE_MEMALIGN
-#    define HAVE_VALLOC
-#endif
-
 
 /* ===================================================================== */
 /* Commandline Switches */
@@ -94,15 +78,15 @@ VOID Fini(INT32 code, VOID *v)
     for (int i = 1; i < NUMBER_OF_ALIGNMENTS_TO_CHECK; i++)
     {
         void *p = NULL;
-#ifdef HAVE_ALIGNED_MALLOC
+#ifdef TARGET_WINDOWS
         fprintf(out, "Calling _aligned_malloc\n");
         p = _aligned_malloc(SIZE_TO_ALLOCATE, alignment);
         AlignCheck("_aligned_malloc", p , alignment, SIZE_TO_ALLOCATE);
         fprintf(out, "Free _aligned_malloc. p=%p\n", p);
         fflush(out);
         _aligned_free(p);
-#endif // HAVE_ALIGNED_MALLOC
-#ifdef HAVE_POSIX_MEMALIGN
+#else
+# ifndef TARGET_ANDROID
         fprintf(out, "Calling posix_memalign. Alignment=%d\n", alignment);
         if (posix_memalign(&p, alignment, SIZE_TO_ALLOCATE))
             p = NULL;
@@ -110,32 +94,31 @@ VOID Fini(INT32 code, VOID *v)
         fprintf(out, "Free posix_memalign. p=%p\n", p);
         fflush(out);
         free(p);
-#endif // HAVE_POSIX_MEMALIGN
-#ifdef HAVE_MEMALIGN
+# endif // not TARGET_ANDROID
+# ifndef TARGET_MAC
         fprintf(out, "Calling memalign. Alignment=%d\n", alignment);
         p = memalign(alignment, SIZE_TO_ALLOCATE);
         AlignCheck("memalign", p, alignment, SIZE_TO_ALLOCATE);
         fprintf(out, "Free memalign. p=%p\n", p);
         fflush(out);
         free(p);
-#endif // HAVE_MEMALIGN
+# endif // not TARGET_MAC
+#endif // TARGET_WINDOWS
 
         alignment *= 2;
     }
-#ifdef HAVE_VALLOC
+#if !defined(TARGET_WINDOWS) && !defined(TARGET_NDK64)
     fprintf(out, "Calling valloc\n");
     void* p = valloc(SIZE_TO_ALLOCATE);
-    AlignCheck("valloc", p,
-# if defined(TARGET_MAC) || defined(PIN_CRT)
-        getpagesize(),
+# ifdef TARGET_MAC
+    AlignCheck("valloc", p, getpagesize(), SIZE_TO_ALLOCATE);
 # else
-        sysconf(_SC_PAGESIZE),
-# endif
-        SIZE_TO_ALLOCATE);
+    AlignCheck("valloc", p, sysconf(_SC_PAGESIZE), SIZE_TO_ALLOCATE);
+# endif // TARGET_MAC
     fprintf(out, "Free valloc. p=%p\n", p);
     fflush(out);
     free(p);
-#endif // HAVE_VALLOC
+#endif // not TARGET_WINDOWS
     fclose(out);
 }
 

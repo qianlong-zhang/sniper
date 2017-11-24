@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -30,6 +30,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
 /* ===================================================================== */
 /*
+ *  @ORIGINAL_AUTHOR: Jim Cownie
+ *
  * Execute up to the first system call, and then replay it without re-executing it
  * to demonstrate that PIN_ReplaySyscall does what it says on the can.
  */

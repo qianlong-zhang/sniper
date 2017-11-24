@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -29,12 +29,12 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
 /*
- *
+ * 
  * A memory trace (Ip of memory accessing instruction and address of memory access - see
- * struct MEMREF) is collected by inserting Pin buffering API code into the application code,
- * via calls to INS_InsertFillBuffer. This analysis code writes a MEMREF into the
- * buffer being filled, and calls the registered BufferFull function (see call to
- * PIN_DefineTraceBuffer which defines the buffer and registers the BufferFull function)
+ * struct MEMREF) is collected by inserting Pin buffering API code into the application code, 
+ * via calls to INS_InsertFillBuffer. This analysis code writes a MEMREF into the 
+ * buffer being filled, and calls the registered BufferFull function (see call to 
+ * PIN_DefineTraceBuffer which defines the buffer and registers the BufferFull function) 
  * when the buffer becomes full.
  * The BufferFull function processes the buffer and returns it to Pin to be filled again.
  *
@@ -42,19 +42,22 @@ END_LEGAL */
  * block each other on buffer accesses
  *
  * This tool is similar to memtrace_simple, but uses the Pin Buffering API
- *
+ * 
  */
 
-#include <cstdio>
-#include <cstdlib>
-#include <cstddef>
-#include "pin.H"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stddef.h>
 
+#include "pin.H"
+#include "portability.H"
 using namespace std;
+
 
 /*
  * Knobs for tool
  */
+
 
 KNOB<BOOL> KnobProcessBuffer(KNOB_MODE_WRITEONCE, "pintool", "process_buffs", "1", "process the filled buffers");
 // 256*4096=1048576 - same size buffer in memtrace_simple, membuffer_simple, membuffer_multi
@@ -88,7 +91,7 @@ UINT64 totalElementsProcessed = 0;
  */
 class APP_THREAD_REPRESENTITVE
 {
-
+ 
   public:
     APP_THREAD_REPRESENTITVE(THREADID tid);
     ~APP_THREAD_REPRESENTITVE();
@@ -101,7 +104,7 @@ class APP_THREAD_REPRESENTITVE
   private:
     UINT32 _numBuffersFilled;
     UINT32 _numElementsProcessed;
-
+    
 };
 
 
@@ -121,12 +124,12 @@ VOID APP_THREAD_REPRESENTITVE::ProcessBuffer(VOID *buf, UINT64 numElements)
 {
     _numBuffersFilled++;
     //printf ("numElements %d\n", (UINT32)numElements);
-
+    
     if (!KnobProcessBuffer )
     {
         return;
     }
-
+    
     struct MEMREF * memref=(struct MEMREF*)buf;
     struct MEMREF * firstMemref = memref;
 	UINT64 until = numElements;
@@ -191,7 +194,7 @@ VOID * BufferFull(BUFFER_ID id, THREADID tid, const CONTEXT *ctxt, VOID *buf,
     APP_THREAD_REPRESENTITVE * appThreadRepresentitive = static_cast<APP_THREAD_REPRESENTITVE*>( PIN_GetThreadData( appThreadRepresentitiveKey, tid ) );
 
     appThreadRepresentitive->ProcessBuffer(buf, numElements);
-
+    
     return buf;
 }
 
@@ -222,7 +225,7 @@ VOID ThreadFini(THREADID tid, const CONTEXT *ctxt, INT32 code, VOID *v)
 VOID Fini(INT32 code, VOID *v)
 {
     return;
-    printf ("totalBuffersFilled %u  totalElementsProcessed %14.0f\n", (totalBuffersFilled),
+    printf ("totalBuffersFilled %u  totalElementsProcessed %14.0f\n", (totalBuffersFilled),  
            static_cast<double>(totalElementsProcessed));
 }
 
@@ -240,7 +243,7 @@ INT32 Usage()
  * The main procedure of the tool.
  * This function is called when the application image is loaded but not yet started.
  * @param[in]   argc            total number of elements in the argv array
- * @param[in]   argv            array of command line arguments,
+ * @param[in]   argv            array of command line arguments, 
  *                              including pin -t <toolname> -- ...
  */
 int main(int argc, char *argv[])
@@ -251,11 +254,11 @@ int main(int argc, char *argv[])
     {
         return Usage();
     }
-
+    
     // Initialize the memory reference buffer
     //printf ("buffer size in bytes 0x%x\n", KnobNumPagesInBuffer.Value()*4096);
     //	fflush (stdout);
-
+    
     bufId = PIN_DefineTraceBuffer(sizeof(struct MEMREF), KnobNumPagesInBuffer,
                                   BufferFull, 0);
 
@@ -267,7 +270,7 @@ int main(int argc, char *argv[])
 
     // Initialize thread-specific data not handled by buffering api.
     appThreadRepresentitiveKey = PIN_CreateThreadDataKey(0);
-
+   
     // add an instrumentation function
     TRACE_AddInstrumentFunction(Trace, 0);
 
@@ -278,7 +281,7 @@ int main(int argc, char *argv[])
 
     // Start the program, never returns
     PIN_StartProgram();
-
+    
     return 0;
 }
 

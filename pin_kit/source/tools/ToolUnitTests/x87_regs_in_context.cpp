@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -144,10 +144,9 @@ VOID REPLACE_ReplacedX87Regs(CONTEXT *context, THREADID tid, AFUNPTR originalFun
 {
     printf ("TOOL in REPLACE_ReplacedX87Regs x87 regs are:\n");
     fflush (stdout);
-    CHAR fpContextSpaceForFpConextFromPin[FPSTATE_SIZE + FPSTATE_ALIGNMENT];
-    FPSTATE *fpContextFromPin = reinterpret_cast<FPSTATE *>((reinterpret_cast<ADDRINT>(fpContextSpaceForFpConextFromPin)
-                                + FPSTATE_ALIGNMENT - 1) & (-1 * FPSTATE_ALIGNMENT));
-
+    CHAR fpContextSpaceForFpConextFromPin[FPSTATE_SIZE];
+    FPSTATE *fpContextFromPin = reinterpret_cast<FPSTATE *>(fpContextSpaceForFpConextFromPin);
+        
     PIN_GetContextFPState(context, fpContextFromPin);
 
     // verfiy that x87 registers are as they were set by the app just before the call to
@@ -303,10 +302,8 @@ void CheckAndSetFpContextX87RegsAtException (const CONTEXT *ctxtFrom, CONTEXT *c
 {
     fprintf (stdout, "TOOL CheckAndSetFpContextX87Regs\n");
     fflush (stdout);
-    CHAR fpContextSpaceForFpConextFromPin[FPSTATE_SIZE + FPSTATE_ALIGNMENT];
-    FPSTATE *fpContextFromPin = reinterpret_cast<FPSTATE *>((reinterpret_cast<ADDRINT>(fpContextSpaceForFpConextFromPin)
-                                + FPSTATE_ALIGNMENT - 1) & (-1 * FPSTATE_ALIGNMENT));
-
+    CHAR fpContextSpaceForFpConextFromPin[FPSTATE_SIZE];
+    FPSTATE *fpContextFromPin = reinterpret_cast<FPSTATE *>(fpContextSpaceForFpConextFromPin);
     PIN_GetContextFPState(ctxtFrom, fpContextFromPin);
 
     // verfiy that x87 registers are as they were set by the app just before the exception
@@ -411,6 +408,8 @@ LOCALVAR const INT32 StackEntryAlignment = 0;
 
 INT32 GetStackAdjustmentForRedirectionToFunction(INT32 currentAlignment)
 {
+
+    
     INT32 adjustment = (currentAlignment - StackEntryAlignment) % 16;
 
     if (adjustment < 0)
@@ -431,30 +430,26 @@ static void OnException(THREADID threadIndex,
                   INT32 info, 
                   VOID *v)
 {
-    if ((ctxtTo == NULL) ||
-        ((CONTEXT_CHANGE_REASON_SIGNAL != reason) && (CONTEXT_CHANGE_REASON_EXCEPTION != reason)))
-    { // Only exceptions and signals are handled
+    if (CONTEXT_CHANGE_REASON_SIGRETURN == reason || CONTEXT_CHANGE_REASON_APC == reason
+        || CONTEXT_CHANGE_REASON_CALLBACK == reason || CONTEXT_CHANGE_REASON_FATALSIGNAL == reason
+        || ctxtTo == NULL)
+    { // don't want to handle these
         return;
     }
-    ADDRINT curIp = PIN_GetContextReg(ctxtFrom, REG_INST_PTR);
-    IMG img = IMG_FindByAddress(curIp);
-    if (!IMG_Valid(img) || !IMG_IsMainExecutable(img))
-    {   // Events of interest should occur in main executable
-        return;
-    }
-
     fprintf (stdout, "TOOL OnException callback\n");
     fflush (stdout);
 
     CheckAndSetFpContextX87RegsAtException(ctxtFrom, ctxtTo);    
-
+    
     // call the application function with the ctxtTo context
-    PIN_SetContextReg(ctxtTo, REG_INST_PTR, dumpX87RegsAtExceptionAddr);
 #ifdef TARGET_IA32E
+    PIN_SetContextReg(ctxtTo, REG_RIP, dumpX87RegsAtExceptionAddr);
     // take care of stack alignment
     ADDRINT curSp = PIN_GetContextReg(ctxtTo, REG_RSP);
     INT32 currentAlignment = curSp % 16;
     PIN_SetContextReg(ctxtTo, REG_RSP, curSp - GetStackAdjustmentForRedirectionToFunction(currentAlignment));
+#else
+    PIN_SetContextReg(ctxtTo, REG_EIP, dumpX87RegsAtExceptionAddr);
 #endif
 }
 

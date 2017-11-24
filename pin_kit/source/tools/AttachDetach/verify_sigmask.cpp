@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -38,13 +38,20 @@ END_LEGAL */
 #include <sys/wait.h>
 #include <sched.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <string>
 #include <list>
-#include "../Utils/threadlib.h"
+#include <sys/syscall.h>
 
 
 using namespace std;
+
+# define TLS_GET_GS_REG() \
+  ({ int __seg; __asm ("movw %%gs, %w0" : "=q" (__seg)); __seg & 0xffff; })
+
+pid_t GetTid()
+{
+     return syscall(__NR_gettid);
+}
 
 volatile unsigned int unblockedUsr1Tid = 0;
 volatile unsigned int unblockedUsr2Tid = 0;
@@ -56,6 +63,8 @@ void SigUsrHandler(int sig)
     static bool usr1Tested = false;
     static bool usr2Tested = false;
 
+    //fprintf(stderr, "The gs val in sig handler is 0x%x\n", TLS_GET_GS_REG());
+    
     if (sig == SIGUSR1)
     {
         if (unblockedUsr1Tid == GetTid())
@@ -108,7 +117,7 @@ void UnblockSignal(int sigNo)
     sigset_t mask;
     sigemptyset(&mask);
     sigaddset(&mask, sigNo);
-    pthread_sigmask(SIG_UNBLOCK, &mask, 0);
+    sigprocmask(SIG_UNBLOCK, &mask, 0);
 }
 void UnblockAllSignals()
 {
@@ -287,7 +296,7 @@ int main(int argc, char *argv[])
     /*****************/
     
     // launch threads
-    for (intptr_t i = 0; i < NUM_OF_THREADS; i++)
+    for (unsigned int i = 0; i < NUM_OF_THREADS; i++)
     {
         pthread_create(&threads[i], 0, ThreadEndlessLoopFunc, (void *)i);
     }

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -34,8 +34,6 @@ iret is special because it is an emulated taken path instruction
 */
 #include <stdio.h>
 #include "pin.H"
-
-KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o", "exception_monitor_for_iret_order.out", "Output file");
 
 FILE * out;
 
@@ -262,10 +260,10 @@ VOID Instruction(INS ins, VOID *v)
 
 int main(INT32 argc, CHAR **argv)
 {
+    out = fopen("exception_monitor.out", "w");
+
     PIN_InitSymbols();
     PIN_Init(argc, argv);
-
-    out = fopen(KnobOutputFile.Value().c_str(), "w");
 
     INS_AddInstrumentFunction(Instruction, 0);
     PIN_AddContextChangeFunction(OnException, 0);

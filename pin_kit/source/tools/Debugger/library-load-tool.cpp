@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -86,7 +86,6 @@ VOID Image(IMG img, VOID *)
         li.l_addr = lm->l_addr;
         li.name = lm->l_name;
         IMG_SetLoaderInfo(img, &li);
-        ASSERTX(IMG_LoadOffset(img) == li.l_addr);
     }
 }
 

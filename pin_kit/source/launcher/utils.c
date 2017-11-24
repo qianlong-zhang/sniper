@@ -1,37 +1,5 @@
-/*BEGIN_LEGAL 
-Intel Open Source License 
-
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
- 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer.  Redistributions
-in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or
-other materials provided with the distribution.  Neither the name of
-the Intel Corporation nor the names of its contributors may be used to
-endorse or promote products derived from this software without
-specific prior written permission.
- 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE INTEL OR
-ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-END_LEGAL */
 #include "utils.h"
-#if defined(PIN_CRT) && defined(TARGET_LINUX)
-# include "pincrt_file_utils.h"
-#endif
+
 
 char* append3(const char* s1, const char* s2, const char* s3)
 {
@@ -51,6 +19,46 @@ char* append3(const char* s1, const char* s2, const char* s3)
     if (s3)
         strcat(p, s3);
     return p;
+}
+
+int get_gcc_version_string(int* major, int* minor)
+{
+    FILE *fp;
+    int vindex = 0;
+    char buffer[1035];
+    char* ts = NULL;
+    int ver[3] = { 0 };
+
+    if (!check_file_exists("/usr/bin/gcc"))
+        return 0;
+
+    /* Open the command for reading. */
+    fp = popen("/usr/bin/gcc --version | egrep -o \"[1-9]{1}\\.[1-9]{1}(\\.[0-9]*)?\" | head -1", "r");
+    if (fp == NULL)
+    {
+        return 0;
+    }
+
+    /* Read the first line only. */
+    if (fgets(buffer, sizeof(buffer) - 1, fp) == NULL)
+    {
+        return 0;
+    }
+    /* Find the first number in the first line */
+    ts = strtok(buffer, ".");
+    while (ts != NULL) {
+        if (ts[0] >= '0' && ts[0] <= '9' && vindex < 3) {
+            ver[vindex++] = atoi(ts);
+        }
+        ts = strtok(NULL, ".");
+    }
+    /* close */
+    pclose(fp);
+
+    *major = ver[0];
+    *minor = ver[1];
+
+    return 1;
 }
 
 void check_retval(int retval, const char* str)
@@ -96,15 +104,11 @@ void check_file(const char* fn)
  */
 unsigned int check_not_directory(const char* fn)
 {
-#if defined(PIN_CRT) && defined(TARGET_LINUX)
-    return is_directory_file(fn);
-#else
     unsigned int okay = 1;
     struct stat st;
     if (stat(fn, &st) == -1 || !S_ISREG(st.st_mode))
         okay = 0;
     return okay;
-#endif
 }
 
 /*!

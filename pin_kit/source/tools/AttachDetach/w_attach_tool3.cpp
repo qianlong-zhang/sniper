@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -87,7 +87,7 @@ VOID before_ShortFunction1()
        && followChildCounter >= KnobFollowChildEvents.Value())
     {
         //eventhough this is not an error - print to cerr (in order to see it on the screen)
-        std::cerr << "success - exiting from application!" << endl << flush;
+        std::cerr << "success - exiting from application!" << endl;
         doLoopPred = 0;
     }
     
@@ -106,7 +106,7 @@ VOID before_ShortFunction2()
        && followChildCounter >= KnobFollowChildEvents.Value())
     {
         //eventhough this is not an error - print to cerr (in order to see it on the screen)
-        std::cerr << "success - exiting from application!" << endl << flush;
+        std::cerr << "success - exiting from application!" << endl;
         doLoopPred = 0;
     }    
     
@@ -116,12 +116,12 @@ VOID before_ShortFunction2()
 /* ===================================================================== */
 VOID ImageLoad(IMG img, VOID *v)
 {
+    cout << IMG_Name(img) << endl;    
+    
     if ( ! IMG_IsMainExecutable(img) )
     {
         return;
     }
-
-    cout << endl << IMG_Name(img) << endl << flush;
 
     const string sFuncName1("ShortFunction1");
     const string sFuncName2("ShortFunction2");
@@ -136,7 +136,7 @@ VOID ImageLoad(IMG img, VOID *v)
             if (RTN_Valid(rtn))
             {
                 //eventhough this is not an error - print to cerr (in order to see it on the screen)
-                cerr << "Inserting analysis function before ShortFunction1() in " << IMG_Name(img) << endl << flush;
+                cerr << "Inserting analysis function before ShortFunction1() in " << IMG_Name(img) << endl;
 
                 RTN_Open(rtn);
                 
@@ -151,7 +151,7 @@ VOID ImageLoad(IMG img, VOID *v)
             if (RTN_Valid(rtn))
             {
                 //eventhough this is not an error - print to cerr (in order to see it on the screen)
-                cerr << "Inserting analysis function before ShortFunction2() in " << IMG_Name(img) << endl << flush;
+                cerr << "Inserting analysis function before ShortFunction2() in " << IMG_Name(img) << endl;
 
                 RTN_Open(rtn);
 
@@ -166,7 +166,7 @@ VOID ImageLoad(IMG img, VOID *v)
             if (RTN_Valid(rtn))
             {
                 //eventhough this is not an error - print to cerr (in order to see it on the screen)
-                cerr << "Replacing DoLoop() in " << IMG_Name(img) << endl << flush;
+                cerr << "Replacing DoLoop() in " << IMG_Name(img) << endl;
 
                 RTN_Replace(rtn, AFUNPTR(rep_DoLoop));
             }           
@@ -182,9 +182,12 @@ BOOL FollowChild(CHILD_PROCESS childProcess, VOID * userData)
 
 VOID AppStart(VOID *v)
 {
-    std::cerr << "Application started" << endl << flush;
+    std::cerr << "Application started" << endl;
 
     isAppStarted = 1;
+
+    //Verify that PIN_SafeCopy() is already available in this callback
+    PIN_SafeCopy(0, 0, 10);
 }
 
 int main(INT32 argc, CHAR **argv)

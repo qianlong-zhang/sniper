@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,18 +28,24 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Robert Muth
+*/
+
+/* ===================================================================== */
 /*! @file
  *  This file contains an ISA-portable PIN tool for tracing instructions
  */
 
 
 
+#include "pin.H"
+#include "portability.H"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <map>
-#include <unistd.h>
-#include "pin.H"
 
 /* ===================================================================== */
 /* Commandline Switches */
@@ -79,7 +85,7 @@ class COUNTER
     UINT64 _return;
     UINT64 _syscall;
     UINT64 _branch;
-    UINT64 _branch_indirect;
+    UINT64 _branch_indirect;    
 
     COUNTER() : _call(0),_call_indirect(0), _return(0), _branch(0), _branch_indirect(0)   {}
 
@@ -102,7 +108,7 @@ INC(_branch_indirect)
 INC(_syscall)
 INC(_return)
 
-
+    
 
 
 /* ===================================================================== */
@@ -149,12 +155,12 @@ VOID Fini(int n, void *v)
     *out << "#\n";
     *out << "# $dynamic-counts\n";
     *out << "#\n";
+    
 
-
-
+    
     *out << "4000 *total "  << setw(16) << CountSeen.Total() << " " << setw(16) << CountTaken.Total() << endl;
-
-
+    
+        
     OUT(4010, "call            ",_call);
     OUT(4011, "indirect-call   ",_call_indirect);
     OUT(4012, "branch          ",_branch);
@@ -165,7 +171,7 @@ VOID Fini(int n, void *v)
     *out << "#\n";
     *out << "# eof\n";
     out->close();
-
+    
 }
 
 
@@ -176,27 +182,24 @@ VOID Fini(int n, void *v)
 
 int main(int argc, char *argv[])
 {
-
+    
     if( PIN_Init(argc,argv) )
     {
         return Usage();
     }
-
+    
     string filename =  KnobOutputFile.Value();
-    if (KnobPid)
-    {
-        filename += "." + decstr(getpid());
-    }
+    if( KnobPid )        filename += "." + decstr( getpid_portable() );
     out = new std::ofstream(filename.c_str());
 
-
+        
     INS_AddInstrumentFunction(Instruction, 0);
     PIN_AddFiniFunction(Fini, 0);
 
     // Never returns
 
     PIN_StartProgram();
-
+    
     return 0;
 }
 

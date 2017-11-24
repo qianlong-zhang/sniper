@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -32,11 +32,12 @@ END_LEGAL */
 #include <fstream>
 #include "pin.H"
 
-ostream* OutFile = NULL;
+ofstream OutFile;
 
 KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
-    "o", "", "specify output file name");
+    "o", "inscountmt.out", "specify output file name");
 
+PIN_LOCK lock;
 
 INT32 numThreads = 0;
 const INT32 MaxNumThreads = 10000;
@@ -51,33 +52,22 @@ struct THREAD_DATA
 {
     UINT64 _count;
     UINT8 _pad[PADSIZE];
-    THREAD_DATA() : _count(0) {}
 };
 
-// key for accessing TLS storage in the threads. initialized once in main()
-static  TLS_KEY tls_key;
-
-// function to access thread-specific data
-THREAD_DATA* get_tls(THREADID threadid)
-{
-    THREAD_DATA* tdata = static_cast<THREAD_DATA*>(PIN_GetThreadData(tls_key, threadid));
-    return tdata;
-}
+THREAD_DATA icount[MaxNumThreads];
 
 
 // This function is called before every block
-VOID PIN_FAST_ANALYSIS_CALL docount(ADDRINT c, THREADID tid) 
-{
-    THREAD_DATA* tdata = get_tls(tid);
-    tdata->_count += c;
-}
+VOID PIN_FAST_ANALYSIS_CALL docount(ADDRINT c, THREADID tid) { icount[tid]._count += c; }
 
 VOID ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, VOID *v)
 {
+    PIN_InitLock(&lock);
+    PIN_GetLock(&lock, threadid+1);
     numThreads++;
+    PIN_ReleaseLock(&lock);
+    
     ASSERT(numThreads <= MaxNumThreads, "Maximum number of threads exceeded\n");
-    THREAD_DATA* tdata = new THREAD_DATA();
-    PIN_SetThreadData(tls_key, tdata, threadid);
 }
 
 // Pin calls this function every time a new basic block is encountered
@@ -95,19 +85,19 @@ VOID Trace(TRACE trace, VOID *v)
     }
 }
 
-// This function is called when the thread exits
-VOID ThreadFini(THREADID threadIndex, const CONTEXT *ctxt, INT32 code, VOID *v)
-{
-    THREAD_DATA* tdata = get_tls(threadIndex);
-    *OutFile << "Count[" << decstr(threadIndex) << "] = " << tdata->_count << endl;
-}
-
 // This function is called when the application exits
 VOID Fini(INT32 code, VOID *v)
 {
-    *OutFile << "Number of threads ever exist = " << numThreads << endl;
-}
+    // Write to a file since cout and cerr maybe closed by the application
+    OutFile << "Number of threads ever exist = " << numThreads << endl;
+    
+    for (INT32 t=0; t<numThreads; t++)
+    {
+        OutFile << "Count[" << decstr(t) << "]= " << icount[t]._count << endl;
+    }
 
+    OutFile.close();
+}
 /* ===================================================================== */
 /* Print Help Message                                                    */
 /* ===================================================================== */
@@ -116,7 +106,7 @@ INT32 Usage()
 {
     cerr << "This Pintool counts the number of dynamic instructions executed" << endl;
     cerr << endl << KNOB_BASE::StringKnobSummary() << endl;
-    return 1;
+    return -1;
 }
 
 /* ===================================================================== */
@@ -129,29 +119,23 @@ int main(int argc, char * argv[])
     // Initialize pin
     if (PIN_Init(argc, argv)) return Usage();
 
-    OutFile = KnobOutputFile.Value().empty() ? &cout : new std::ofstream(KnobOutputFile.Value().c_str());
-    
-    // Obtain  a key for TLS storage.
-    tls_key = PIN_CreateThreadDataKey(NULL);
-    if (-1 == tls_key)
-    {
-        printf ("number of already allocated keys reached the MAX_CLIENT_TLS_KEYS limit\n");
-        PIN_ExitProcess(1);
-    }
-    
-    PIN_AddThreadStartFunction(ThreadStart, NULL);
-    
-    // Register Fini to be called when thread exits.
-    PIN_AddThreadFiniFunction(ThreadFini, NULL);
-    
-    // Register Fini to be called when the application exits.
-    PIN_AddFiniFunction(Fini, NULL);
+    OutFile.open(KnobOutputFile.Value().c_str());
+
+    // Initialize icount[]
+    for (INT32 t=0; t<MaxNumThreads; t++)
+        icount[t]._count = 0;
+
+    PIN_InitLock(&lock);
+    PIN_AddThreadStartFunction(ThreadStart, 0);
 
     // Register Instruction to be called to instrument instructions
-    TRACE_AddInstrumentFunction(Trace, NULL);
+    TRACE_AddInstrumentFunction(Trace, 0);
+
+    // Register Fini to be called when the application exits
+    PIN_AddFiniFunction(Fini, 0);
 
     // Start the program, never returns
     PIN_StartProgram();
     
-    return 1;
+    return 0;
 }

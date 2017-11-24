@@ -18,10 +18,16 @@
 # defining the test name twice (once in TOOL_ROOTS and again in TEST_ROOTS).
 # Tests defined here should not be defined in TOOL_ROOTS and TEST_ROOTS.
 TEST_TOOL_ROOTS := icache dcache allcache dcache_xscale_config footprint memalign address_mapping address_mapping_probe \
-                   memory_limit malloc_stress
+                   memory_limit
 
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
 TEST_ROOTS := memory_allocation_access_protection new_delete address_mapping_oom address_mapping_zero
+
+# This defines a list of tests that should run in the "short" sanity. Tests in this list must also
+# appear either in the TEST_TOOL_ROOTS or the TEST_ROOTS list.
+# If the entire directory should be tested in sanity, assign TEST_TOOL_ROOTS and TEST_ROOTS to the
+# SANITY_SUBSET variable in the tests section below (see example in makefile.rules.tmpl).
+SANITY_SUBSET := memory_allocation_access_protection
 
 # This defines the tools which will be run during the the tests, and were not already defined in
 # TEST_TOOL_ROOTS.
@@ -48,11 +54,16 @@ endif
 
 ###### Place OS-specific definitions here ######
 
+# Android
+ifeq ($(TARGET_OS),android)
+    TEST_TOOL_ROOTS += memalloc memalloc2
+endif
+
 # Linux
 ifeq ($(TARGET_OS),linux)
     TEST_TOOL_ROOTS += memalloc memalloc2 restrict_memory_vdso
     TEST_ROOTS += restrict_memory restrict_memory_stack
-    APP_ROOTS += print_vdso print_vvar print_stack
+    APP_ROOTS += print_vdso print_stack
 endif
 
 # Windows
@@ -62,17 +73,18 @@ endif
 
 ###### Handle exceptions here ######
 
-# Mac OS X*
-ifeq ($(TARGET_OS),mac)
-    # See Mantis 4401
-    TEST_TOOL_ROOTS := $(filter-out address_mapping_probe, $(TEST_TOOL_ROOTS))
+# Android
+ifeq ($(TARGET_OS),android)
+    ifeq ($(NDK_VERSION),10)
+        # memalloc, big_malloc: The memory allocation causes a soft reboot in Android. See mantis 3308.
+        TEST_TOOL_ROOTS := $(filter-out big_malloc memalloc, $(TEST_TOOL_ROOTS))
+    endif
 endif
 
-###### Define the sanity subset ######
-
-# This defines the list of tests that should run in sanity. It should include all the tests listed in
-# TEST_TOOL_ROOTS and TEST_ROOTS excluding only unstable tests.
-SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
+# Mac OS X*
+ifeq ($(TARGET_OS),mac)
+    TEST_TOOL_ROOTS := $(filter-out address_mapping_probe, $(TEST_TOOL_ROOTS))
+endif
 
 
 ##############################################################
@@ -117,7 +129,7 @@ new_delete.test: $(OBJDIR)new_delete_tool$(PINTOOL_SUFFIX) $(OBJDIR)new_delete_a
 	$(PIN) -xyzzy -statistic -logfile $(OBJDIR)new_delete.log -t $(OBJDIR)new_delete_tool$(PINTOOL_SUFFIX) \
 	  -- $(OBJDIR)new_delete_app$(EXE_SUFFIX)
 	numToolBytes=`$(GREP) 'mem::bytes::RawMmap/tool ' ./$(OBJDIR)new_delete.log | $(SED) -e 's/.*norm: *[0-9\.]*//' | $(SED) -e 's/\/.*//' | $(SED) -e 's/,//g'`; \
-	  $(BASHTEST) `$(EXPR) $$numToolBytes \< 2400000` -eq "1"
+	  $(BASHTEST) `$(EXPR) $$numToolBytes \< 1000000` -eq "1"
 	$(RM) $(OBJDIR)new_delete.log
 
 memalign.test: $(OBJDIR)memalign$(PINTOOL_SUFFIX) $(TESTAPP)
@@ -142,6 +154,12 @@ ifeq ($(TARGET),intel64)
     PIN_IMAGE_RANGE := 0x500000000:0x600000000
     PIN_IMAGE_RANGE_PARAM := -pin_image_memory_range $(PIN_IMAGE_RANGE)
     PIN_RESTRICT_RANGE_PARAM := -restrict_memory 0x304000000:0x304010000
+endif
+ifeq ($(TARGET),mic)    
+    MEMORY_BOUNDARY_TO_CHECK := 0x20BadBeef:0x21BadBeef
+    CC_BOUNDARY_TO_CHECK := 0x30BadBeef:0x32BadBeef
+    PIN_IMAGE_RANGE := 0:0
+    PIN_IMAGE_RANGE_PARAM :=
 endif
 
 # -pin_image_memory_range is not supported on Windows and OS X*.
@@ -197,15 +215,6 @@ address_mapping_probe.test: $(OBJDIR)address_mapping_probe$(PINTOOL_SUFFIX) $(TE
 	$(QGREP) "Test successful" $(OBJDIR)address_mapping_probe.out
 	$(RM) $(OBJDIR)address_mapping_probe.out $(OBJDIR)address_mapping_probe.makefile.copy
 
-NUMBEROFTHREADS := 8
-
-malloc_stress.test: $(OBJDIR)malloc_stress$(PINTOOL_SUFFIX) $(HELLO_APP)
-	$(PIN) -t $(OBJDIR)malloc_stress$(PINTOOL_SUFFIX) -o $(OBJDIR)malloc_stress.log -n $(NUMBEROFTHREADS) -- $(HELLO_APP) > $(OBJDIR)malloc_stress.out 2>&1
-	$(QGREP) "All Threads Created" $(OBJDIR)malloc_stress.log
-	$(QGREP) "All threads joined" $(OBJDIR)malloc_stress.log
-	$(BASHTEST) `$(CGREP) "Creating thread" $(OBJDIR)malloc_stress.log` -eq $(NUMBEROFTHREADS)
-	$(RM) $(OBJDIR)malloc_stress.log $(OBJDIR)malloc_stress.out
-
 restrict_memory.test: $(OBJDIR)mmap_reader_app$(EXE_SUFFIX)
 	$(RM) -f $(OBJDIR)restrict_memory.out
 	$(PIN) $(PIN_RESTRICT_RANGE_PARAM) -- $(OBJDIR)mmap_reader_app$(EXE_SUFFIX) > $(OBJDIR)restrict_memory.out
@@ -213,21 +222,17 @@ restrict_memory.test: $(OBJDIR)mmap_reader_app$(EXE_SUFFIX)
 	  "\<0*$(word 3, $(subst x, , $(subst :, ,$(PIN_RESTRICT_RANGE_PARAM))))-" )
 	$(RM) $(OBJDIR)restrict_memory.out
 
-restrict_memory_vdso.test: $(OBJDIR)restrict_memory_vdso$(PINTOOL_SUFFIX) $(OBJDIR)print_vdso$(EXE_SUFFIX) $(OBJDIR)print_vvar$(EXE_SUFFIX) $(DISABLE_ASLR)
-	$(RM) -f $(OBJDIR)restrict_memory_vdso.out $(OBJDIR)the_vdso.txt $(OBJDIR)the_vvar.txt
+restrict_memory_vdso.test: $(OBJDIR)restrict_memory_vdso$(PINTOOL_SUFFIX) $(OBJDIR)print_vdso$(EXE_SUFFIX) $(DISABLE_ASLR)
+	$(RM) -f $(OBJDIR)restrict_memory_vdso.out $(OBJDIR)the_vdso.txt
 	$(DISABLE_ASLR) $(PIN) -- $(OBJDIR)print_vdso$(EXE_SUFFIX) > $(OBJDIR)the_vdso.txt
 	$(DISABLE_ASLR) $(PIN) -restrict-memory `cat $(OBJDIR)the_vdso.txt` \
 	  -t $(OBJDIR)restrict_memory_vdso$(PINTOOL_SUFFIX) -- $(OBJDIR)print_vdso$(EXE_SUFFIX) \
 	    > $(OBJDIR)restrict_memory_vdso.out
-	$(DISABLE_ASLR) $(PIN) -- $(OBJDIR)print_vvar$(EXE_SUFFIX) > $(OBJDIR)the_vvar.txt
-	if [ -s $(OBJDIR)the_vvar.txt ]; then $(DISABLE_ASLR) $(PIN) -restrict-memory `cat $(OBJDIR)the_vvar.txt` \
-	  -t $(OBJDIR)restrict_memory_vdso$(PINTOOL_SUFFIX) -- $(OBJDIR)print_vvar$(EXE_SUFFIX) \
-	    > $(OBJDIR)restrict_memory_vdso.out; fi
 	$(DISABLE_ASLR) $(PIN) -restrict-memory 0x30000:0x31000 -t $(OBJDIR)restrict_memory_vdso$(PINTOOL_SUFFIX) \
 	  -success -- $(OBJDIR)print_vdso$(EXE_SUFFIX) > $(OBJDIR)restrict_memory_vdso.out
 	$(DISABLE_ASLR) $(PIN) -t $(OBJDIR)restrict_memory_vdso$(PINTOOL_SUFFIX) -success \
 	  -- $(OBJDIR)print_vdso$(EXE_SUFFIX) > $(OBJDIR)restrict_memory_vdso.out
-	$(RM) $(OBJDIR)restrict_memory_vdso.out $(OBJDIR)the_vdso.txt $(OBJDIR)the_vvar.txt
+	$(RM) $(OBJDIR)restrict_memory_vdso.out $(OBJDIR)the_vdso.txt
 
 restrict_memory_stack.test: $(OBJDIR)print_stack$(EXE_SUFFIX) $(DISABLE_ASLR)
 	$(RM) -f $(OBJDIR)restrict_memory_stack.out $(OBJDIR)the_stack.txt
@@ -238,11 +243,11 @@ restrict_memory_stack.test: $(OBJDIR)print_stack$(EXE_SUFFIX) $(DISABLE_ASLR)
 	$(RM) $(OBJDIR)restrict_memory_stack.out $(OBJDIR)the_stack.txt
 
 memory_limit.test: $(OBJDIR)memory_limit$(PINTOOL_SUFFIX) $(TESTAPP)
-	$(RM) -f $(OBJDIR)$(@:.test=.out)
-	! ( $(PIN) -pin_memory_size 0x10000000 -t $(OBJDIR)$(@:.test=)$(PINTOOL_SUFFIX) -b 0x10000000 -o $(OBJDIR)$(@:.test=.out) \
-	  -- $(TESTAPP) makefile $(OBJDIR)$(@:.test=.makefile.copy) )
-	$(QGREP) "Failed to allocate dynamic memory with size" $(OBJDIR)$(@:.test=.out)
-	$(RM) -f $(OBJDIR)$(@:.test=.out) $(OBJDIR)$(@:.test=.makefile.copy)
+	$(RM) -f $(OBJDIR)memory_limit.out
+	! ( $(PIN) -pin_memory_size 0x10000000 -t $(OBJDIR)memory_limit$(PINTOOL_SUFFIX) -b 0x10000000 -o $(OBJDIR)memory_limit.out \
+	  -- $(TESTAPP) makefile $(OBJDIR)address_mapping_oom.makefile.copy )
+	$(QGREP) "Failed to allocate dynamic memory with size" $(OBJDIR)memory_limit.out
+	$(RM) -f $(OBJDIR)memory_limit.out $(OBJDIR)address_mapping_oom.makefile.copy
 
 
 ##############################################################

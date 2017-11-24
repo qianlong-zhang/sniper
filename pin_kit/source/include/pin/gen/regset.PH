@@ -40,8 +40,10 @@ template<UINT32 _min, UINT32 _max> class REGISTER_SET
 #if defined(__INTEL_COMPILER)
 #pragma warning(pop)
 #endif
+
         const UINT32 set_no = (i - _min) / _SET_SIZE;
         const UINT32 pos_no = (i - _min) % _SET_SIZE;
+
         return ((_set[ set_no ] & (_ONE << pos_no)) != 0);
     }
 

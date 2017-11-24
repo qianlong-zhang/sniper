@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,21 +28,30 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Robert Muth
+  @Modified by: Ramesh Peri
+*/
+
+/* ===================================================================== */
 /*! @file
  *  This file contains a static and dynamic instruction mix profiler
  */
 
 
 
+#include "pin.H"
+#include "control_manager.H"
+//#include <unistd.h>
+#include "portability.H"
 #include <vector>
 #include <map>
 #include <algorithm> // for sort
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <unistd.h>
-#include "pin.H"
-#include "control_manager.H"
 
 using namespace CONTROLLER;
 
@@ -66,17 +75,8 @@ KNOB<BOOL>   KnobProfileDynamicOnly(KNOB_MODE_WRITEONCE, "pintool",
     "d", "1", "Only collect dynamic profile");
 KNOB<BOOL>   KnobNoSharedLibs(KNOB_MODE_WRITEONCE,       "pintool",
     "no_shared_libs", "0", "do not instrument shared libraries");
-KNOB<UINT32> KnobNumInstructions(KNOB_MODE_WRITEONCE,    "pintool",
-    "num_instructions", "0", "Maximum instructions before detach (zero means no limit)");
 
 LOCALFUN string longstr(int rtn_no, const char *name) {return string("rtn[") + decstr(rtn_no) + string(",") + string(name) + string("]");}
-
-// The running count of instructions is kept here
-// make it static to help the compiler optimize count_instructions
-static UINT64 inscount = 0;
-
-// This function is called before every block
-VOID count_instructions(UINT32 c) { inscount += c; }
 
 /* ===================================================================== */
 
@@ -148,7 +148,7 @@ LOCALFUN  UINT32 IndexStringLength(BBL bbl, BOOL memory_acess_profile)
             if( INS_IsAtomicUpdate(ins) ) count++;
         }
     }
-
+    
     return count;
 }
 
@@ -157,7 +157,7 @@ LOCALFUN  UINT32 IndexStringLength(BBL bbl, BOOL memory_acess_profile)
 LOCALFUN UINT32 INS_MemsizeIndex(INS ins, BOOL write)
 {
     UINT32 size = write ? INS_MemoryWriteSize(ins) : INS_MemoryReadSize(ins);
-
+    
     ASSERT( size < MAX_MEM_SIZE && size > 0, "write="+decstr(write)+" found bad size " + decstr(size) + " in " + INS_Disassemble(ins));
     return (write ? INDEX_MEM_WRITE_SIZE : INDEX_MEM_READ_SIZE ) + size;
 }
@@ -166,20 +166,20 @@ LOCALFUN UINT32 INS_MemsizeIndex(INS ins, BOOL write)
 LOCALFUN UINT16 *INS_GenerateIndexString(INS ins, UINT16 *stats, BOOL memory_acess_profile)
 {
     const UINT32 offset = 0;
-
+    
     *stats++ = offset + INS_Opcode(ins);
-
+    
 
     if( memory_acess_profile )
     {
         if( INS_IsMemoryRead(ins) )  *stats++ = INS_MemsizeIndex(ins,0);
         if( INS_IsMemoryWrite(ins) ) *stats++ = INS_MemsizeIndex(ins,1);
-
+        
         if( INS_IsAtomicUpdate(ins) ) *stats++ = INDEX_MEM_ATOMIC;
-
+        
         if( INS_IsStackRead(ins) ) *stats++ = INDEX_STACK_READ;
         if( INS_IsStackWrite(ins) ) *stats++ = INDEX_STACK_WRITE;
-
+        
         if( INS_IsIpRelRead(ins) ) *stats++ = INDEX_IPREL_READ;
         if( INS_IsIpRelWrite(ins) ) *stats++ = INDEX_IPREL_WRITE;
     }
@@ -213,7 +213,7 @@ LOCALFUN string IndexToOpcodeString( UINT32 index )
     {
         return OPCODE_StringShort(index);
     }
-
+    
 }
 
 /* ===================================================================== */
@@ -247,7 +247,7 @@ class STATS
 STATS GlobalStatsStatic;
 STATS GlobalStatsDynamic;
 
-class  RTN_TABLE_ENTRY
+class  RTN_TABLE_ENTRY 
 {
   public:
      ADDRINT _address;
@@ -264,10 +264,10 @@ class BBLSTATS
     COUNTER _counter;
     const UINT16 * const _stats;
     const ADDRINT _addr;
-    const UINT32 _rtn_num;
+    const UINT32 _rtn_num;    
     const UINT32 _size;
     const UINT32 _numins;
-
+    
   public:
     BBLSTATS(UINT16 * stats, ADDRINT addr, UINT32 rtn_num, UINT32 size, UINT32 numins ) :
         _counter(0), _stats(stats), _addr(addr), _rtn_num(rtn_num), _size(size),_numins(numins)  {};
@@ -322,10 +322,7 @@ VOID Trace(TRACE trace, VOID *v)
     if ( KnobNoSharedLibs.Value()
          && IMG_Type(SEC_Img(RTN_Sec(TRACE_Rtn(trace)))) == IMG_TYPE_SHAREDLIB)
         return;
-
-    if ( KnobNumInstructions.Value() > 0 && inscount > KnobNumInstructions.Value())
-        PIN_Detach();
-
+    
     RTN rtn = TRACE_Rtn(trace);
     ADDRINT rtn_address;
     const char *rtn_name;
@@ -336,15 +333,15 @@ VOID Trace(TRACE trace, VOID *v)
         rtn_address = 0;
         rtn_name = "UNKNOWN";
         rtn_num = 0;
-    }
-    else
+    } 
+    else 
     {
         rtn_num = RTN_Id(rtn);
         rtn_address = RTN_Address(rtn);
         rtn_name = RTN_Name(rtn).c_str();
     }
     map<UINT32, RTN_TABLE_ENTRY *>::const_iterator it = rtn_table.find(rtn_num);
-    if (it == rtn_table.end())
+    if (it == rtn_table.end()) 
     {
        char *str = new char [ strlen(rtn_name) + 1];
        strcpy(str, rtn_name);
@@ -355,17 +352,14 @@ VOID Trace(TRACE trace, VOID *v)
 
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
     {
-        // Insert a call to count_instructions before every bbl, passing the number of instructions
-        BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR)count_instructions, IARG_UINT32, BBL_NumIns(bbl), IARG_END);
-
         // Summarize the stats for the bbl in a 0 terminated list
         // This is done at instrumentation time
         const UINT32 n = IndexStringLength(bbl, 1);
-
+        
         UINT16 *const stats = new UINT16[ n + 1];
         UINT16 *const stats_end = stats + (n + 1);
         UINT16 *curr = stats;
-
+        
         UINT32 numins = 0;
         UINT32 size = 0;
 
@@ -376,26 +370,26 @@ VOID Trace(TRACE trace, VOID *v)
 
             numins += 1;
             size += INS_Size(ins);
-
+            
             // Count the number of times a predicated instruction is actually executed
             // this is expensive and hence disabled by default
             if( INS_IsPredicated(ins) && accurate_handling_of_predicates )
             {
                 INS_InsertPredicatedCall(ins,
                                          IPOINT_BEFORE,
-                                         AFUNPTR(docount), IARG_FAST_ANALYSIS_CALL,
+                                         AFUNPTR(docount), IARG_FAST_ANALYSIS_CALL, 
                                          IARG_PTR, &(GlobalStatsDynamic.predicated_true[INS_Opcode(ins)]),
-                                         IARG_END);
+                                         IARG_END);    
             }
-
+            
             curr = INS_GenerateIndexString(ins,curr,1);
         }
 
         // string terminator
         *curr++ = 0;
-
+        
         ASSERTX( curr == stats_end );
-
+        
         // Insert instrumentation to count the number of times the bbl is executed
         BBLSTATS * bblstats = new BBLSTATS(stats, INS_Address(BBL_InsHead(bbl)), rtn_num, size, numins );
         INS_InsertCall(BBL_InsHead(bbl), IPOINT_BEFORE, AFUNPTR(docount), IARG_FAST_ANALYSIS_CALL, IARG_PTR, &(bblstats->_counter), IARG_END);
@@ -427,7 +421,7 @@ LOCALFUN VOID DumpStats(ofstream& out, STATS& stats, BOOL predicated_true,  BOOL
         stats.predicated[INDEX_TOTAL] += stats.predicated[i];
         stats.predicated_true[INDEX_TOTAL] += stats.predicated_true[i];
     }
-
+    
     for ( UINT32 i = 0; i < MAX_INDEX; i++)
     {
         if( !print_zeros &&
@@ -446,8 +440,29 @@ LOCALFUN VOID DumpStats(ofstream& out, STATS& stats, BOOL predicated_true,  BOOL
 
 /* ===================================================================== */
 
-VOID PrintDynamicCounts(ofstream& out)
+VOID Fini(int, VOID * v)
 {
+    string filename;
+    std::ofstream out;
+
+    // dump insmix profile
+    
+    filename =  KnobOutputFile.Value();
+
+    if( KnobPid )
+    {
+        filename += "." + decstr( getpid_portable() );
+    }
+    out.open(filename.c_str());
+
+    out << "INSMIX        1.0         0\n";
+
+    DumpStats(out, GlobalStatsStatic, false, 0, "$static-counts");
+    
+    out << endl;
+
+    // dynamic Counts 
+
     sort( statsList.begin(), statsList.end(), CompareLess );
     statsList.push_back(0); // add terminator marker
 
@@ -476,7 +491,7 @@ VOID PrintDynamicCounts(ofstream& out)
             {
                 break;
             }
-
+            
         }
 
         for (const UINT16 * stats = b->_stats; *stats; stats++)
@@ -488,84 +503,37 @@ VOID PrintDynamicCounts(ofstream& out)
 
     }
 
-    DumpStats(out, GlobalStatsDynamic, KnobProfilePredicated, 0, "$dynamic-counts");
+    DumpStats(out, GlobalStatsDynamic, KnobProfilePredicated, 0, "$dynamic-counts");                
 
     out << "# $eof" <<  endl;
-}
 
-/* ===================================================================== */
+    out.close();
 
-VOID PrintBblCount()
-{
-    string filename;
-    std::ofstream out;
+
+    // dump bblcnt profile
 
     filename =  KnobOutput2File.Value();
 
-    if (KnobPid)
+    if( KnobPid )
     {
-        filename += "." + decstr(getpid());
+        filename += "." + decstr( getpid_portable() );
     }
 
     out.open(filename.c_str());
 
     out << "BBLCOUNT        1.0         0\n";
-
+     
     for (vector<const BBLSTATS*>::iterator bi = statsList.begin(); bi != statsList.end(); bi++)
     {
         const BBLSTATS *b = (*bi);
         if (b == 0) break; // sentinel
-
+        
         out << "0x" << hex << b->_addr << " " << dec << b->_counter << " " << b->_numins << " " << b->_size << endl;
     }
-
+    
     out << "# $eof" <<  endl;
 
     out.close();
-}
-
-/* ===================================================================== */
-
-VOID PrintOutput()
-{
-    string filename;
-    std::ofstream out;
-
-    // dump insmix profile
-
-    filename =  KnobOutputFile.Value();
-
-    if (KnobPid)
-    {
-        filename += "." + decstr(getpid());
-    }
-    out.open(filename.c_str());
-
-    out << "INSMIX        1.0         0\n";
-
-    DumpStats(out, GlobalStatsStatic, false, 0, "$static-counts");
-
-    out << endl;
-
-    PrintDynamicCounts(out);
-
-    out.close();
-
-    PrintBblCount();
-}
-
-/* ===================================================================== */
-
-VOID Fini(int, VOID * v)
-{
-    PrintOutput();
-}
-
-/* ===================================================================== */
-
-VOID Detach(VOID * v)
-{
-    PrintOutput();
 }
 
 /* ===================================================================== */
@@ -577,9 +545,9 @@ VOID Image(IMG img, VOID * v)
         for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn))
         {
             // Prepare for processing of RTN, an  RTN is not broken up into BBLs,
-            // it is merely a sequence of INSs
+            // it is merely a sequence of INSs 
             RTN_Open(rtn);
-
+            
             for (INS ins = RTN_InsHead(rtn); INS_Valid(ins); ins = INS_Next(ins))
             {
                 UINT16 array[128];
@@ -607,7 +575,7 @@ VOID Image(IMG img, VOID * v)
     }
 }
 
-
+    
 /* ===================================================================== */
 
 int main(int argc, CHAR *argv[])
@@ -618,13 +586,12 @@ int main(int argc, CHAR *argv[])
     {
         return Usage();
     }
-
+    
     control.RegisterHandler(Handler, 0, FALSE);
     control.Activate();
     TRACE_AddInstrumentFunction(Trace, 0);
 
     PIN_AddFiniFunction(Fini, 0);
-    PIN_AddDetachFunction(Detach,0);
 
     if( !KnobProfileDynamicOnly.Value() )
         IMG_AddInstrumentFunction(Image, 0);
@@ -632,7 +599,7 @@ int main(int argc, CHAR *argv[])
     // Never returns
 
     PIN_StartProgram();
-
+    
     return 0;
 }
 

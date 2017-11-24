@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -38,24 +38,6 @@ END_LEGAL */
 #define DBG_PRINT(a)
 #endif
 
-// The tool assumes single-threaded application.
-// This may not be the case on Windows 10.
-// We arbitrary choose single thread to profile.
-THREADID myThread = INVALID_THREADID;
-
-ADDRINT IfMyThread(THREADID threadId)
-{
-    // Profile only single thread at any time
-    return threadId == myThread;
-}
-
-VOID ThreadStart(THREADID tid, CONTEXT *ctxt, INT32 flags, VOID *v)
-{
-    // Determine single thread to profile.
-    if (myThread == INVALID_THREADID) myThread = tid;
-}
-
-
 UINT64 count_ins = 0;
 UINT64 count_bbl_ins = 0;
 
@@ -85,15 +67,12 @@ VOID Trace(TRACE trace, VOID *v)
         for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins))
         {
             DBG_PRINT(printf("Inst:   %p\n",(CHAR*)(INS_Address(ins))));
-            INS_InsertIfCall(ins, IPOINT_BEFORE, AFUNPTR(IfMyThread), IARG_THREAD_ID, IARG_END);
-            INS_InsertThenCall(ins, IPOINT_BEFORE, AFUNPTR(docount_ins), IARG_INST_PTR, IARG_END);
+            INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(docount_ins), IARG_INST_PTR, IARG_END);
         }
         
         INT32 icount = BBL_NumIns(bbl);
         DBG_PRINT(printf("Inst:     -> control flow change (bbl size %d)\n", icount));
-        INS ins = BBL_InsTail(bbl);
-        INS_InsertIfCall(ins, IPOINT_BEFORE, AFUNPTR(IfMyThread), IARG_THREAD_ID, IARG_END);
-        INS_InsertThenCall(ins, IPOINT_BEFORE, AFUNPTR(docount_bbl_ins), IARG_INST_PTR, IARG_UINT32, icount, IARG_END);
+        INS_InsertCall(BBL_InsTail(bbl), IPOINT_BEFORE, AFUNPTR(docount_bbl_ins), IARG_INST_PTR, IARG_UINT32, icount, IARG_END);
     }
 }
 
@@ -105,11 +84,7 @@ VOID Fini(INT32 code, VOID *v)
 int main(INT32 argc, CHAR **argv)
 {
     PIN_Init(argc, argv);
-
     TRACE_AddInstrumentFunction(Trace, 0);
-
-    // Add callbacks
-    PIN_AddThreadStartFunction(ThreadStart, 0);
     PIN_AddFiniFunction(Fini, 0);
     
     // Never returns

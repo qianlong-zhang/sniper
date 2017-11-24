@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -40,7 +40,7 @@ namespace CONTROLLER {
 class INTERACTIVE_LISTENER{
 public:
     INTERACTIVE_LISTENER(const string& file_name):
-        _file_name(file_name), _signaled(FALSE), _processExiting(FALSE) {}
+        _file_name(file_name),_signaled(FALSE){}
 
 #if !defined(TARGET_WINDOWS)
     VOID Active();
@@ -57,17 +57,14 @@ public:
                 : "memory");
           return value;
     }
-    inline UINT32 GetClearSignal() {return _signaled;}
 #else
     VOID Active(){}
     inline UINT32 CheckClearSignal(){ return 0; }
-    inline UINT32 GetClearSignal() {return 0;}
 #endif
 
 
 private:
 #if !defined(TARGET_WINDOWS)        
-    static VOID PrepareForFini(VOID* v);
     static VOID Fini(INT32, VOID* v);
     static VOID WaitForUserSiganl(VOID* v);
     static VOID MonitorFD(THREADID tid, CONTEXT *ctxt, SYSCALL_STANDARD std, VOID *v);
@@ -83,7 +80,6 @@ private:
     //using volatile since this member accessed from several threads
     volatile UINT32 _signaled;
     UINT32 _server_sock;
-    volatile BOOL _processExiting;
 };
 
 

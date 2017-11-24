@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -34,13 +34,12 @@ END_LEGAL */
 
 #include "pin.H"
 
-#ifdef TARGET_WINDOWS
+#ifndef TARGET_LINUX
 namespace WND
 {
 #include <windows.h>
 }
 #endif
-#include "tool_macros.h"
 
 typedef int (* foo_t)();
 
@@ -59,15 +58,15 @@ static int foo_rep(foo_t orig_foo, ADDRINT returnIp)
 static VOID on_module_loading(IMG img, VOID *data)
 {
     if (IMG_IsMainExecutable(img))
-    {
-        RTN routine = RTN_FindByName(img, C_MANGLE("foo"));
-        if (!RTN_Valid(routine))
-        {
-            routine = RTN_FindByName(img, C_MANGLE("_foo"));
+	{
+		RTN routine = RTN_FindByName(img, "foo");
+		if (!RTN_Valid(routine))
+		{
+            routine = RTN_FindByName(img, "_foo");
         }
 
-        if (RTN_Valid(routine))
-        {
+		if (RTN_Valid(routine))
+		{
             PROTO foo_proto = PROTO_Allocate( PIN_PARG(int), CALLINGSTD_DEFAULT,
                                              "foo", PIN_PARG_END() );
             AFUNPTR foo_ptr = RTN_ReplaceSignatureProbed(routine, (AFUNPTR)foo_rep,

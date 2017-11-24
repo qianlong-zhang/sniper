@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -38,7 +38,7 @@ extern "C" {
 }
 
 /* ================================================================== */
-// Global variables
+// Global variables 
 /* ================================================================== */
 
 std::ostream* outFile = 0;
@@ -97,20 +97,13 @@ VOID GetOperLenAndSigned(INS ins, INT32 i, INT32& length_bits, bool& is_signed)
  */
 VOID Instruction(INS ins, VOID *v)
 {
-    static bool seen_nop = false;
-    if (INS_IsNop(ins))
-    {
-        seen_nop = true;
-        return;
-    }
-    ASSERT(!seen_nop, "assertion failed: non-NOP instruction after NOP");
     *outFile << "Querying instruction w/opcode: " << INS_Mnemonic(ins) << endl;
     // Go over operands
     INT32 count = INS_OperandCount(ins);
     bool operands_reported = false;
     for (INT32 i = 0; i < count; i++)
     {
-
+        
         if (INS_OperandIsImmediate(ins, i))
         {
             // Get the value itself

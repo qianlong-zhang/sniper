@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -668,6 +668,8 @@ typedef UINT64 ADDRINT;
 extern "C" ADDRINT setFlagsX=0;
 int main()
 {
+
+    
     reg_t curMxcsr;
     UnMaskZeroDivideInMxcsr();
     curMxcsr = GetMxcsr();
@@ -683,11 +685,11 @@ int main()
         printf ("***Error1 in masking the divide by zero exception mask in mxcsr\n");
         return (-1);
     }
-    // the test_iarg_preserve tool will insert a call to an analysis routine
+    // the test_iarg_preserve tool will insert a call to an analysis routine  
     // after the third fld1 in Fld1Fstp that unmasks the divide by zero exception mask in mxcsr
     Fld1Fstp_j();
 
-    // make sure the divide by zero exception mask in mxcsr is not masked - since this test is run
+    // make sure the  divide by zero exception mask in mxcsr is not masked - since this test is run
     // with the -xyzzy -bridge_save_mxcsr 0
     curMxcsr = GetMxcsr();
     if (curMxcsr & 0x200)

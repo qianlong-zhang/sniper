@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -55,7 +55,7 @@ TidType threads[numOfSecondaryThreads];
  * Secondary thread's main functions              *
  **************************************************/
 // The secondary thread spins in a busy wait.
-extern "C" EXPORT_SYM void* DoNewThread(void* dummy) {
+static void* DoNewThread(void* dummy) {
     IncThreads();
     while(true);
     

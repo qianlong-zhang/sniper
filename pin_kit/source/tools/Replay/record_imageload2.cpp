@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -58,7 +58,7 @@ static FILE * trace;
 static FILE * imgLog;
 static int  imageCount = 0;
 static BOOL logging = FALSE;
-static const char* END_RTN_LIST = "END_RTN_LIST";
+static const char* END_RTN_LIST = "END_RTN_LIST\n";
 static const char* FAKE_IMAGE_SUFFIX = ".fake";
 
 // This struct describe an RTN which was recorded
@@ -106,7 +106,7 @@ static ADDRESS_RANGE FindImageTextMargin(IMG img)
         }
 
         low = MIN(low, SEC_Address(sec));
-        high = MAX(high, SEC_Address(sec) + SEC_Size(sec) - 1);
+        high = MAX(high, SEC_Address(sec) + SEC_Size(sec));
     }
     res._low = low;
     res._high = high;
@@ -159,7 +159,7 @@ static void LogImageLoad(IMG img, void *v)
 
     // Log the data needed to restore it
     fprintf(imgLog, "L '%s' %llx %lx %llx %d \n", IMG_Name(img).c_str(), (unsigned long long)range._low,
-             (long)(range._high - range._low + 1), (unsigned long long)IMG_LoadOffset(img), (int)IMG_IsMainExecutable(img));
+             (long)(range._high - range._low), (unsigned long long)IMG_LoadOffset(img), (int)IMG_IsMainExecutable(img));
 
     for (SEC sec = IMG_SecHead(img); SEC_Valid(sec); sec = SEC_Next(sec))
     {
@@ -176,7 +176,7 @@ static void LogImageLoad(IMG img, void *v)
             fprintf(imgLog, "\t'%s' %llx\n", RTN_Name(rtn).c_str(), (unsigned long long)RTN_Address(rtn));
         }
     }
-    fprintf(imgLog, "%s\n", END_RTN_LIST);
+    fprintf(imgLog, "%s", END_RTN_LIST);
 }
 
 // Writes the image unload event to the file "imgLog"
@@ -216,30 +216,15 @@ static void ParseImageLoadLine(string &imageName,  ADDRINT *startAddr, USIZE* si
     while (!endOfList && (NULL != fgets(line, sizeof(line), imgLog)))
     {
         RTN_INFO rtnInfo;
-        // On PIN CRT (and Unix CRTs) on Windows, fgets returns the '\r' character. Remove it.
-        char *eol = strchr(line, '\r');
-        if (NULL != eol) *eol = 0;
-        // Remove the new line character.
-        eol = strchr(line, '\n');
-        if (NULL != eol) *eol = 0;
         endOfList = (0 == strcmp(line, END_RTN_LIST));
         if (!endOfList)
         {
             char* name = (char*)malloc(strlen(line) + 1);
-            bool parse_ok = false;
-            do {
-                const char* delim_1 = strchr(line, '\'');
-                const char* delim_2 = strrchr(line, '\'');
-                if ((delim_1 == NULL) || (delim_1 == NULL)) break;
-                if (sscanf(delim_2, "' %llx\n", &addrBuf) != 1) break;
-                name[0] = '\0';
-                strncat(name, delim_1+1, delim_2-delim_1-1);
-                parse_ok = true;
-            } while (0);
-            if (!parse_ok)
+            itemsRead = sscanf(line, "\t'%[^']' %llx\n", name, &addrBuf);
+            if (2 != itemsRead)
             {
                 fprintf(trace, "'%s'\n", line);
-                fprintf (trace, "ParseImageLoadLine (rtn names): Failed to parse line;\n");
+                fprintf (trace, "ParseImageLoadLine (rtn names): Failed to parse; parsed %d expected to parse 2\n", itemsRead);
                 exit(1);
             }
 
@@ -358,9 +343,7 @@ static void ReplayImageEntry()
                 PIN_ReplayImageUnload(img);
                 PIN_UnlockClient();
                 break;
-            }
-        case EOF:
-            return;
+            }            
         default:
             fprintf (trace, "Unexpected line in log file starting with '%c'\n", tag);
             exit(1);
@@ -409,29 +392,7 @@ static VOID PrintRTNs(IMG img)
             {
                 continue;
             }
-
             fprintf(trace, "Function '%s' loaded at %llx\n", RTN_Name(rtn).c_str(), (unsigned long long)RTN_Address(rtn));
-
-            // check that both RTN_InsHeadOnly and RTN_InsHead correctly look at the
-            // fetched region and either both fetch valid instruction or both fetch
-            // invalid instructions
-
-            if (!IMG_IsMainExecutable(img))
-                continue;
-
-            RTN_Open(rtn);
-            INS headonly = RTN_InsHeadOnly(rtn);
-            BOOL valid_headonly = INS_Valid(headonly);
-            RTN_Close(rtn);
-
-            RTN_Open(rtn);
-            INS head = RTN_InsHead(rtn);
-            BOOL valid_head = INS_Valid(head);
-            RTN_Close(rtn);
-
-            if (valid_headonly != valid_head) {
-                fprintf(trace, "Failed to fetch RTN instruction for %s\n", RTN_Name(rtn).c_str());
-            }
         }
     }
 }

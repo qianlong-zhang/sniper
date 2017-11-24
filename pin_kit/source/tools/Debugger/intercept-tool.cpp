@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -115,13 +115,12 @@ static BOOL InterceptBreakpoint(THREADID tid, DEBUGGING_EVENT eventType, CONTEXT
 
     ADDRINT pc = PIN_GetContextReg(ctxt, REG_INST_PTR);
     RTN rtn = RTN_FindByAddress(pc);
-    string rtnName = RTN_Valid(rtn) ? RTN_Name(rtn) : "<N/A>";
 
     // When the application triggers the breakpoint in Breakpoint1(), squash the breakpoint
     // and roll the application back to the Checkpoint() call.  The application will NOT stop
     // at the breakpoint, and it will immediately resume from Checkpoint().
     //
-    if (rtnName == "Breakpoint1")
+    if (rtn != RTN_Invalid() && RTN_Name(rtn) == "Breakpoint1")
     {
         std::cout << "Intercepting breakpoint #1 at 0x" << std::hex << pc << std::endl;
         PIN_SaveContext(&SavedContext, ctxt);
@@ -135,15 +134,15 @@ static BOOL InterceptBreakpoint(THREADID tid, DEBUGGING_EVENT eventType, CONTEXT
     // breakpoint, but change the return value from Breakpoint2().  The application will stop
     // in the debugger, and the debugger should see the modified return value.
     //
-    if (rtnName == "Breakpoint2" || rtnName == "Breakpoint2Label")
+    if (rtn != RTN_Invalid() && (RTN_Name(rtn) == "Breakpoint2" || RTN_Name(rtn) == "Breakpoint2Label"))
     {
         std::cout << "Intercepting breakpoint #2 at 0x" << std::hex << pc << std::endl;
-        std::cout << "RTN=" << rtnName << std::endl;
+        std::cout << "RTN=" << RTN_Name(rtn) << std::endl;
         PIN_SetContextReg(ctxt, REG_GAX, 1);
         return TRUE;
     }
 
-    std::cout << "Skipping breakpoint at 0x" << std::hex << pc << ", RTN=" << rtnName << std::endl;
+    std::cout << "Skipping breakpoint at 0x" << std::hex << pc << ", RTN=" << RTN_Name(rtn) << std::endl;
     return TRUE;
 }
 

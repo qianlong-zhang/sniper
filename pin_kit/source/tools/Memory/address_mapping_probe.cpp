@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -62,12 +62,7 @@ static const int MALLOC_POOL_SIZE = 0x10000;
 #else
 //Size of PIN's malloc pool for small memory allocations
 static const int MALLOC_POOL_SIZE = 0x1000;
-#endif
-
 //The total size of PIN's initial allocator, the one that allocates memory before PIN initializes
-#if defined(TARGET_MAC)
-static const int BSS_ALLOCATOR_SIZE = 0x1300000;
-#else
 static const int BSS_ALLOCATOR_SIZE = 0xc0000;
 #endif
 

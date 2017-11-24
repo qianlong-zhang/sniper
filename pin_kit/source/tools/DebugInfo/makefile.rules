@@ -22,6 +22,12 @@ TEST_TOOL_ROOTS := omit_source_location
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
 TEST_ROOTS :=
 
+# This defines a list of tests that should run in the "short" sanity. Tests in this list must also
+# appear either in the TEST_TOOL_ROOTS or the TEST_ROOTS list.
+# If the entire directory should be tested in sanity, assign TEST_TOOL_ROOTS and TEST_ROOTS to the
+# SANITY_SUBSET variable in the tests section below (see example in makefile.rules.tmpl).
+SANITY_SUBSET :=
+
 # This defines the tools which will be run during the the tests, and were not already defined in
 # TEST_TOOL_ROOTS.
 TOOL_ROOTS :=
@@ -48,18 +54,20 @@ LIB_ROOTS :=
 
 ###### Place OS-specific definitions here ######
 
-ifeq ($(TARGET_OS),linux)
-    TEST_TOOL_ROOTS += backtrace app_backtrace backtrace_from_dll pin_backtrace_on_assert
-    TEST_ROOTS += debug_dwarf4_jit debug_jit debug_dwarf4_probe debug_probe
+ifeq ($(TARGET_OS),android)
+    TEST_ROOTS += debug_jit
     TOOL_ROOTS += debugtest
-    APP_ROOTS += app_backtrace_app
-    DLL_ROOTS += backtrace_dll
+    ifeq ($(PROBE),1)
+        TEST_ROOTS += debug_probe
+    endif
 endif
 
-ifeq ($(TARGET_OS),mac)
-    TEST_TOOL_ROOTS += backtrace app_backtrace backtrace_from_dll pin_backtrace_on_assert
-    APP_ROOTS += app_backtrace_app
-    DLL_ROOTS += backtrace_dll
+ifeq ($(TARGET_OS),linux)
+    TEST_ROOTS += debug_dwarf4_jit debug_jit
+    TOOL_ROOTS += debugtest
+    ifeq ($(PROBE),1)
+        TEST_ROOTS += debug_dwarf4_probe debug_probe
+    endif
 endif
 
 ###### Handle exceptions here ######
@@ -71,11 +79,16 @@ ifeq ($(TARGET_OS),linux)
     endif
 endif
 
-###### Define the sanity subset ######
+# Debug information and probe mode are not supported on Mic.
+ifeq ($(TARGET),mic)
+    TEST_ROOTS := $(filter-out debug_jit debug_probe, $(TEST_ROOTS))
+endif
 
-# This defines the list of tests that should run in sanity. It should include all the tests listed in
-# TEST_TOOL_ROOTS and TEST_ROOTS excluding only unstable tests.
-SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
+# Our WRL compiler does not support dwarf4.
+osrel := $(shell uname -r)
+ifeq ($(findstring WR,$(osrel)),WR)
+    TEST_ROOTS := $(filter-out debug_dwarf4_jit debug_dwarf4_probe, $(TEST_ROOTS))
+endif
 
 
 ##############################################################
@@ -125,27 +138,6 @@ omit_source_location.test: $(OBJDIR)omit_source_location$(PINTOOL_SUFFIX) $(HELL
 	$(QGREP) "<Unknown source location>" $(OBJDIR)omit_source_location.out
 	$(RM) $(OBJDIR)omit_source_location.out
 
-backtrace.test: $(OBJDIR)backtrace$(PINTOOL_SUFFIX) $(HELLO_APP)
-	$(PIN) -t $(OBJDIR)backtrace$(PINTOOL_SUFFIX) \
-	  --  $(HELLO_APP) > $(OBJDIR)backtrace.out 2>&1
-	$(PYCOMPARE) -p backtrace.reference -c $(OBJDIR)backtrace.out
-
-app_backtrace.test: $(OBJDIR)app_backtrace$(PINTOOL_SUFFIX)  $(OBJDIR)app_backtrace_app$(EXE_SUFFIX)
-	$(PIN) -t $(OBJDIR)app_backtrace$(PINTOOL_SUFFIX) \
-	  --  $(OBJDIR)app_backtrace_app$(EXE_SUFFIX) > $(OBJDIR)app_backtrace.out 2>&1
-	$(PYCOMPARE) -p app_backtrace.reference -c $(OBJDIR)app_backtrace.out
-	$(RM) -f $(OBJDIR)app_backtrace.out
-
-backtrace_from_dll.test: $(OBJDIR)backtrace_from_dll$(PINTOOL_SUFFIX) $(HELLO_APP)
-	$(PIN) -t $(OBJDIR)backtrace_from_dll$(PINTOOL_SUFFIX) \
-	  --  $(HELLO_APP) > $(OBJDIR)backtrace_from_dll.out 2>&1
-	$(PYCOMPARE) -p backtrace_from_dll.reference -c $(OBJDIR)backtrace_from_dll.out
-
-pin_backtrace_on_assert.test: $(OBJDIR)pin_backtrace_on_assert$(PINTOOL_SUFFIX) $(TESTAPP)
-	! ( $(PIN) -t $(OBJDIR)pin_backtrace_on_assert$(PINTOOL_SUFFIX) \
-	  -- $(TESTAPP) makefile $(OBJDIR)pin_backtrace_on_assert.makefile.copy > $(OBJDIR)pin_backtrace_on_assert.out 2>&1 )
-	$(PYCOMPARE) -p pin_backtrace_on_assert.reference -c $(OBJDIR)pin_backtrace_on_assert.out
-	$(RM) -f $(OBJDIR)pin_backtrace_on_assert.out
 
 ##############################################################
 #
@@ -156,25 +148,6 @@ pin_backtrace_on_assert.test: $(OBJDIR)pin_backtrace_on_assert$(PINTOOL_SUFFIX) 
 # This section contains the build rules for all binaries that have special build rules.
 # See makefile.default.rules for the default build rules.
 
-###### Special tools' build rules ######
-
-ifeq ($(TARGET_OS),linux)
-    VERSION_SCRIPT_PATTERN := -Wl,--version-script=%
-endif
-ifeq ($(TARGET_OS),mac)
-    VERSION_SCRIPT_PATTERN := -Wl,-exported_symbols_list,%
-endif
-
-# Export all symbols of this tool to the dynamic symbol table in order to get accurate backtrace.
-$(OBJDIR)backtrace$(PINTOOL_SUFFIX): $(OBJDIR)backtrace$(OBJ_SUFFIX)
-	$(LINKER) $(EXPORT_ALL) $(COMP_EXE)$@ $< $(filter-out $(VERSION_SCRIPT_PATTERN),$(TOOL_LDFLAGS_NOOPT)) $(TOOL_LPATHS) $(TOOL_LIBS)
-
-$(OBJDIR)backtrace_from_dll$(PINTOOL_SUFFIX): $(OBJDIR)backtrace_from_dll$(OBJ_SUFFIX) $(OBJDIR)$(DLL_PREFIX)backtrace_dll$(DLL_SUFFIX)
-	$(LINKER) $(TOOL_LDFLAGS_NOOPT) $(LINK_EXE)$@ $^ $(TOOL_LPATHS) $(TOOL_LIBS)
-
-$(OBJDIR)pin_backtrace_on_assert$(PINTOOL_SUFFIX): $(OBJDIR)pin_backtrace_on_assert$(OBJ_SUFFIX) $(CONTROLLERLIB)
-	$(LINKER) $(EXPORT_ALL) $(COMP_EXE)$@ $< $(filter-out $(VERSION_SCRIPT_PATTERN),$(TOOL_LDFLAGS_NOOPT)) $(TOOL_LPATHS) $(TOOL_LIBS)
-
 ###### Special objects' build rules ######
 
 ifeq ($(OS_TYPE),win)
@@ -183,26 +156,5 @@ else
     OMIT_SOURCE_LOCATION := -DOMIT_SOURCE_LOCATION
 endif
 
-$(OBJDIR)backtrace$(OBJ_SUFFIX): backtrace.cpp
-	$(CXX) $(TOOL_CXXFLAGS_NOOPT) $(COMP_OBJ)$@ $<
-
 $(OBJDIR)omit_source_location$(OBJ_SUFFIX): omit_source_location.cpp
 	$(CXX) $(OMIT_SOURCE_LOCATION) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $<
-
-$(OBJDIR)app_backtrace_app$(EXE_SUFFIX): app_backtrace_app.cpp
-	$(APP_CXX) $(APP_CXXFLAGS_NOOPT) $(DBG_INFO_CXX_ALWAYS) $(COMP_EXE)$@ $< $(APP_LDFLAGS_NOOPT) $(APP_LIBS) \
-	  $(CXX_LPATHS) $(CXX_LIBS) $(DBG_INFO_LD_ALWAYS)
-
-$(OBJDIR)backtrace_from_dll$(OBJ_SUFFIX): backtrace_from_dll.cpp
-	$(CXX) $(TOOL_CXXFLAGS_NOOPT) $(COMP_OBJ)$@ $<
-
-$(OBJDIR)backtrace_dll$(OBJ_SUFFIX): backtrace_dll.cpp
-	$(CXX) $(TOOL_CXXFLAGS_NOOPT) $(COMP_OBJ)$@ $<
-
-$(OBJDIR)pin_backtrace_on_assert$(OBJ_SUFFIX): pin_backtrace_on_assert.cpp
-	$(CXX) $(TOOL_CXXFLAGS_NOOPT) $(COMP_OBJ)$@ $<
-
-###### Special dlls' build rules ######
-
-$(OBJDIR)$(DLL_PREFIX)backtrace_dll$(DLL_SUFFIX): $(OBJDIR)backtrace_dll$(OBJ_SUFFIX)
-	$(LINKER) $(EXPORT_ALL) $(filter-out $(VERSION_SCRIPT_PATTERN),$(TOOL_LDFLAGS_NOOPT)) $(LINK_EXE)$@ $^ $(TOOL_LPATHS) $(filter-out -lpin$(LIBPIN_SUFFIX),$(TOOL_LIBS))

@@ -22,6 +22,12 @@ TEST_TOOL_ROOTS := icount filter control control_detach
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
 TEST_ROOTS := filter_lib filter_rtn
 
+# This defines a list of tests that should run in the "short" sanity. Tests in this list must also
+# appear either in the TEST_TOOL_ROOTS or the TEST_ROOTS list.
+# If the entire directory should be tested in sanity, assign TEST_TOOL_ROOTS and TEST_ROOTS to the
+# SANITY_SUBSET variable in the tests section below (see example in makefile.rules.tmpl).
+SANITY_SUBSET := icount control filter_lib
+
 # This defines the tools which will be run during the the tests, and were not already defined in
 # TEST_TOOL_ROOTS.
 TOOL_ROOTS :=
@@ -48,10 +54,17 @@ LIB_ROOTS :=
 
 ###### Place OS-specific definitions here ######
 
+# Android
+ifeq ($(TARGET_OS),android)
+    TEST_TOOL_ROOTS += follow_child
+    TEST_ROOTS += marker_test int3_test multi_start_stop_test
+    APP_ROOTS += itext-marker-test int3-test multi-start-stop-test
+endif
+
 # Linux
 ifeq ($(TARGET_OS),linux)
     TEST_TOOL_ROOTS += follow_child
-    TEST_ROOTS += marker_test int3_test multi_start_stop_test control_test
+    TEST_ROOTS += marker_test int3_test multi_start_stop_test
     APP_ROOTS += itext-marker-test int3-test multi-start-stop-test
     ifeq ($(TARGET),intel64)
         # mt3_test has problems on old linux runtimes where thread stack 
@@ -65,15 +78,17 @@ endif
 # Mac OS X*
 ifeq ($(TARGET_OS),mac)
     TEST_TOOL_ROOTS += follow_child
-    TEST_ROOTS += marker_test int3_test multi_start_stop_test mt3_test control_test
+    TEST_ROOTS += marker_test int3_test multi_start_stop_test mt3_test
     APP_ROOTS += itext-marker-test int3-test multi-start-stop-test mt3-test
 endif
 
-###### Define the sanity subset ######
+###### Handle exceptions here ######
 
-# This defines the list of tests that should run in sanity. It should include all the tests listed in
-# TEST_TOOL_ROOTS and TEST_ROOTS excluding only unstable tests.
-SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
+# TODO: These tests fail - fix and remove the following:
+# See Mantis 2963
+ifeq ($(TARGET),mic)
+    TEST_ROOTS := $(filer-out int3_test marker_test, $(TEST_ROOTS))
+endif
 
 
 ##############################################################
@@ -115,13 +130,6 @@ mt3_test.test: $(OBJDIR)mt3-test$(EXE_SUFFIX) $(OBJDIR)control$(PINTOOL_SUFFIX)
 	$(QGREP) -E '0x.*Start' $(OBJDIR)mt3_test.out
 	$(QGREP) -E '0x.*Stop' $(OBJDIR)mt3_test.out
 	$(RM) $(OBJDIR)mt3_test.out
-
-control_test.test: $(OBJDIR)mt3-test$(EXE_SUFFIX) $(OBJDIR)control$(PINTOOL_SUFFIX)
-	$(PIN) -t $(OBJDIR)control$(PINTOOL_SUFFIX) -controller-control "start:ssc:44332211,stop:ssc:55332211" \
-	  -- $(OBJDIR)mt3-test$(EXE_SUFFIX) > $(OBJDIR)mt3_control_test.out 2>&1
-	$(QGREP) -E '0x.*Start' $(OBJDIR)mt3_control_test.out
-	$(QGREP) -E '0x.*Stop' $(OBJDIR)mt3_control_test.out
-	$(RM) $(OBJDIR)mt3_control_test.out
 
 filter_lib.test: $(OBJDIR)filter_app$(EXE_SUFFIX) $(OBJDIR)filter$(PINTOOL_SUFFIX) $(OBJDIR)$(DLL_PREFIX)one$(DLL_SUFFIX)
 	$(SET_DLL_PATH) $(PIN) -t $(OBJDIR)filter$(PINTOOL_SUFFIX) -filter_no_shared_libs -o $(OBJDIR)filter_lib.out \

@@ -7,12 +7,12 @@
 typedef enum
 {
     REG_INVALID_ = 0,
-# if !defined(TARGET_DOXYGEN)
+#if !defined(TARGET_DOXYGEN)
     REG_NONE = 1,
     REG_FIRST = 2,
 
     // base for all kinds of registers (application, machine, pin)
-    REG_RBASE,
+    REG_RBASE, 
 
     // Machine registers are individual real registers on the machine
     REG_MACHINE_BASE = REG_RBASE,
@@ -22,20 +22,17 @@ typedef enum
     // they include some aggregrate registers that can be accessed by
     // the application in a single instruction
     // Essentially, application registers = individual machine registers + aggregrate registers
-
-    REG_APPLICATION_BASE = REG_RBASE,
+    
+    REG_APPLICATION_BASE = REG_RBASE, 
 
     /* !@ todo: should save scratch mmx and fp registers */
     // The machine registers that form a context. These are the registers
     // that need to be saved in a context switch.
-    REG_PHYSICAL_INTEGER_BASE = REG_RBASE,
-
-    REG_TO_SPILL_BASE = REG_RBASE,
-
-# endif // not TARGET_DOXYGEN
-
+    REG_PHYSICAL_CONTEXT_BEGIN = REG_RBASE,
+#endif
+    
     REG_GR_BASE = REG_RBASE,
-# if defined(TARGET_IA32E)
+#if defined(TARGET_IA32E) || defined(TARGET_MIC)
     // Context registers in the Intel(R) 64 architecture
     REG_RDI = REG_GR_BASE,  ///< rdi
     REG_GDI = REG_RDI,      ///< edi on a 32 bit machine, rdi on 64
@@ -76,7 +73,7 @@ typedef enum
     REG_GFLAGS=REG_RFLAGS,
     REG_RIP,
     REG_INST_PTR = REG_RIP,
-# else // not defined(TARGET_IA32E)
+#else
     // Context registers in the IA-32 architecture
     REG_EDI = REG_GR_BASE,
     REG_GDI = REG_EDI,
@@ -95,7 +92,7 @@ typedef enum
     REG_EAX,
     REG_GAX = REG_EAX,
     REG_GR_LAST = REG_EAX,
-
+    
     REG_SEG_BASE,
     REG_SEG_CS = REG_SEG_BASE,
     REG_SEG_SS,
@@ -109,25 +106,25 @@ typedef enum
     REG_GFLAGS=REG_EFLAGS,
     REG_EIP,
     REG_INST_PTR = REG_EIP,
-# endif // not defined(TARGET_IA32E)
-
-# if !defined(TARGET_DOXYGEN)
-    REG_PHYSICAL_INTEGER_END = REG_INST_PTR,
-# endif // not TARGET_DOXYGEN
+#endif
+    
+#if !defined(TARGET_DOXYGEN)
+    REG_PHYSICAL_CONTEXT_END = REG_INST_PTR,
+#endif
 
     // partial registers common to both the IA-32 and Intel(R) 64 architectures.
     REG_AL,
     REG_AH,
     REG_AX,
-
+    
     REG_CL,
     REG_CH,
     REG_CX,
-
+    
     REG_DL,
     REG_DH,
     REG_DX,
-
+    
     REG_BL,
     REG_BH,
     REG_BX,
@@ -139,8 +136,8 @@ typedef enum
     REG_SP,
     REG_FLAGS,
     REG_IP,
-
-# if defined(TARGET_IA32E)
+    
+#if defined(TARGET_IA32E) || defined(TARGET_MIC)
     // partial registers in the Intel(R) 64 architecture
     REG_EDI,
     REG_DIL,
@@ -171,7 +168,7 @@ typedef enum
     REG_R11D,
     REG_R12B,
     REG_R12W,
-    REG_R12D,
+    REG_R12D,    
     REG_R13B,
     REG_R13W,
     REG_R13D,
@@ -180,10 +177,11 @@ typedef enum
     REG_R14D,
     REG_R15B,
     REG_R15W,
-    REG_R15D,
-# endif // not defined(TARGET_IA32E)
-
+    REG_R15D,    
+#endif
+    
     REG_MM_BASE,
+#if !defined(TARGET_MIC)
     REG_MM0 = REG_MM_BASE,
     REG_MM1,
     REG_MM2,
@@ -193,8 +191,33 @@ typedef enum
     REG_MM6,
     REG_MM7,
     REG_MM_LAST = REG_MM7,
+#else // MIC
+    REG_MM_LAST = REG_MM_BASE,
+#endif
+    
+    REG_EMM_BASE,
+#if !defined(TARGET_MIC)
+    REG_EMM0 = REG_EMM_BASE,
+    REG_EMM1,
+    REG_EMM2,
+    REG_EMM3,
+    REG_EMM4,
+    REG_EMM5,
+    REG_EMM6,
+    REG_EMM7,
+    REG_EMM_LAST = REG_EMM7,
+#else // MIC
+    REG_EMM_LAST = REG_EMM_BASE,
+#endif
 
+    // REG_X87 is a representative of the X87 fp state - it is NOT available for explicit use in ANY
+    // of the Pin APIs. It also MUST appear before the xmm,ymm and mxcsr register in order to ensure
+    // correct reconciliation order
+    REG_X87,
+    
     REG_XMM_BASE,
+#if !defined(TARGET_MIC)
+    // for mic, REG_FIRST_FP_REG is defined below as REG_ZMM_BASE
     REG_FIRST_FP_REG = REG_XMM_BASE,
     REG_XMM0 = REG_XMM_BASE,
     REG_XMM1,
@@ -204,7 +227,7 @@ typedef enum
     REG_XMM5,
     REG_XMM6,
     REG_XMM7,
-
+    
 # if defined(TARGET_IA32E)
     // additional xmm registers in the Intel(R) 64 architecture
     REG_XMM8,
@@ -215,36 +238,16 @@ typedef enum
     REG_XMM13,
     REG_XMM14,
     REG_XMM15,
-    REG_XMM_SSE_LAST = REG_XMM15,
-    REG_XMM_AVX_LAST = REG_XMM_SSE_LAST,
-    REG_XMM_AVX512_HI16_FIRST,
-    REG_XMM16 = REG_XMM_AVX512_HI16_FIRST,
-    REG_XMM17,
-    REG_XMM18,
-    REG_XMM19,
-    REG_XMM20,
-    REG_XMM21,
-    REG_XMM22,
-    REG_XMM23,
-    REG_XMM24,
-    REG_XMM25,
-    REG_XMM26,
-    REG_XMM27,
-    REG_XMM28,
-    REG_XMM29,
-    REG_XMM30,
-    REG_XMM31,
-    REG_XMM_AVX512_HI16_LAST = REG_XMM31,
-    REG_XMM_AVX512_LAST = REG_XMM_AVX512_HI16_LAST,
-    REG_XMM_LAST = REG_XMM_AVX512_LAST,
-# else // not TARGET_IA32E
-    REG_XMM_SSE_LAST = REG_XMM7,
-    REG_XMM_AVX_LAST = REG_XMM_SSE_LAST,
-    REG_XMM_AVX512_LAST = REG_XMM_AVX_LAST,
-    REG_XMM_LAST = REG_XMM_AVX512_LAST,
-# endif // not TARGET_IA32E
+    REG_XMM_LAST = REG_XMM15,
+# else
+    REG_XMM_LAST = REG_XMM7,
+# endif
+#else // MIC
+    REG_XMM_LAST = REG_XMM_BASE,
+#endif
 
     REG_YMM_BASE,
+#if !defined(TARGET_MIC)
     REG_YMM0 = REG_YMM_BASE,
     REG_YMM1,
     REG_YMM2,
@@ -253,7 +256,7 @@ typedef enum
     REG_YMM5,
     REG_YMM6,
     REG_YMM7,
-
+    
 # if defined(TARGET_IA32E)
     // additional ymm registers in the Intel(R) 64 architecture
     REG_YMM8,
@@ -264,34 +267,18 @@ typedef enum
     REG_YMM13,
     REG_YMM14,
     REG_YMM15,
-    REG_YMM_AVX_LAST = REG_YMM15,
-    REG_YMM_AVX512_HI16_FIRST,
-    REG_YMM16 = REG_YMM_AVX512_HI16_FIRST,
-    REG_YMM17,
-    REG_YMM18,
-    REG_YMM19,
-    REG_YMM20,
-    REG_YMM21,
-    REG_YMM22,
-    REG_YMM23,
-    REG_YMM24,
-    REG_YMM25,
-    REG_YMM26,
-    REG_YMM27,
-    REG_YMM28,
-    REG_YMM29,
-    REG_YMM30,
-    REG_YMM31,
-    REG_YMM_AVX512_HI16_LAST = REG_YMM31,
-    REG_YMM_AVX512_LAST = REG_YMM_AVX512_HI16_LAST,
-    REG_YMM_LAST = REG_YMM_AVX512_LAST,
-# else // not TARGET_IA32E
-    REG_YMM_AVX_LAST = REG_YMM7,
-    REG_YMM_AVX512_LAST = REG_YMM_AVX_LAST,
-    REG_YMM_LAST = REG_YMM_AVX512_LAST,
-# endif // not TARGET_IA32E
+    REG_YMM_LAST = REG_YMM15,
+# else
+    REG_YMM_LAST = REG_YMM7,
+# endif
+#else // MIC
+    REG_YMM_LAST = REG_YMM_BASE,
+#endif
 
     REG_ZMM_BASE,
+#if defined(TARGET_MIC)
+    // for ia32 and ia32e, REG_FIRST_FP_REG is defined above as REG_XMM_BASE
+    REG_FIRST_FP_REG = REG_ZMM_BASE,
     REG_ZMM0 = REG_ZMM_BASE,
     REG_ZMM1,
     REG_ZMM2,
@@ -300,7 +287,6 @@ typedef enum
     REG_ZMM5,
     REG_ZMM6,
     REG_ZMM7,
-# if defined(TARGET_IA32E)
     REG_ZMM8,
     REG_ZMM9,
     REG_ZMM10,
@@ -309,9 +295,7 @@ typedef enum
     REG_ZMM13,
     REG_ZMM14,
     REG_ZMM15,
-    REG_ZMM_AVX512_SPLIT_LAST = REG_ZMM15,
-    REG_ZMM_AVX512_HI16_FIRST,
-    REG_ZMM16 = REG_ZMM_AVX512_HI16_FIRST,
+    REG_ZMM16,
     REG_ZMM17,
     REG_ZMM18,
     REG_ZMM19,
@@ -327,20 +311,15 @@ typedef enum
     REG_ZMM29,
     REG_ZMM30,
     REG_ZMM31,
-    REG_ZMM_AVX512_HI16_LAST = REG_ZMM31,
-    REG_ZMM_AVX512_LAST = REG_ZMM_AVX512_HI16_LAST,
-    REG_ZMM_LAST = REG_ZMM_AVX512_LAST,
-# else // not defined(TARGET_IA32E)
-    REG_ZMM_AVX512_SPLIT_LAST = REG_ZMM7,
-    REG_ZMM_AVX512_LAST = REG_ZMM_AVX512_SPLIT_LAST,
-    REG_ZMM_LAST = REG_ZMM_AVX512_LAST,
-# endif // not defined(TARGET_IA32E)
+    REG_ZMM_LAST = REG_ZMM31,
+#else // not MIC
+    REG_ZMM_LAST = REG_ZMM_BASE,
+#endif
 
     REG_K_BASE,
+#if defined(TARGET_MIC)
+    // KNC mask registers
     REG_K0 = REG_K_BASE,
-    // The K0 opmask register cannot be used as the write mask operand of an AVX512 instruction.
-    // However the encoding of K0 as the write mask operand is legal and is used as an implicit full mask.
-    REG_IMPLICIT_FULL_MASK = REG_K0,
     REG_K1,
     REG_K2,
     REG_K3,
@@ -349,19 +328,54 @@ typedef enum
     REG_K6,
     REG_K7,
     REG_K_LAST = REG_K7,
+#else
+    REG_K_LAST = REG_K_BASE,
+#endif
 
     REG_MXCSR,
     REG_MXCSRMASK,
 
     // This corresponds to the "orig_eax" register that is visible
     // to some debuggers.
-# if defined(TARGET_IA32E)
+#if defined(TARGET_IA32E) || defined(TARGET_MIC)
     REG_ORIG_RAX,
     REG_ORIG_GAX = REG_ORIG_RAX,
-# else // not defined(TARGET_IA32E)
+#else
     REG_ORIG_EAX,
     REG_ORIG_GAX = REG_ORIG_EAX,
-# endif // not defined(TARGET_IA32E)
+#endif
+
+    REG_DR_BASE,
+    REG_DR0 = REG_DR_BASE,
+    REG_DR1,
+    REG_DR2,
+    REG_DR3,
+    REG_DR4,
+    REG_DR5,
+    REG_DR6,
+    REG_DR7,
+    REG_DR_LAST = REG_DR7,
+
+    REG_CR_BASE,
+    REG_CR0 = REG_CR_BASE,
+    REG_CR1,
+    REG_CR2,
+    REG_CR3,
+    REG_CR4,
+    REG_CR_LAST = REG_CR4,
+    
+    REG_TSSR,
+    
+    REG_LDTR,
+
+    REG_TR_BASE,
+    REG_TR = REG_TR_BASE,
+    REG_TR3,
+    REG_TR4,
+    REG_TR5,
+    REG_TR6,
+    REG_TR7,
+    REG_TR_LAST = REG_TR7,
 
     REG_FPST_BASE,
     REG_FPSTATUS_BASE = REG_FPST_BASE,
@@ -388,41 +402,8 @@ typedef enum
     REG_ST7,
     REG_ST_LAST = REG_ST7,
     REG_FPST_LAST = REG_ST_LAST,
-
-    REG_DR_BASE,
-    REG_DR0 = REG_DR_BASE,
-    REG_DR1,
-    REG_DR2,
-    REG_DR3,
-    REG_DR4,
-    REG_DR5,
-    REG_DR6,
-    REG_DR7,
-    REG_DR_LAST = REG_DR7,
-
-    REG_CR_BASE,
-    REG_CR0 = REG_CR_BASE,
-    REG_CR1,
-    REG_CR2,
-    REG_CR3,
-    REG_CR4,
-    REG_CR_LAST = REG_CR4,
-
-    REG_TSSR,
-    REG_LDTR,
-
-    REG_TR_BASE,
-    REG_TR = REG_TR_BASE,
-    REG_TR3,
-    REG_TR4,
-    REG_TR5,
-    REG_TR6,
-    REG_TR7,
-    REG_TR_LAST = REG_TR7,
-
-    # if !defined(TARGET_DOXYGEN)
-
-    REG_MACHINE_LAST = REG_TR_LAST, /* last machine register */
+#if !defined(TARGET_DOXYGEN)
+    REG_MACHINE_LAST = REG_FPST_LAST, /* last machine register */
 
     /* these are the two registers implementing the eflags in pin
        REG_STATUS_FLAGS represents the OF, SF, ZF, AF, PF and CF flags.
@@ -433,7 +414,7 @@ typedef enum
        (prior to flag splitting, whenever any of the flags needed to be spilled/filled
        both the DF and all the above status flags were spilled/filled).
        NOTE - this flag splitting is not done if the pushf/popf sequence is being used
-              rather than the sahf/lahf sequence (some early Intel64 processors do not
+              rather than the sahf/lahf sequence (some early Intel64 preocessors do not
               support sahf/lahf instructions). Also the KnobRegFlagsSplit can be used
               to disable the flags splitting when the sahf/lahf sequence is being used
        Flags splitting is not done at the INS operand level - it is done when building
@@ -445,191 +426,45 @@ typedef enum
     REG_STATUS_FLAGS,
     REG_DF_FLAG,
 
-    // NOTE: although REG_X87 is outside REG_APPLICATION_LAST scope it is part of app registers
-    // therefore any traversal of all application regs need to have special handling for REG_X87
     REG_APPLICATION_LAST = REG_DF_FLAG, /* last register name used by the application */
 
     /* Pin's virtual register names */
-    REG_TOOL_BASE,
-
-# endif  // not TARGET_DOXYGEN
-
-    // Virtual registers reg holding memory addresses pointed by GS/FS registers
-    // These registers are visible for tool writers
-    REG_SEG_GS_BASE  = REG_TOOL_BASE, ///< Base address for GS segment
-    REG_SEG_FS_BASE, ///< Base address for FS segment
-
-    // ISA-independent Pin virtual regs needed for instrumentation
-    // These are pin registers visible to the pintool writers.
-    REG_INST_BASE,
-    REG_INST_SCRATCH_BASE = REG_INST_BASE,  ///< First available scratch register
-    REG_INST_G0 = REG_INST_SCRATCH_BASE,    ///< Scratch register used in pintools
-    REG_INST_G1,                            ///< Scratch register used in pintools
-    REG_INST_G2,                            ///< Scratch register used in pintools
-    REG_INST_G3,                            ///< Scratch register used in pintools
-    REG_INST_G4,                            ///< Scratch register used in pintools
-    REG_INST_G5,                            ///< Scratch register used in pintools
-    REG_INST_G6,                            ///< Scratch register used in pintools
-    REG_INST_G7,                            ///< Scratch register used in pintools
-    REG_INST_G8,                            ///< Scratch register used in pintools
-    REG_INST_G9,                            ///< Scratch register used in pintools
-    REG_INST_G10,                           ///< Scratch register used in pintools
-    REG_INST_G11,                           ///< Scratch register used in pintools
-    REG_INST_G12,                           ///< Scratch register used in pintools
-    REG_INST_G13,                           ///< Scratch register used in pintools
-    REG_INST_G14,                           ///< Scratch register used in pintools
-    REG_INST_G15,                           ///< Scratch register used in pintools
-    REG_INST_G16,                           ///< Scratch register used in pintools
-    REG_INST_G17,                           ///< Scratch register used in pintools
-    REG_INST_G18,                           ///< Scratch register used in pintools
-    REG_INST_G19,                           ///< Scratch register used in pintools
-    REG_INST_G20,                           ///< Scratch register used in pintools
-    REG_INST_G21,                           ///< Scratch register used in pintools
-    REG_INST_G22,                           ///< Scratch register used in pintools
-    REG_INST_G23,                           ///< Scratch register used in pintools
-    REG_INST_G24,                           ///< Scratch register used in pintools
-    REG_INST_G25,                           ///< Scratch register used in pintools
-    REG_INST_G26,                           ///< Scratch register used in pintools
-    REG_INST_G27,                           ///< Scratch register used in pintools
-    REG_INST_G28,                           ///< Scratch register used in pintools
-    REG_INST_G29,                           ///< Scratch register used in pintools
-    REG_INST_TOOL_FIRST = REG_INST_G0,
-    REG_INST_TOOL_LAST = REG_INST_G29,
-
-    REG_BUF_BASE0,
-    REG_BUF_BASE1,
-    REG_BUF_BASE2,
-    REG_BUF_BASE3,
-    REG_BUF_BASE4,
-    REG_BUF_BASE5,
-    REG_BUF_BASE6,
-    REG_BUF_BASE7,
-    REG_BUF_BASE8,
-    REG_BUF_BASE9,
-    REG_BUF_BASE_LAST = REG_BUF_BASE9,
-
-    REG_BUF_END0,
-    REG_BUF_END1,
-    REG_BUF_END2,
-    REG_BUF_END3,
-    REG_BUF_END4,
-    REG_BUF_END5,
-    REG_BUF_END6,
-    REG_BUF_END7,
-    REG_BUF_END8,
-    REG_BUF_END9,
-    REG_BUF_ENDLAST = REG_BUF_END9,
-    REG_BUF_LAST = REG_BUF_ENDLAST,
-
-    REG_INST_SCRATCH_LAST = REG_BUF_LAST,
-
-# if defined(TARGET_IA32E)
-    // DWORD versions of the above G0-G29 scratch regs
-    REG_INST_G0D,                           ///< Scratch register used in pintools
-    REG_INST_G1D,                           ///< Scratch register used in pintools
-    REG_INST_G2D,                           ///< Scratch register used in pintools
-    REG_INST_G3D,                           ///< Scratch register used in pintools
-    REG_INST_G4D,                           ///< Scratch register used in pintools
-    REG_INST_G5D,                           ///< Scratch register used in pintools
-    REG_INST_G6D,                           ///< Scratch register used in pintools
-    REG_INST_G7D,                           ///< Scratch register used in pintools
-    REG_INST_G8D,                           ///< Scratch register used in pintools
-    REG_INST_G9D,                           ///< Scratch register used in pintools
-    REG_INST_G10D,                          ///< Scratch register used in pintools
-    REG_INST_G11D,                          ///< Scratch register used in pintools
-    REG_INST_G12D,                          ///< Scratch register used in pintools
-    REG_INST_G13D,                          ///< Scratch register used in pintools
-    REG_INST_G14D,                          ///< Scratch register used in pintools
-    REG_INST_G15D,                          ///< Scratch register used in pintools
-    REG_INST_G16D,                          ///< Scratch register used in pintools
-    REG_INST_G17D,                          ///< Scratch register used in pintools
-    REG_INST_G18D,                          ///< Scratch register used in pintools
-    REG_INST_G19D,                          ///< Scratch register used in pintools
-    REG_INST_G20D,                          ///< Scratch register used in pintools
-    REG_INST_G21D,                          ///< Scratch register used in pintools
-    REG_INST_G22D,                          ///< Scratch register used in pintools
-    REG_INST_G23D,                          ///< Scratch register used in pintools
-    REG_INST_G24D,                          ///< Scratch register used in pintools
-    REG_INST_G25D,                          ///< Scratch register used in pintools
-    REG_INST_G26D,                          ///< Scratch register used in pintools
-    REG_INST_G27D,                          ///< Scratch register used in pintools
-    REG_INST_G28D,                          ///< Scratch register used in pintools
-    REG_INST_G29D,                          ///< Scratch register used in pintools
-    REG_TOOL_LAST = REG_INST_G29D,
-# else // end of defined(TARGET_IA32E)
-    REG_TOOL_LAST = REG_BUF_LAST,
-# endif // end of !(defined(TARGET_IA32E))
-
-# if !defined(TARGET_DOXYGEN)
-    REG_SPECIAL_BASE,
-
-    // REG_X87 is a representative of the X87 fp state - it is NOT available for explicit use in ANY
-    // of the Pin APIs.
-    // This register is set/get internally using xsave/xrstor or fxsave/fxrstor.
-    // In order to allow proper work of xsave/xrstor, the size of this register includes all the legacy xfeatures
-    // and the extended header. see @ref REG_X87_SIZE.
-    REG_X87 = REG_SPECIAL_BASE,
-
-    REG_SPECIAL_LAST = REG_X87,
-
     REG_PIN_BASE,
-
-    REG_PIN_SEG_GS_VAL = REG_PIN_BASE,  // virtual reg holding actual value of gs
-    REG_PIN_SEG_FS_VAL,                 // virtual reg holding actual value of fs
-
-    REG_LAST_CONTEXT_REG = REG_PIN_SEG_FS_VAL,  // Last register in the canonical SPILL AREA Based CONTEXT
-
-    REG_PIN_GR_BASE,
+    REG_PIN_GR_BASE = REG_PIN_BASE,
 
     // ia32-specific Pin gr regs
     REG_PIN_EDI = REG_PIN_GR_BASE,
-
-#  if defined(TARGET_IA32)
+# if defined(TARGET_IA32)
     REG_PIN_GDI = REG_PIN_EDI,                  // PIN_GDI == PIN_EDI on 32 bit, PIN_RDI on 64 bit.
-#  endif // defined(TARGET_IA32)
-
+# endif
     REG_PIN_ESI,
-
-#  if defined(TARGET_IA32)
-    REG_PIN_GSI = REG_PIN_ESI,
-#  endif // defined(TARGET_IA32)
-
+# if defined(TARGET_IA32)
+    REG_PIN_GSI = REG_PIN_ESI,                  
+# endif
     REG_PIN_EBP,
-
-#  if defined(TARGET_IA32)
-    REG_PIN_GBP = REG_PIN_EBP,
-#  endif // defined(TARGET_IA32)
-
+# if defined(TARGET_IA32)
+    REG_PIN_GBP = REG_PIN_EBP,                  
+# endif
     REG_PIN_ESP,
-
-#  if defined (TARGET_IA32)
+# if defined (TARGET_IA32)
     REG_PIN_STACK_PTR = REG_PIN_ESP,
-#  endif // defined(TARGET_IA32)
-
+# endif
     REG_PIN_EBX,
-
-#  if defined(TARGET_IA32)
-    REG_PIN_GBX = REG_PIN_EBX,
-#  endif // defined(TARGET_IA32)
-
+# if defined(TARGET_IA32)
+    REG_PIN_GBX = REG_PIN_EBX,                  
+# endif
     REG_PIN_EDX,
-
-#  if defined(TARGET_IA32)
-    REG_PIN_GDX = REG_PIN_EDX,
-#  endif // defined(TARGET_IA32)
-
+# if defined(TARGET_IA32)
+    REG_PIN_GDX = REG_PIN_EDX,                  
+# endif
     REG_PIN_ECX,
-
-#  if defined(TARGET_IA32)
+# if defined(TARGET_IA32)
     REG_PIN_GCX = REG_PIN_ECX,                  // PIN_GCX == PIN_ECX on 32 bit, PIN_RCX on 64 bit.
-#  endif // defined(TARGET_IA32)
-
+# endif
     REG_PIN_EAX,
-
-#  if defined(TARGET_IA32)
+# if defined(TARGET_IA32)
     REG_PIN_GAX = REG_PIN_EAX,                  // PIN_GAX == PIN_EAX on 32 bit, PIN_RAX on 64 bit.
-#  endif // defined(TARGET_IA32)
-
+# endif
     REG_PIN_AL,
     REG_PIN_AH,
     REG_PIN_AX,
@@ -647,7 +482,7 @@ typedef enum
     REG_PIN_DI,
     REG_PIN_SP,
 
-#  if defined(TARGET_IA32E)
+# if defined(TARGET_IA32E) || defined(TARGET_MIC)
     // Intel(R) 64 architecture specific pin gr regs
     REG_PIN_RDI,
     REG_PIN_GDI = REG_PIN_RDI,
@@ -656,9 +491,9 @@ typedef enum
     REG_PIN_RBP,
     REG_PIN_GBP = REG_PIN_RBP,
     REG_PIN_RSP,
-
+    
     REG_PIN_STACK_PTR = REG_PIN_RSP,
-
+    
     REG_PIN_RBX,
     REG_PIN_GBX = REG_PIN_RBX,
     REG_PIN_RDX,
@@ -680,7 +515,7 @@ typedef enum
     REG_PIN_SIL,
     REG_PIN_BPL,
     REG_PIN_SPL,
-
+    
     REG_PIN_R8B,
     REG_PIN_R8W,
     REG_PIN_R8D,
@@ -712,91 +547,167 @@ typedef enum
     REG_PIN_R15B,
     REG_PIN_R15W,
     REG_PIN_R15D,
-#  endif // defined(TARGET_IA32E)
+# endif
 
+    /* ! @todoshould be REG_PIN_THREAD_ID ?*/
     // Every thread is assigned an index so we can implement tls
-    REG_PIN_THREAD_ID,
+    REG_THREAD_ID,
+    
+    REG_SEG_GS_VAL,  // virtual reg holding actual value of gs
+    REG_SEG_FS_VAL,  // virtual reg holding actual value of fs
 
     // ISA-independent gr regs
     REG_PIN_INDIRREG,  // virtual reg holding indirect jmp target value
     REG_PIN_IPRELADDR, // virtual reg holding ip-rel address value
     REG_PIN_SYSENTER_RESUMEADDR, // virtual reg holding the resume address from sysenter
-    REG_PIN_SYSCALL_NEXT_PC,  // virtual reg holding the next PC when Pin emulates a system call
     REG_PIN_VMENTER, // virtual reg holding the address of VmEnter
                      // actually it is the spill slot of this register that holds
                      // the address
-
+    
     // ISA-independent gr regs holding temporary values
     REG_PIN_T_BASE,
-#ifdef TARGET_IA32E
-    REG_PIN_T0 = REG_PIN_T_BASE,
-    REG_PIN_T1,
+    REG_PIN_T0 = REG_PIN_T_BASE,        
+    REG_PIN_T1,        
     REG_PIN_T2,
     REG_PIN_T3,
-    REG_PIN_T0D,    // lower 32 bits of temporary register
-    REG_PIN_T1D,
-    REG_PIN_T2D,
-    REG_PIN_T3D,
-#else // not TARGET_IA32E
-    REG_PIN_T0 = REG_PIN_T_BASE,
-    REG_PIN_T0D = REG_PIN_T0,
-    REG_PIN_T1,
-    REG_PIN_T1D = REG_PIN_T1,
-    REG_PIN_T2,
-    REG_PIN_T2D = REG_PIN_T2,
-    REG_PIN_T3,
-    REG_PIN_T3D = REG_PIN_T3,
-#endif // not TARGET_IA32E
-    REG_PIN_T0W,    // lower 16 bits of temporary register
-    REG_PIN_T1W,
-    REG_PIN_T2W,
-    REG_PIN_T3W,
     REG_PIN_T0L,    // lower 8 bits of temporary register
     REG_PIN_T1L,
     REG_PIN_T2L,
     REG_PIN_T3L,
-    REG_PIN_T_LAST = REG_PIN_T3L,
-    REG_PIN_THREAD_IDD,    // REG_PIN_THREAD_ID 32 half part
-    REG_TO_SPILL_LAST = REG_PIN_THREAD_IDD,
-    REG_PIN_INST_COND,     // for conditional instrumentation.
+    REG_PIN_T0W,    // lower 16 bits of temporary register
+    REG_PIN_T1W,
+    REG_PIN_T2W,
+    REG_PIN_T3W,
+    REG_PIN_T0D,    // lower 32 bits of temporary register
+    REG_PIN_T1D,
+    REG_PIN_T2D,
+    REG_PIN_T3D,
+    REG_PIN_T_LAST = REG_PIN_T3D,
+#endif // not TARGET_DOXYGEN
 
+    // Virtual registers reg holding memory addresses pointed by GS/FS registers
+    // These registers are visible for tool writers
+    REG_SEG_GS_BASE, ///< Base address for GS segment
+    REG_SEG_FS_BASE, ///< Base address for FS segment
+
+    // ISA-independent Pin virtual regs needed for instrumentation
+    // These are pin registers visible to the pintool writers.
+    REG_INST_BASE,
+    REG_INST_SCRATCH_BASE = REG_INST_BASE,  ///< First available scratch register
+    REG_INST_G0 = REG_INST_SCRATCH_BASE,    ///< Scratch register used in pintools
+    REG_INST_G1,                            ///< Scratch register used in pintools
+    REG_INST_G2,                            ///< Scratch register used in pintools
+    REG_INST_G3,                            ///< Scratch register used in pintools
+    REG_INST_G4,                            ///< Scratch register used in pintools
+    REG_INST_G5,                            ///< Scratch register used in pintools
+    REG_INST_G6,                            ///< Scratch register used in pintools
+    REG_INST_G7,                            ///< Scratch register used in pintools
+    REG_INST_G8,                            ///< Scratch register used in pintools
+    REG_INST_G9,                            ///< Scratch register used in pintools
+    REG_INST_G10,                            ///< Scratch register used in pintools
+    REG_INST_G11,                            ///< Scratch register used in pintools
+    REG_INST_G12,                            ///< Scratch register used in pintools
+    REG_INST_G13,                            ///< Scratch register used in pintools
+    REG_INST_G14,                            ///< Scratch register used in pintools
+    REG_INST_G15,                            ///< Scratch register used in pintools
+    REG_INST_G16,                            ///< Scratch register used in pintools
+    REG_INST_G17,                            ///< Scratch register used in pintools
+    REG_INST_G18,                            ///< Scratch register used in pintools
+    REG_INST_G19,                            ///< Scratch register used in pintools
+    REG_INST_G20,                            ///< Scratch register used in pintools
+    REG_INST_G21,                            ///< Scratch register used in pintools
+    REG_INST_G22,                            ///< Scratch register used in pintools
+    REG_INST_G23,                            ///< Scratch register used in pintools
+    REG_INST_G24,                            ///< Scratch register used in pintools
+    REG_INST_G25,                            ///< Scratch register used in pintools
+    REG_INST_G26,                            ///< Scratch register used in pintools
+    REG_INST_G27,                            ///< Scratch register used in pintools
+    REG_INST_G28,                            ///< Scratch register used in pintools
+    REG_INST_G29,                            ///< Scratch register used in pintools
+    REG_INST_TOOL_FIRST = REG_INST_G0,     
+    REG_INST_TOOL_LAST = REG_INST_G29,
+
+    REG_BUF_BASE0,
+    REG_BUF_BASE1,
+    REG_BUF_BASE2,
+    REG_BUF_BASE3,
+    REG_BUF_BASE4,
+    REG_BUF_BASE5,
+    REG_BUF_BASE6,
+    REG_BUF_BASE7,
+    REG_BUF_BASE8,
+    REG_BUF_BASE9,
+    REG_BUF_BASE_LAST = REG_BUF_BASE9,
+
+    REG_BUF_END0,
+    REG_BUF_END1,
+    REG_BUF_END2,
+    REG_BUF_END3,
+    REG_BUF_END4,
+    REG_BUF_END5,
+    REG_BUF_END6,
+    REG_BUF_END7,
+    REG_BUF_END8,
+    REG_BUF_END9,
+    REG_BUF_ENDLAST = REG_BUF_END9,
+    REG_BUF_LAST = REG_BUF_ENDLAST,
+
+    REG_INST_SCRATCH_LAST = REG_BUF_ENDLAST,
+
+#if defined(TARGET_IA32E) || defined(TARGET_MIC)
+    // DWORD versions of the above G0-G19 scratch regs
+    REG_INST_G0D,                             ///< Scratch register used in pintools
+    REG_INST_G1D,                            ///< Scratch register used in pintools
+    REG_INST_G2D,                            ///< Scratch register used in pintools
+    REG_INST_G3D,                            ///< Scratch register used in pintools
+    REG_INST_G4D,                            ///< Scratch register used in pintools
+    REG_INST_G5D,                            ///< Scratch register used in pintools
+    REG_INST_G6D,                            ///< Scratch register used in pintools
+    REG_INST_G7D,                            ///< Scratch register used in pintools
+    REG_INST_G8D,                            ///< Scratch register used in pintools
+    REG_INST_G9D,                            ///< Scratch register used in pintools
+    REG_INST_G10D,                            ///< Scratch register used in pintools
+    REG_INST_G11D,                            ///< Scratch register used in pintools
+    REG_INST_G12D,                            ///< Scratch register used in pintools
+    REG_INST_G13D,                            ///< Scratch register used in pintools
+    REG_INST_G14D,                            ///< Scratch register used in pintools
+    REG_INST_G15D,                            ///< Scratch register used in pintools
+    REG_INST_G16D,                            ///< Scratch register used in pintools
+    REG_INST_G17D,                            ///< Scratch register used in pintools
+    REG_INST_G18D,                            ///< Scratch register used in pintools
+    REG_INST_G19D,                            ///< Scratch register used in pintools
+#endif
+
+#if !defined(TARGET_DOXYGEN)
+    REG_INST_COND,     // for conditional instrumentation.
+    REG_INST_LAST = REG_INST_COND,
+    
     // Used for memory rewriting, these are not live outside the region
     // but cannot use general purpose scratch registers, because they're
     // used during instrumentation generation, rather than region generation.
-#ifdef TARGET_IA32E
-    REG_PIN_INST_T0,
-    REG_PIN_INST_T1,
-    REG_PIN_INST_T2,
-    REG_PIN_INST_T3,
-    REG_PIN_INST_T0D,    // lower 32 bits of temporary register
-    REG_PIN_INST_T1D,
-    REG_PIN_INST_T2D,
-    REG_PIN_INST_T3D,
-#else // not TARGET_IA32E
-    REG_PIN_INST_T0,
-    REG_PIN_INST_T0D = REG_PIN_INST_T0,
-    REG_PIN_INST_T1,
-    REG_PIN_INST_T1D = REG_PIN_INST_T1,
-    REG_PIN_INST_T2,
-    REG_PIN_INST_T2D = REG_PIN_INST_T2,
-    REG_PIN_INST_T3,
-    REG_PIN_INST_T3D = REG_PIN_INST_T3,
-#endif // not TARGET_IA32E
-    REG_PIN_INST_T0W,    // lower 16 bits of temporary register
-    REG_PIN_INST_T1W,
-    REG_PIN_INST_T2W,
-    REG_PIN_INST_T3W,
-    REG_PIN_INST_T0L,    // lower 8 bits of temporary register
-    REG_PIN_INST_T1L,
-    REG_PIN_INST_T2L,
-    REG_PIN_INST_T3L,
+    REG_INST_T0,
+    REG_INST_T0L,                               /* Low  8 bits */
+    REG_INST_T0W,                               /* Low 16 bits */
+    REG_INST_T0D,                               /* Low 32 bits */
+    REG_INST_T1,
+    REG_INST_T1L,                               /* Low  8 bits */
+    REG_INST_T1W,                               /* Low 16 bits */
+    REG_INST_T1D,                               /* Low 32 bits */
+    REG_INST_T2,
+    REG_INST_T2L,                               /* Low  8 bits */
+    REG_INST_T2W,                               /* Low 16 bits */
+    REG_INST_T2D,                               /* Low 32 bits */
+    REG_INST_T3,
+    REG_INST_T3L,                               /* Low  8 bits */
+    REG_INST_T3W,                               /* Low 16 bits */
+    REG_INST_T3D,                               /* Low 32 bits */
 
     // Used to preserve the predicate value around repped string ops
-    REG_PIN_INST_PRESERVED_PREDICATE,
+    REG_INST_PRESERVED_PREDICATE,
 
     // Used when the AC flag needs to be cleared before analysis routine
-    REG_PIN_FLAGS_BEFORE_AC_CLEARING,
-
+    REG_FLAGS_BEFORE_AC_CLEARING,
+    
     // Virtual regs used by Pin inside instrumentation bridges.
     // Unlike REG_INST_BASE to REG_INST_LAST, these registers are
     // NOT visible to  Pin clients.
@@ -811,7 +722,7 @@ typedef enum
     REG_PIN_BRIDGE_MULTI_MEMORYACCESS_FRAME, // hold the address of the on stack PIN_MULTI_MEM_ACCESS_INFO frame
     REG_PIN_BRIDGE_MULTI_MEMORYACCESS_SP, // hold the sp at which the PIN_MULTI_MEM_ACCESS_INFO was pushed
     // hold the address of the on stack MULTI_MEM_ACCESS_AND_REWRITE_EMULATION_INFO frame
-    REG_PIN_MULTI_MEM_ACCESS_AND_REWRITE_EMULATION_INFO_FRAME,
+    REG_PIN_MULTI_MEM_ACCESS_AND_REWRITE_EMULATION_INFO_FRAME, 
     REG_PIN_BRIDGE_TRANS_MEMORY_CALLBACK_FRAME, // hold the address of the on stack PIN_MEM_TRANS_INFO frame
     REG_PIN_BRIDGE_TRANS_MEMORY_CALLBACK_SP, // hold the sp at which the PIN_MEM_TRANS_INFO was pushed
     REG_PIN_TRANS_MEMORY_CALLBACK_READ_ADDR, // hold the result of read memory address calculation
@@ -841,6 +752,7 @@ typedef enum
     REG_PIN_FLAGS,
 
     REG_PIN_XMM_BASE,
+# if !defined(TARGET_MIC)
     REG_PIN_XMM0 = REG_PIN_XMM_BASE,
     REG_PIN_XMM1,
     REG_PIN_XMM2,
@@ -859,36 +771,16 @@ typedef enum
     REG_PIN_XMM13,
     REG_PIN_XMM14,
     REG_PIN_XMM15,
-    REG_PIN_XMM_SSE_LAST = REG_PIN_XMM15,
-    REG_PIN_XMM_AVX_LAST = REG_PIN_XMM_SSE_LAST,
-    REG_PIN_XMM_AVX512_HI16_FIRST,
-    REG_PIN_XMM16 = REG_PIN_XMM_AVX512_HI16_FIRST,
-    REG_PIN_XMM17,
-    REG_PIN_XMM18,
-    REG_PIN_XMM19,
-    REG_PIN_XMM20,
-    REG_PIN_XMM21,
-    REG_PIN_XMM22,
-    REG_PIN_XMM23,
-    REG_PIN_XMM24,
-    REG_PIN_XMM25,
-    REG_PIN_XMM26,
-    REG_PIN_XMM27,
-    REG_PIN_XMM28,
-    REG_PIN_XMM29,
-    REG_PIN_XMM30,
-    REG_PIN_XMM31,
-    REG_PIN_XMM_AVX512_HI16_LAST = REG_PIN_XMM31,
-    REG_PIN_XMM_AVX512_LAST = REG_PIN_XMM_AVX512_HI16_LAST,
-    REG_PIN_XMM_LAST = REG_PIN_XMM_AVX512_LAST,
-#  else // not TARGET_IA32E
-    REG_PIN_XMM_SSE_LAST = REG_PIN_XMM7,
-    REG_PIN_XMM_AVX_LAST = REG_PIN_XMM_SSE_LAST,
-    REG_PIN_XMM_AVX512_LAST = REG_PIN_XMM_AVX_LAST,
-    REG_PIN_XMM_LAST = REG_PIN_XMM_AVX512_LAST,
-#  endif // TARGET_IA32E
+    REG_PIN_XMM_LAST = REG_PIN_XMM15,
+#  else
+    REG_PIN_XMM_LAST = REG_PIN_XMM7,
+#  endif
+# else // MIC
+    REG_PIN_XMM_LAST = REG_PIN_XMM_BASE,
+# endif
 
     REG_PIN_YMM_BASE,
+# if !defined(TARGET_MIC)
     REG_PIN_YMM0 = REG_PIN_YMM_BASE,
     REG_PIN_YMM1,
     REG_PIN_YMM2,
@@ -907,34 +799,17 @@ typedef enum
     REG_PIN_YMM13,
     REG_PIN_YMM14,
     REG_PIN_YMM15,
-    REG_PIN_YMM_AVX_LAST = REG_PIN_YMM15,
-    REG_PIN_YMM_AVX512_HI16_FIRST,
-    REG_PIN_YMM16 = REG_PIN_YMM_AVX512_HI16_FIRST,
-    REG_PIN_YMM17,
-    REG_PIN_YMM18,
-    REG_PIN_YMM19,
-    REG_PIN_YMM20,
-    REG_PIN_YMM21,
-    REG_PIN_YMM22,
-    REG_PIN_YMM23,
-    REG_PIN_YMM24,
-    REG_PIN_YMM25,
-    REG_PIN_YMM26,
-    REG_PIN_YMM27,
-    REG_PIN_YMM28,
-    REG_PIN_YMM29,
-    REG_PIN_YMM30,
-    REG_PIN_YMM31,
-    REG_PIN_YMM_AVX512_HI16_LAST = REG_PIN_YMM31,
-    REG_PIN_YMM_AVX512_LAST = REG_PIN_YMM_AVX512_HI16_LAST,
-    REG_PIN_YMM_LAST = REG_PIN_YMM_AVX512_LAST,
-#  else // not TARGET_IA32E
-    REG_PIN_YMM_AVX_LAST = REG_PIN_YMM7,
-    REG_PIN_YMM_AVX512_LAST = REG_PIN_YMM_AVX_LAST,
-    REG_PIN_YMM_LAST = REG_PIN_YMM_AVX512_LAST,
-#  endif // not TARGET_IA32E
+    REG_PIN_YMM_LAST = REG_PIN_YMM15,
+#  else
+    REG_PIN_YMM_LAST = REG_PIN_YMM7,
+#  endif
+# else // MIC
+    REG_PIN_YMM_LAST = REG_PIN_YMM_BASE,
+# endif
 
     REG_PIN_ZMM_BASE,
+# if defined(TARGET_MIC)
+    // KNC vector registers
     REG_PIN_ZMM0 = REG_PIN_ZMM_BASE,
     REG_PIN_ZMM1,
     REG_PIN_ZMM2,
@@ -943,7 +818,6 @@ typedef enum
     REG_PIN_ZMM5,
     REG_PIN_ZMM6,
     REG_PIN_ZMM7,
-#  ifndef TARGET_IA32
     REG_PIN_ZMM8,
     REG_PIN_ZMM9,
     REG_PIN_ZMM10,
@@ -952,9 +826,7 @@ typedef enum
     REG_PIN_ZMM13,
     REG_PIN_ZMM14,
     REG_PIN_ZMM15,
-    REG_PIN_ZMM_AVX512_SPLIT_LAST = REG_PIN_ZMM15,
-    REG_PIN_ZMM_AVX512_HI16_FIRST,
-    REG_PIN_ZMM16 = REG_PIN_ZMM_AVX512_HI16_FIRST,
+    REG_PIN_ZMM16,
     REG_PIN_ZMM17,
     REG_PIN_ZMM18,
     REG_PIN_ZMM19,
@@ -970,16 +842,14 @@ typedef enum
     REG_PIN_ZMM29,
     REG_PIN_ZMM30,
     REG_PIN_ZMM31,
-    REG_PIN_ZMM_AVX512_HI16_LAST = REG_PIN_ZMM31,
-    REG_PIN_ZMM_AVX512_LAST = REG_PIN_ZMM_AVX512_HI16_LAST,
-    REG_PIN_ZMM_LAST = REG_PIN_ZMM_AVX512_LAST,
-#  else // TARGET_IA32
-    REG_PIN_ZMM_AVX512_SPLIT_LAST = REG_PIN_ZMM7,
-    REG_PIN_ZMM_AVX512_LAST = REG_PIN_ZMM_AVX512_SPLIT_LAST,
-    REG_PIN_ZMM_LAST = REG_PIN_ZMM_AVX512_LAST,
-#  endif // TARGET_IA32
+    REG_PIN_ZMM_LAST = REG_PIN_ZMM31,
+# else // not MIC
+    REG_PIN_ZMM_LAST = REG_PIN_ZMM_BASE,
+# endif
 
     REG_PIN_K_BASE,
+# if defined(TARGET_MIC)
+    // KNC mask registers
     REG_PIN_K0 = REG_PIN_K_BASE,
     REG_PIN_K1,
     REG_PIN_K2,
@@ -989,25 +859,21 @@ typedef enum
     REG_PIN_K6,
     REG_PIN_K7,
     REG_PIN_K_LAST = REG_PIN_K7,
-
+# else // not MIC
+    REG_PIN_K_LAST = REG_PIN_K_BASE,
+# endif
     REG_PIN_LAST = REG_PIN_K_LAST,
-
-# endif // not TARGET_DOXYGEN
-
+#endif // not TARGET_DOXYGEN
     REG_LAST
-
-
 } REG;
 
                                                                   /* DO NOT EDIT */
-typedef enum {
-    REG_ACCESS_READ,
-    REG_ACCESS_WRITE,        // this implies partial write so previous value is needed
-    REG_ACCESS_OVERWRITE     // this implies full overwrite so previous value is not needed
-} REG_ACCESS;
+/* DO NOT EDIT */
 
-                                                                  /* DO NOT EDIT */
-const ADDRINT NUM_PHYSICAL_REGS = REG_PHYSICAL_INTEGER_END - REG_PHYSICAL_INTEGER_BASE + 1;
+/*! @ingroup REG_BASIC_CPU_IA32 */
+GLOBALCONST ADDRINT AC_FLAG_BIT = 0x40000;
+
+const ADDRINT NUM_PHYSICAL_REGS = REG_PHYSICAL_CONTEXT_END - REG_PHYSICAL_CONTEXT_BEGIN + 1;
 
                                                                   /* DO NOT EDIT */
 const ADDRINT NUM_SCRATCH_REGS = REG_INST_SCRATCH_LAST - REG_INST_SCRATCH_BASE + 1;
@@ -1019,13 +885,10 @@ const ADDRINT NUM_SPECIAL_REGS = 2 + NUM_SCRATCH_REGS;
 const ADDRINT NUM_CONTEXT_INT_REGS = NUM_PHYSICAL_REGS + NUM_SPECIAL_REGS;
 
                                                                   /* DO NOT EDIT */
-const ADDRINT NUM_CONTEXT_REGS = REG_LAST_CONTEXT_REG + 1;
-
-                                                                  /* DO NOT EDIT */
-const ADDRINT ARCH_STATE_SIZE = (NUM_PHYSICAL_REGS + NUM_SPECIAL_REGS)*sizeof(ADDRINT) +
+const ADDRINT ARCH_STATE_SIZE = (NUM_PHYSICAL_REGS + NUM_SPECIAL_REGS)*sizeof(ADDRINT) + 
                                       (FPSTATE_SIZE // because CONTEXT size must
-                                                         // be at least as big as
-                                                         // CONTEXT_CANONICAL size,
+                                                         // be at least as big as 
+                                                         // CONTEXT_CANONICAL size, 
                                                          // and CONTEXT_CANONICAL._fpstate is used
                                       + FPSTATE_ALIGNMENT);
 
@@ -1039,7 +902,7 @@ struct REGDEF_ENTRY {
     UINT64 regSubClassBitMap;    // The REG_SUBCLASS of this register as a bitmap
     REG_ALLOC_TYPE regAllocType; // Specified the type of physical register that must be allocated to this reg
     REG regFullName;             // The REG enum of the full register this register is part of
-    REG regMachineName;          // The REG that this register must be allocated into when the register mapping is
+    REG regMachineName;          // The REG that this register must be allocated into when the register mapping is 
                                  // identity
     REG regPinName;              // sort of the inverse of regMachineName - for app regs, the corresponding Pin reg
 };
@@ -1099,14 +962,14 @@ inline BOOL REG_is_pseudo(REG reg){ return (reg == REG_ORIG_GAX);}
 
                                                                   /* DO NOT EDIT */
 inline BOOL REG_is_gr(REG reg)
-{
+{ 
     return ((_regClassBitMapTable[reg]) == (_REGCBIT(REG_CLASS_GR)));
 }
 
                                                                   /* DO NOT EDIT */
 inline BOOL REG_is_fr(REG reg)
 {
-   const REG_CLASS_BITS  frClassMask =
+   const REG_CLASS_BITS  frClassMask = 
         (_REGCBIT(REG_CLASS_XMM))                 |
         (_REGCBIT(REG_CLASS_YMM))                 |
         (_REGCBIT(REG_CLASS_ZMM))                 |
@@ -1125,7 +988,7 @@ inline BOOL REG_is_br(REG reg)  { return FALSE; }
                                                                   /* DO NOT EDIT */
 inline BOOL REG_is_gr64(REG reg)
 {
-#if defined(TARGET_IA32E)
+#if defined(TARGET_IA32E) || defined(TARGET_MIC)
     // all gr on Intel(R) 64 architectures are 64-bits
     return REG_is_gr(reg);
 #else
@@ -1137,8 +1000,8 @@ inline BOOL REG_is_gr64(REG reg)
                                                                   /* DO NOT EDIT */
 inline BOOL REG_is_gr32(REG reg)
 {
-
-#if defined(TARGET_IA32E)
+    
+#if defined(TARGET_IA32E) | defined(TARGET_MIC)
     return (_regClassBitMapTable[reg] == _REGCBIT(REG_CLASS_GRH32));
 #else
     return (_regClassBitMapTable[reg] == _REGCBIT(REG_CLASS_GR));
@@ -1146,21 +1009,10 @@ inline BOOL REG_is_gr32(REG reg)
 }
 
                                                                   /* DO NOT EDIT */
-inline BOOL REG_is_pin_gr32(REG reg)
-{
-
-#if defined(TARGET_IA32E)
-    return (_regClassBitMapTable[reg] == _REGCBIT(REG_CLASS_PIN_GRH32));
-#else
-    return (_regClassBitMapTable[reg] == _REGCBIT(REG_CLASS_PIN_GR));
-#endif
-}
-
-                                                                  /* DO NOT EDIT */
 inline BOOL REG_is_gr16(REG reg)
 {
     return (_regClassBitMapTable[reg] == _REGCBIT(REG_CLASS_GRH16));
-
+    
 }
 
                                                                   /* DO NOT EDIT */
@@ -1168,20 +1020,38 @@ inline BOOL REG_is_gr8(REG reg)
 {
     const REG_CLASS_BITS  gr8classMask = (_REGCBIT(REG_CLASS_GRU8)) | (_REGCBIT(REG_CLASS_GRL8));
     return ((_regClassBitMapTable[reg] & gr8classMask) != 0);
-
+    
 }
 
                                                                   /* DO NOT EDIT */
 inline BOOL REG_is_seg(REG reg)
-{
+{ 
     return (_regClassBitMapTable[reg] == (_REGCBIT(REG_CLASS_SEG)));
 }
 
                                                                   /* DO NOT EDIT */
 inline BOOL REG_is_fr_for_get_context(REG reg)
 {
-     const REG_CLASS_BITS  frClassMask =
+     const REG_CLASS_BITS  frClassMask = 
+        (_REGCBIT(REG_CLASS_K) )                  |
         (_REGCBIT(REG_CLASS_FPST) )               |
+        (_REGCBIT(REG_CLASS_MXCSR))               |
+        (_REGCBIT(REG_CLASS_MXCSRMASK));
+
+    return ((_regClassBitMapTable[reg] & frClassMask) != 0);
+}
+
+                                                                  /* DO NOT EDIT */
+inline BOOL REG_is_fr_or_x87(REG reg)
+{
+    const REG_CLASS_BITS  frClassMask = 
+        (_REGCBIT(REG_CLASS_XMM))                 |
+        (_REGCBIT(REG_CLASS_YMM))                 |
+        (_REGCBIT(REG_CLASS_ZMM) )                |
+        (_REGCBIT(REG_CLASS_K) )                  |
+        (_REGCBIT(REG_CLASS_FPST))                |
+        (_REGCBIT(REG_CLASS_ST))                  |
+        (_REGCBIT(REG_CLASS_X87))                 |
         (_REGCBIT(REG_CLASS_MXCSR))               |
         (_REGCBIT(REG_CLASS_MXCSRMASK));
 
@@ -1195,20 +1065,23 @@ inline BOOL REG_is_mxcsr(REG reg) { return (REG_MXCSR == reg); }
 inline BOOL REG_is_any_mxcsr(REG reg) { return (REG_MXCSR == reg || REG_PIN_MXCSR == reg); }
 
                                                                   /* DO NOT EDIT */
+inline BOOL REG_is_any_x87(REG reg) { return (REG_X87 == reg || REG_PIN_X87 == reg); }
+
+                                                                  /* DO NOT EDIT */
 inline BOOL REG_is_mm(REG reg)
-{
+{ 
     return (_regClassBitMapTable[reg] == (_REGCBIT(REG_CLASS_MM)));
 }
 
                                                                   /* DO NOT EDIT */
 inline BOOL REG_is_xmm(REG reg)
-{
+{ 
     return (_regClassBitMapTable[reg] == (_REGCBIT(REG_CLASS_XMM)));
 }
 
                                                                   /* DO NOT EDIT */
 inline BOOL REG_is_ymm(REG reg)
-{
+{ 
     return (_regClassBitMapTable[reg] == (_REGCBIT(REG_CLASS_YMM)));
 }
 
@@ -1220,18 +1093,9 @@ inline BOOL REG_is_zmm(REG reg)
 
                                                                   /* DO NOT EDIT */
 inline BOOL REG_is_xmm_ymm_zmm(REG reg)
-{
-    const REG_CLASS_BITS xmm_ymm_zmmClassMask = (_REGCBIT(REG_CLASS_XMM)) | (_REGCBIT(REG_CLASS_YMM)) | (_REGCBIT(REG_CLASS_ZMM));
+{ 
+    const REG_CLASS_BITS  xmm_ymm_zmmClassMask = (_REGCBIT(REG_CLASS_XMM)) | (_REGCBIT(REG_CLASS_YMM)) | (_REGCBIT(REG_CLASS_ZMM));
     return ((_regClassBitMapTable[reg] & xmm_ymm_zmmClassMask) != 0);
-}
-
-                                                                  /* DO NOT EDIT */
-inline BOOL REG_is_any_vector_reg(REG reg)
-{
-    const REG_CLASS_BITS vectorClassMask =
-            _REGCBIT(REG_CLASS_XMM)     | _REGCBIT(REG_CLASS_YMM)     | _REGCBIT(REG_CLASS_ZMM) |
-            _REGCBIT(REG_CLASS_PIN_XMM) | _REGCBIT(REG_CLASS_PIN_YMM) | _REGCBIT(REG_CLASS_PIN_ZMM);
-    return ((_regClassBitMapTable[reg] & vectorClassMask) != 0);
 }
 
                                                                   /* DO NOT EDIT */
@@ -1241,33 +1105,37 @@ inline BOOL REG_is_k_mask(REG reg)
 }
 
                                                                   /* DO NOT EDIT */
-inline BOOL REG_is_any_mask(REG reg)
-{
-    return ((_regClassBitMapTable[reg] & (_REGCBIT(REG_CLASS_K) | _REGCBIT(REG_CLASS_PIN_K))) != 0);
-}
-
-                                                                  /* DO NOT EDIT */
 inline REG REG_corresponding_ymm_reg(REG reg) { return static_cast<REG>(reg-REG_XMM_BASE+REG_YMM_BASE); }
 
                                                                   /* DO NOT EDIT */
-inline REG REG_corresponding_zmm_reg(REG reg) { return static_cast<REG>(reg-REG_XMM_BASE+REG_ZMM_BASE); }
-
-                                                                  /* DO NOT EDIT */
 inline BOOL REG_is_st(REG reg)
-{
+{ 
     return (_regClassBitMapTable[reg] == (_REGCBIT(REG_CLASS_ST)));
 }
 
                                                                   /* DO NOT EDIT */
-inline BOOL REG_is_machine(REG reg)
-{
-    return ((reg >= REG_MACHINE_BASE) && (reg <= REG_MACHINE_LAST));
+inline BOOL REG_is_fpst(REG reg) 
+{ 
+    const REG_CLASS_BITS classMask = (_REGCBIT(REG_CLASS_ST)) | (_REGCBIT(REG_CLASS_FPST));
+    return ((_regClassBitMapTable[reg] & classMask) != 0);
 }
 
                                                                   /* DO NOT EDIT */
-inline BOOL REG_is_application(REG reg)
-{
-    return ((_regClassBitMapTable[reg] & REGCBIT_APP_ALL) != 0);
+inline BOOL REG_is_in_X87(REG reg) 
+{    
+    return (REG_is_fpst(reg) | REG_is_mm(reg));
+}
+
+                                                                  /* DO NOT EDIT */
+inline BOOL REG_is_machine(REG reg) 
+{ 
+    return (reg >= REG_MACHINE_BASE) && (reg <= REG_MACHINE_LAST); 
+}
+
+                                                                  /* DO NOT EDIT */
+inline BOOL REG_is_application(REG reg) 
+{ 
+    return ((_regClassBitMapTable[reg] & REGCBIT_APP_ALL) != 0); 
 }
 
                                                                   /* DO NOT EDIT */
@@ -1278,7 +1146,7 @@ inline BOOL REG_is_pin(REG reg)
 
                                                                   /* DO NOT EDIT */
 inline BOOL REG_is_subclass_none(REG reg)
-{
+{ 
     return ((_regSubClassBitMapTable[reg] &    (REG_SUBCLASS_BITS(1) << (REG_SUBCLASS_NONE))) != 0);
 }
 
@@ -1298,6 +1166,9 @@ inline BOOL REG_is_seg_base(REG reg)
 inline BOOL REG_valid_for_iarg_reg_value(REG reg)
 {
     const REG_CLASS_BITS allowedClassMask = ((_REGCBIT(REG_CLASS_GR)) | (_REGCBIT(REG_CLASS_PIN_GR)) | (_REGCBIT(REG_CLASS_SEG))
+#ifdef TARGET_MIC
+                                            | (_REGCBIT(REG_CLASS_K))
+#endif
                                             | REGCBIT_PARTIAL | REGCBIT_APP_FLAGS | REGCBIT_PIN_FLAGS);
     const REG_CLASS_BITS disallowedPartialRegs = ((_REGCBIT(REG_CLASS_FLAGS16)) | (_REGCBIT(REG_CLASS_FLAGS32))
                                         | (_REGCBIT(REG_CLASS_IP16)) | (_REGCBIT(REG_CLASS_IP32))
@@ -1327,93 +1198,43 @@ inline BOOL REG_valid_for_iarg_reg_value(REG reg)
 }
 
                                                                   /* DO NOT EDIT */
-inline BOOL REG_is_pin_gr(REG reg)
-{
+inline BOOL REG_is_pin_gr(REG reg) 
+{ 
     return (_regClassBitMapTable[reg] == (_REGCBIT(REG_CLASS_PIN_GR)));
 }
 
                                                                   /* DO NOT EDIT */
-inline BOOL REG_is_pin_gr_half32(REG reg)
-{
+inline BOOL REG_is_pin_gr_half32(REG reg) 
+{ 
     return (_regClassBitMapTable[reg] == (_REGCBIT(REG_CLASS_PIN_GRH32)));
 }
 
                                                                   /* DO NOT EDIT */
 inline BOOL REG_is_pin_xmm(REG reg)
-{
+{ 
     return (_regClassBitMapTable[reg] == (_REGCBIT(REG_CLASS_PIN_XMM)));
 }
 
                                                                   /* DO NOT EDIT */
 inline BOOL REG_is_pin_ymm(REG reg)
-{
+{ 
     return (_regClassBitMapTable[reg] == (_REGCBIT(REG_CLASS_PIN_YMM)));
 }
 
                                                                   /* DO NOT EDIT */
 inline BOOL REG_is_pin_zmm(REG reg)
-{
+{ 
     return (_regClassBitMapTable[reg] == (_REGCBIT(REG_CLASS_PIN_ZMM)));
 }
 
                                                                   /* DO NOT EDIT */
-inline BOOL REG_is_pin_xmm_ymm_zmm(REG reg)
-{
-    const REG_CLASS_BITS pin_xmm_ymm_zmmClassMask =
-            (_REGCBIT(REG_CLASS_PIN_XMM)) | (_REGCBIT(REG_CLASS_PIN_YMM)) | (_REGCBIT(REG_CLASS_PIN_ZMM));
-    return ((_regClassBitMapTable[reg] & pin_xmm_ymm_zmmClassMask) != 0);
-}
-
-                                                                  /* DO NOT EDIT */
 inline BOOL REG_is_pin_k_mask(REG reg)
-{
+{ 
     return (_regClassBitMapTable[reg] == (_REGCBIT(REG_CLASS_PIN_K)));
 }
 
                                                                   /* DO NOT EDIT */
-inline BOOL REG_is_avx512_hi16_xmm(const REG xmm)
-{
-#ifdef TARGET_IA32
-    return FALSE;
-#else // not TARGET_IA32
-    if (REG_is_xmm(xmm))
-    {
-        return (xmm <= REG_XMM_AVX512_HI16_LAST && xmm >= REG_XMM_AVX512_HI16_FIRST);
-    }
-    else if (REG_is_pin_xmm(xmm))
-    {
-        return (xmm <= REG_PIN_XMM_AVX512_HI16_LAST && xmm >= REG_PIN_XMM_AVX512_HI16_FIRST);
-    }
-    else
-    {
-        return FALSE;
-    }
-#endif // not TARGET_IA32
-}
-
-                                                                  /* DO NOT EDIT */
-inline BOOL REG_is_avx512_hi16_ymm(const REG ymm)
-{
-#ifdef TARGET_IA32
-    return FALSE;
-#else // not TARGET_IA32
-    if (REG_is_ymm(ymm))
-    {
-        return (ymm <= REG_YMM_AVX512_HI16_LAST && ymm >= REG_YMM_AVX512_HI16_FIRST);
-    }
-    else if (REG_is_pin_ymm(ymm))
-    {
-        return (ymm <= REG_PIN_YMM_AVX512_HI16_LAST && ymm >= REG_PIN_YMM_AVX512_HI16_FIRST);
-    }
-    else
-    {
-        return FALSE;
-    }
-#endif // not TARGET_IA32
-}
-
-                                                                  /* DO NOT EDIT */
-inline BOOL REG_is_gr_type(REG reg)
+inline BOOL REG_is_gr_type(REG reg) 
 {
     const REG_CLASS_BITS  grclassMask = (_REGCBIT(REG_CLASS_GR)) | (_REGCBIT(REG_CLASS_PIN_GR));
     return ((_regClassBitMapTable[reg] & grclassMask) != 0);
@@ -1450,7 +1271,7 @@ inline BOOL REG_is_flags_type(REG reg)
                                                                   /* DO NOT EDIT */
 inline BOOL REG_is_flags_any_size_type(REG reg)
 {
-    const REG_CLASS_BITS  flagsClassMask
+    const REG_CLASS_BITS  flagsClassMask 
         = ((_REGCBIT(REG_CLASS_FLAGS)) | (_REGCBIT(REG_CLASS_PIN_FLAGS))
         | (_REGCBIT(REG_CLASS_FLAGS32)) | (_REGCBIT(REG_CLASS_FLAGS16)));
     return ((_regClassBitMapTable[reg] & flagsClassMask) != 0);
@@ -1551,44 +1372,52 @@ inline BOOL REG_is_stackptr_type(REG reg)
                                                                   /* DO NOT EDIT */
 inline BOOL REG_is_representative_reg(REG reg)
 {
-    // The REG_X87 represents the FPST registers only
+    // currently the REG_X87 represents the whole X87 state used
+    // for passing the CONTEXT* for IARG_CONST_CONTEXT. 
     const REG_CLASS_BITS  representativeClassMask = ((_REGCBIT(REG_CLASS_X87)) | (_REGCBIT(REG_CLASS_PIN_X87)));
     return ((_regClassBitMapTable[reg] & representativeClassMask) != 0);
 }
 
                                                                   /* DO NOT EDIT */
-inline BOOL REG_is_pin_inst(REG reg)
-{
+inline BOOL REG_is_x87_reg(REG reg)
+{ 
+    const REG_CLASS_BITS  x87ClassMask = ((_REGCBIT(REG_CLASS_X87)) | (_REGCBIT(REG_CLASS_PIN_X87)));
+    return ((_regClassBitMapTable[reg] & x87ClassMask) != 0);
+}
+
+                                                                  /* DO NOT EDIT */
+inline BOOL REG_is_pin_inst(REG reg) 
+{ 
     return ((_regSubClassBitMapTable[reg] & REGSBIT_PIN_INST_ALL) != 0);
 }
 
                                                                   /* DO NOT EDIT */
-inline BOOL REG_is_buffer(REG reg)
-{
+inline BOOL REG_is_buffer(REG reg) 
+{ 
     return ((_regSubClassBitMapTable[reg] &    (REG_SUBCLASS_BITS(1) << (REG_SUBCLASS_PIN_INST_BUF))) != 0);
 }
 
                                                                   /* DO NOT EDIT */
-inline BOOL REG_is_inst_scratch(REG reg)
-{
+inline BOOL REG_is_inst_scratch(REG reg) 
+{ 
     return ((_regSubClassBitMapTable[reg] & REGSBIT_PIN_SCRATCH_ALL) != 0);
 }
 
                                                                   /* DO NOT EDIT */
-inline ADDRINT REG_regSubClassBitMapTable()
-{
+inline ADDRINT REG_regSubClassBitMapTable() 
+{ 
     return ((ADDRINT)(_regSubClassBitMapTable));
 }
 
                                                                   /* DO NOT EDIT */
-inline ADDRINT REG_regDefTable()
-{
+inline ADDRINT REG_regDefTable() 
+{ 
     return ((ADDRINT)(_regDefTable));
 }
 
                                                                   /* DO NOT EDIT */
-inline BOOL REG_is_pin_tmp(REG reg)
-{
+inline BOOL REG_is_pin_tmp(REG reg) 
+{ 
     return ((_regSubClassBitMapTable[reg] &    (REG_SUBCLASS_BITS(1) << (REG_SUBCLASS_PIN_TMP))) != 0);
 }
 
@@ -1614,15 +1443,6 @@ inline BOOL REG_is_pin64(REG reg)
 
     return REG_is_pin_gr(reg);  // all FULL WIDTH pin gr registers are 64-bits
 }
-
-                                                                  /* DO NOT EDIT */
-extern REG REG_LastSupportedXmm();
-
-                                                                  /* DO NOT EDIT */
-extern REG REG_LastSupportedYmm();
-
-                                                                  /* DO NOT EDIT */
-extern REG REG_LastSupportedZmm();
 
                                                                   /* DO NOT EDIT */
 extern UINT32 REG_Size(REG reg);

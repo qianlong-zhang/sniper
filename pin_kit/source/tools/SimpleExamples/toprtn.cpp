@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,17 +28,24 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Robert Muth and Artur Klauser
+*/
+
+/* ===================================================================== */
 /*! @file
   *  This file contains a "real time" tool for showing the currently hostest routines
  */
 
+#include "pin.H"
+#include "portability.H"
 #include <map>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <algorithm> // for sort
 #include <vector>
-#include "pin.H"
 
 /* ===================================================================== */
 /* Commandline Switches */
@@ -129,9 +136,9 @@ VOID DumpHistogram(std::ostream& out)
     out << "\033[0m";
     out << endl;
 
-
+    
     VEC CountMap;
-
+    
     for (ADDR_CNT_MAP::iterator bi = RtnMap.begin(); bi != RtnMap.end(); bi++)
     {
         if( bi->second < cutoff ) continue;
@@ -154,14 +161,14 @@ VOID DumpHistogram(std::ostream& out)
         lines++;
         if (lines >= maxlines) break;
     }
-
+    
     for (ADDR_CNT_MAP::iterator bi = RtnMap.begin(); bi != RtnMap.end(); bi++)
     {
         bi->second = UINT64(bi->second * factor);
     }
-
+    
     //out << "Total Functions: " << CountMap.size() << endl;
-
+    
 }
 
 
@@ -193,11 +200,11 @@ VOID  do_call_indirect(ADDRINT target, BOOL taken)
 
 VOID Trace(TRACE trace, VOID *v)
 {
-
+        
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
     {
         INS tail = BBL_InsTail(bbl);
-
+        
         if( INS_IsCall(tail) )
         {
             INS_InsertCall(tail, IPOINT_BEFORE, AFUNPTR(do_call_indirect),
@@ -207,7 +214,7 @@ VOID Trace(TRACE trace, VOID *v)
         {
             // sometimes code is not in an image
             RTN rtn = TRACE_Rtn(trace);
-
+            
             // also track stup jumps into share libraries
             if( RTN_Valid(rtn) && !INS_IsDirectBranchOrCall(tail) && ".plt" == SEC_Name( RTN_Sec( rtn ) ))
             {
@@ -215,7 +222,7 @@ VOID Trace(TRACE trace, VOID *v)
                                IARG_BRANCH_TARGET_ADDR, IARG_BRANCH_TAKEN, IARG_END);
             }
         }
-
+        
     }
 }
 
@@ -238,7 +245,7 @@ int main(int argc, CHAR *argv[])
     // Never returns
 
     PIN_StartProgram();
-
+    
     return 0;
 }
 

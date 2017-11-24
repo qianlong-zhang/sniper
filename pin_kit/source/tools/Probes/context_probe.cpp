@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -40,7 +40,6 @@ END_LEGAL */
 /* ===================================================================== */
 #include "pin.H"
 #include <iostream>
-#include "tool_macros.h"
 
 using namespace std;
 
@@ -69,12 +68,12 @@ VOID ImageLoad(IMG img, VOID *v)
                                   "Bar", PIN_PARG_END() );
     VOID * pf_Blue=0x0;
     
-    RTN rtn1 = RTN_FindByName(img, C_MANGLE("Blue"));
+    RTN rtn1 = RTN_FindByName(img, "Blue");
     if (RTN_Valid(rtn1))
         pf_Blue = reinterpret_cast<VOID *>(RTN_Address(rtn1));
     
 
-    RTN rtn = RTN_FindByName(img, C_MANGLE("Bar"));
+    RTN rtn = RTN_FindByName(img, "Bar");
     if (RTN_Valid(rtn) && pf_Blue != 0x0 )
     {
         cout << "Replacing " << RTN_Name(rtn) << " in " << IMG_Name(img) << endl;

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -61,7 +61,6 @@ VOID INTERACTIVE_LISTENER::Active(){
    
     //create new thread that will listen to the socket
     PIN_SpawnInternalThread(WaitForUserSiganl, this, 0 ,NULL);
-    PIN_AddPrepareForFiniFunction(PrepareForFini,this);
     PIN_AddFiniFunction(Fini,this);
     PIN_AddSyscallEntryFunction(MonitorFD,this);
 }
@@ -135,12 +134,6 @@ VOID INTERACTIVE_LISTENER::MonitorFD(THREADID tid, CONTEXT *ctxt, SYSCALL_STANDA
      }
 }
 
-VOID INTERACTIVE_LISTENER::PrepareForFini(VOID* v)
-{
-    INTERACTIVE_LISTENER* l = static_cast<INTERACTIVE_LISTENER*>(v);
-    l->_processExiting = TRUE;
-}
-
 VOID INTERACTIVE_LISTENER::Fini(INT32, VOID* v){
     INTERACTIVE_LISTENER* l = static_cast<INTERACTIVE_LISTENER*>(v);
     close(l->_server_sock);
@@ -168,8 +161,7 @@ VOID INTERACTIVE_LISTENER::WaitForUserSiganl(VOID* v){
     tv.tv_usec = 500000; //time in microsec.
 
     while (1){
-        if (listener->_processExiting)
-        {
+        if (PIN_IsProcessExiting()){
             close(fd);
             return;
         }
@@ -177,7 +169,7 @@ VOID INTERACTIVE_LISTENER::WaitForUserSiganl(VOID* v){
         FD_SET(fd, &rfds);
         memset(buf,0,1);
         retval = select(fd+1, &rfds, NULL, NULL, &tv);
-        if(retval == -1 && !listener->_processExiting){
+        if(retval == -1){
             ASSERT(FALSE,"error in select function, errno: " + decstr(errno));
         }
         else if (retval){

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -42,7 +42,7 @@ int src[MEMSIZE];
 main (int argc, char *argv[])
 {
     int *ptrTo32BitMem
-        = (int *)mmap(NULL, MEMSIZE, PROT_READ | PROT_WRITE, MAP_32BIT | MAP_PRIVATE | MAP_ANON, -1, 0);
+        = (int *)mmap(NULL, MEMSIZE, PROT_READ | PROT_WRITE, MAP_32BIT | MAP_PRIVATE | MAP_ANON, 0, 0);
     printf ("memory allocated at %p\n", ptrTo32BitMem);
     fflush (stdout);
     if ((long long)(ptrTo32BitMem) & 0xffffffff00000000L)

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -73,9 +73,8 @@ VOID REPLACE_ReplacedXmmRegs(CONTEXT *context, THREADID tid, AFUNPTR originalFun
 
     /* set the xmm regs in the ctxt which is used to execute the 
        originalFunction (via PIN_CallApplicationFunction) */
-    CHAR fpContextSpaceForFpConextFromPin[FPSTATE_SIZE + FPSTATE_ALIGNMENT];
-    FPSTATE *fpContextFromPin = reinterpret_cast<FPSTATE *>((reinterpret_cast<ADDRINT>(fpContextSpaceForFpConextFromPin)
-                                + FPSTATE_ALIGNMENT - 1) & (-1 * FPSTATE_ALIGNMENT));
+    CHAR fpContextSpaceForFpConextFromPin[FPSTATE_SIZE];
+    FPSTATE *fpContextFromPin = reinterpret_cast<FPSTATE *>(fpContextSpaceForFpConextFromPin);
         
     PIN_GetContextFPState(ctxt, fpContextFromPin);
     for (int i=0; i<NUM_XMM_REGS; i++)
@@ -89,9 +88,8 @@ VOID REPLACE_ReplacedXmmRegs(CONTEXT *context, THREADID tid, AFUNPTR originalFun
     PIN_SetContextFPState(ctxt, fpContextFromPin);
 
     // verify the xmm regs were set in the ctxt
-    CHAR fpContextSpaceForFpConextFromPin2[FPSTATE_SIZE + FPSTATE_ALIGNMENT];
-    FPSTATE *fpContextFromPin2 = reinterpret_cast<FPSTATE *>((reinterpret_cast<ADDRINT>(fpContextSpaceForFpConextFromPin2)
-                                 + FPSTATE_ALIGNMENT - 1) & (-1 * FPSTATE_ALIGNMENT));
+    CHAR fpContextSpaceForFpConextFromPin2[FPSTATE_SIZE];
+    FPSTATE *fpContextFromPin2 = reinterpret_cast<FPSTATE *>(fpContextSpaceForFpConextFromPin2);
     PIN_GetContextFPState(ctxt, fpContextFromPin2);
     for (int i=0; i<NUM_XMM_REGS; i++)
     {
@@ -190,9 +188,8 @@ VOID OnThread(THREADID threadIndex, CONTEXT *ctxt, INT32 flags, VOID *v)
     printf ("TOOL OnThread callback\n");
     fflush (stdout);
     /* set the xmm regs in the ctxt which is used to execute the thread */
-    CHAR fpContextSpaceForFpConextFromPin[FPSTATE_SIZE + FPSTATE_ALIGNMENT];
-    FPSTATE *fpContextFromPin = reinterpret_cast<FPSTATE *>((reinterpret_cast<ADDRINT>(fpContextSpaceForFpConextFromPin)
-                                + FPSTATE_ALIGNMENT - 1) & (-1 * FPSTATE_ALIGNMENT));
+    CHAR fpContextSpaceForFpConextFromPin[FPSTATE_SIZE];
+    FPSTATE *fpContextFromPin = reinterpret_cast<FPSTATE *>(fpContextSpaceForFpConextFromPin);
 
     PIN_GetContextFPState(ctxt, fpContextFromPin);
     for (int i=0; i<NUM_XMM_REGS; i++)
@@ -205,9 +202,8 @@ VOID OnThread(THREADID threadIndex, CONTEXT *ctxt, INT32 flags, VOID *v)
     PIN_SetContextFPState(ctxt, fpContextFromPin);
 
     // verify the xmm regs were set in the ctxt
-    CHAR fpContextSpaceForFpConextFromPin2[FPSTATE_SIZE + FPSTATE_ALIGNMENT];
-    FPSTATE *fpContextFromPin2 = reinterpret_cast<FPSTATE *>((reinterpret_cast<ADDRINT>(fpContextSpaceForFpConextFromPin2)
-                                 + FPSTATE_ALIGNMENT - 1) & (-1 * FPSTATE_ALIGNMENT));
+    CHAR fpContextSpaceForFpConextFromPin2[FPSTATE_SIZE];
+    FPSTATE *fpContextFromPin2 = reinterpret_cast<FPSTATE *>(fpContextSpaceForFpConextFromPin2);
     PIN_GetContextFPState(ctxt, fpContextFromPin2);
     for (int i=0; i<NUM_XMM_REGS; i++)
     {
@@ -236,9 +232,8 @@ void CheckAndSetFpContextXmmRegs (const CONTEXT *ctxtFrom, CONTEXT *ctxtTo)
 {
     fprintf (stdout, "TOOL CheckAndSetFpContextXmmRegs\n");
     fflush (stdout);
-    CHAR fpContextSpaceForFpConextFromPin[FPSTATE_SIZE + FPSTATE_ALIGNMENT];
-    FPSTATE *fpContextFromPin = reinterpret_cast<FPSTATE *>((reinterpret_cast<ADDRINT>(fpContextSpaceForFpConextFromPin)
-                                + FPSTATE_ALIGNMENT - 1) & (-1 * FPSTATE_ALIGNMENT));
+    CHAR fpContextSpaceForFpConextFromPin[FPSTATE_SIZE];
+    FPSTATE *fpContextFromPin = reinterpret_cast<FPSTATE *>(fpContextSpaceForFpConextFromPin);
     
     // the application set the each byte in the xmm regs in the state to be 0xa5 before the exception was caused
     PIN_GetContextFPState(ctxtFrom, fpContextFromPin);
@@ -332,31 +327,30 @@ static void OnException(THREADID threadIndex,
                   INT32 info, 
                   VOID *v)
 {
-    if ((ctxtTo == NULL) ||
-        ((CONTEXT_CHANGE_REASON_SIGNAL != reason) && (CONTEXT_CHANGE_REASON_EXCEPTION != reason)))
-    { // Only exceptions and signals are handled
+    if (CONTEXT_CHANGE_REASON_SIGRETURN == reason || CONTEXT_CHANGE_REASON_APC == reason
+        || CONTEXT_CHANGE_REASON_CALLBACK == reason || CONTEXT_CHANGE_REASON_FATALSIGNAL == reason
+        || ctxtTo == NULL)
+    { // don't want to handle these
         return;
     }
-    ADDRINT curIp = PIN_GetContextReg(ctxtFrom, REG_INST_PTR);
-    IMG img = IMG_FindByAddress(curIp);
-    if (!IMG_Valid(img) || !IMG_IsMainExecutable(img))
-    {   // Events of interest should occur in main executable
-        return;
-    }
-
     fprintf (stdout, "TOOL OnException callback\n");
     fflush (stdout);
+    
 
     //PIN_SaveContext(ctxtFrom, ctxtTo);
     CheckAndSetFpContextXmmRegs(ctxtFrom, ctxtTo);
-
+    
+    
+    
     // call the application function with the ctxtTo context
-    PIN_SetContextReg(ctxtTo, REG_INST_PTR, dumpXmmRegsAtExceptionAddr);
 #ifdef TARGET_IA32E
+    PIN_SetContextReg(ctxtTo, REG_RIP, dumpXmmRegsAtExceptionAddr);
     // take care of stack alignment since tool is redirecting execution flow to function
     ADDRINT curSp = PIN_GetContextReg(ctxtTo, REG_RSP);
     INT32 currentAlignment = curSp % 16;
     PIN_SetContextReg(ctxtTo, REG_RSP, curSp - GetStackAdjustmentForRedirectionToFunction(currentAlignment));
+#else
+    PIN_SetContextReg(ctxtTo, REG_EIP, dumpXmmRegsAtExceptionAddr);
 #endif
 }
 

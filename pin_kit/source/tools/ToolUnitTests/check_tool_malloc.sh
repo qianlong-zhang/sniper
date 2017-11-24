@@ -22,7 +22,7 @@ fi
 
 # We allow pin val to be somewhat larger then the tool value
 diff_val=$(($pin_val-$tool_val))
-if [ $diff_val -le 13000 ]
+if [ $diff_val -le 10000 ]
 then
     exit 0
 fi

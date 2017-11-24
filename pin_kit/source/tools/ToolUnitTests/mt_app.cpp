@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
     {
         if (!CreateOneThread(&threads[i], ThreadProc, 0))
         {
-            cerr << "CreateOneThread failed" << endl << flush;
+            cerr << "CreateOneThread failed" << endl;
         }
     }
 
@@ -76,17 +76,17 @@ int main(int argc, char *argv[])
     {
         if (!JoinOneThread(threads[i]))
         {
-            cerr << "JoinOneThread failed" << endl << flush;
+            cerr << "JoinOneThread failed" << endl;
         }
     }
 
-    cerr << "All application's threads joined" << endl << flush;
+    cerr << "All application's threads joined" << endl;
 
     // Trigger the Code Cache flush
     DoFlush();
     DelayCurrentThread(1000); 
     
-    cerr << "Application is exiting" << endl << flush;
+    cerr << "Application is exiting" << endl;
 
     return 0;
 }

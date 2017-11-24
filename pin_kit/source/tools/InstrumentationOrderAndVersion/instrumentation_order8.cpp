@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -36,12 +36,10 @@ END_LEGAL */
 
 #include "instrumentation_order_app.h"
 
-// A knob for defining the output file name
-KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o", "instrumentation_order8.out",
-                            "specify file name for instrumentation order output");
 
-// ofstream object for handling the output.
-ofstream outstream;
+
+static ofstream outstream("instrumentation_order8.out");
+    
 
 
 void Emit(char const* message)
@@ -130,8 +128,6 @@ int main(int argc, char * argv[])
 {
     PIN_InitSymbols();
     PIN_Init(argc, argv);
-
-    outstream.open(KnobOutputFile.Value().c_str());
 
     TRACE_AddInstrumentFunction(Trace, 0);
 

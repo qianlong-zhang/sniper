@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -31,7 +31,6 @@ END_LEGAL */
 #include "pin.H"
 #include <iostream>
 #include <fstream>
-#include "tool_macros.h"
 
 using namespace std;
 
@@ -79,7 +78,7 @@ void my_exit(int code)
 // Look for routines that we want to probe
 VOID ImageLoad(IMG img, VOID *v)
 {
-    RTN exitRtn = RTN_FindByName(img, C_MANGLE("exit"));
+    RTN exitRtn = RTN_FindByName(img, "exit");
 
     if (RTN_Valid(exitRtn))
     {

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -42,32 +42,27 @@ END_LEGAL */
 
 #include <iostream>
 #include <fstream>
-
-#include <link.h>
-#include <dlfcn.h>
-
 #include "pin.H"
+namespace WINDOWS
+{
+#include <windows.h>
+}
 
 using namespace std;
-
-KNOB<BOOL> KnobEnumerate(KNOB_MODE_WRITEONCE, "pintool",
-    "enumerate", "0", "Enumerate modules loaded by Pin");
 
 /* ===================================================================== */
 /* Global Variables and Declerations */
 /* ===================================================================== */
 
-PIN_LOCK pinLock;
+PIN_LOCK lock;
 
 typedef VOID (* BEFORE_BBL)(ADDRINT ip);
-typedef int (* INIT_F)(bool enumerate);
-typedef VOID (* FINI_F)();
 
 #if defined(DYN_LOAD)
 // Functions pointers for dynamic_secondary_dll
 BEFORE_BBL pBeforeBBL2;
-INIT_F pInit2;
-FINI_F pFini2;
+WINDOWS::FARPROC pInit2;
+WINDOWS::FARPROC pFini2;
 #endif
 
 // Dll imports for static_secondary_dll
@@ -80,12 +75,12 @@ extern "C" __declspec( dllimport ) VOID Fini1();
 // This function is called before every basic block
 VOID PIN_FAST_ANALYSIS_CALL BeforeBBL(ADDRINT ip) 
 {
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     BeforeBBL1(ip);
 #if defined(DYN_LOAD)
     pBeforeBBL2(ip);
 #endif
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 }
 
 /* ===================================================================== */
@@ -104,22 +99,22 @@ VOID Trace(TRACE trace, VOID *v)
 
 VOID ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, VOID *v)
 {
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     BeforeBBL1(0);
 #if defined(DYN_LOAD)
     pBeforeBBL2(0);
 #endif
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 }
 
 VOID ThreadFini(THREADID threadid, const CONTEXT *ctxt, INT32 code, VOID *v)
 {
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     BeforeBBL1(0);
 #if defined(DYN_LOAD)
     pBeforeBBL2(0);
 #endif
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 }
 
 /* ===================================================================== */
@@ -133,16 +128,6 @@ VOID Fini(INT32 code, VOID *v)
 #endif
 }
 
-// This function gets info of an image loaded by Pin loader.
-// Invoked by dl_iterate_phdr()
-int dl_iterate_callback(struct dl_phdr_info * info, size_t size, VOID * data)
-{
-    cerr << info->dlpi_name << " " << hex << info->dlpi_addr << " " << info->dlpi_phdr->p_memsz << endl;
-    // Increment module counter.
-    ++(*reinterpret_cast<int *>(data));
-    return 0;
-}
-
 /* ===================================================================== */
 
 int main(int argc, char * argv[])
@@ -150,7 +135,7 @@ int main(int argc, char * argv[])
     // Initialize pin
     PIN_Init(argc, argv);
 
-    PIN_InitLock(&pinLock);
+    PIN_InitLock(&lock);
 
     // Register Trace() to be called to instrument traces
     TRACE_AddInstrumentFunction(Trace, 0);
@@ -161,38 +146,25 @@ int main(int argc, char * argv[])
     // Call Static secondary dll Init1()
     Init1();
 
-    int nModules;
-
 #if defined(DYN_LOAD)
     // Dynamic secondary dll - load library, initialize function pointers
     // and call Init2()
-    VOID * module = dlopen("dynamic_secondary_dll.dll", RTLD_NOW);
-    if (module == NULL)
+    WINDOWS::HMODULE module = WINDOWS::LoadLibrary("dynamic_secondary_dll.dll");
+    if(module == NULL)
     {
         cerr << "Failed to load dynamic_secondary_dll.dll" << endl;
         exit(1);
     }
-    pInit2 = reinterpret_cast<INIT_F>(dlsym(module, "Init2"));
-    pBeforeBBL2 = reinterpret_cast<BEFORE_BBL>(dlsym(module, "BeforeBBL2"));
-    pFini2 = reinterpret_cast<FINI_F>(dlsym(module, "Fini2"));
-    if (pInit2 == NULL || pBeforeBBL2 == NULL || pFini2 == NULL)
+    pInit2 = WINDOWS::GetProcAddress(module, "Init2");
+    pBeforeBBL2 = reinterpret_cast<BEFORE_BBL>(WINDOWS::GetProcAddress(module, "BeforeBBL2"));
+    pFini2 = WINDOWS::GetProcAddress(module, "Fini2");
+    if(pInit2 == NULL || pBeforeBBL2 == NULL || pFini2 == NULL)
     {
         cerr << "Failed to find proc addresses in dynamic_secondary_dll.dll" << endl;
         exit(1);
     }
-
-    nModules = pInit2(KnobEnumerate);
+    pInit2(); 
 #endif
-
-    int nModulesMain = 0;
-    // Enumerate DLLs currently loaded by Pin loader.
-    dl_iterate_phdr(dl_iterate_callback, &nModulesMain);
-
-    if (KnobEnumerate && ((nModulesMain <= 0) || (nModulesMain != nModules)))
-    {
-        // Failure. Module enumeration results in main and dynamic Dlls don't match.
-        PIN_ExitApplication(1);
-    }
 
     // Start the program, never returns
     PIN_StartProgram();

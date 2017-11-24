@@ -28,6 +28,14 @@ inline VOID REGSET_Clear(REGSET& regset) { regset.Clear();}
 inline VOID REGSET_AddAll(REGSET& regset)
 {
     regset.InsertAll();
+#ifdef TARGET_MIC
+    regset.Remove(REG_XMM_BASE);
+    regset.Remove(REG_YMM_BASE);
+#else
+    regset.Remove(REG_ZMM_BASE);
+    regset.Remove(REG_K_BASE);
+#endif
+
 }
 
                                                                   /* DO NOT EDIT */

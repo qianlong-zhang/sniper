@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,25 +28,24 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
-/*
- * This application checks the correctness of the retrieve and alteration
- * of the thread sigmask when a tool retrieves / alters it.
- */
-
 #include <pthread.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <signal.h>
-#include <cstdio>
+#include <stdio.h>
 #include <errno.h>
-#include <cstring>
+#include <string.h>
 #include <cstdlib>
 #include <semaphore.h>
 #include <sys/syscall.h>
 
+/*
+ * This application checks the correctness of the retrieve and alteration
+ * of the thread sigmask when a tool retrieve/alter it.
+ */
 
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
+
+static sem_t mutex, mutex1;
 static pthread_t one_tid, two_tid;
 static FILE * fd_signals;
 static char * FILE_NAME = const_cast<char *>("signal_list.txt");
@@ -54,58 +53,28 @@ static int MAX_SIZE = 128; /*maximum line size*/
 static int syncPipe[2];
 static volatile int iteration = 0;
 
-
 extern "C" bool WaitChangeSigmask()
 {
    return false;
 }
 
-
 void EmptySignalHandler(int param)
 {
-}
-
-int mutex_lock_check_errno(pthread_mutex_t *mtx)
-{
-    do
-    {
-        int r = pthread_mutex_lock(mtx);
-        if (0 == r)
-        {
-            return r;
-        }
-    }
-    while (EINTR == errno);
-    perror("pthread_mutex_lock");
-    abort();
-    return -1;
-}
-
-int mutex_unlock_check_errno(pthread_mutex_t *mtx)
-{
-    int r = pthread_mutex_unlock(mtx);
-    if (0 != r)
-    {
-        perror("pthread_mutex_unlock");
-        abort();
-    }
-    return 0;
 }
 
 /*
  * block all the signals relevant to this test
  * Note that we don't want to block SIGTERM, SIGINT and such because we want
- * to allow the test termination in case of cancellation
+ * to allow the test termination in case of cancelation
  */
 void BlockUserSignals()
-{
+{ 
     sigset_t sigmask;
     sigemptyset(&sigmask);
     sigaddset(&sigmask, SIGUSR1);
     sigaddset(&sigmask, SIGUSR2);
     pthread_sigmask(SIG_BLOCK, &sigmask, NULL);
-}
-
+} 
 
 /*
  * block only the signals in the list: "signalsListToBlock"
@@ -114,23 +83,23 @@ void BlockSignals(int signalsListToBlock[] , int len, sigset_t * sigmask)
 {
     sigemptyset(sigmask);
     int i;
-    for(i=0; i< len; ++i)
+    for(i=0; i< len; ++i) 
         sigaddset(sigmask, signalsListToBlock[i]);
     pthread_sigmask(SIG_SETMASK, sigmask, NULL);
 }
-
 
 /*
  *  A thread function that processes SIGUSR1 and SIGUSR2 signals sent by the SignalSender thread function
  */
 void * SignalReceiver(void *arg)
-{
-    fd_signals = fopen(FILE_NAME, "w");
+{ 
+    fd_signals= fopen(FILE_NAME, "wt"); 
     int sigList[1] = {SIGUSR2};
     sigset_t sigmask;
     BlockSignals(sigList, 1, &sigmask);
     signal(SIGUSR2, EmptySignalHandler);
     signal(SIGUSR1, EmptySignalHandler);
+    sem_post(&mutex);
     while (iteration<10)
     { 
         int numSigReceived=0;
@@ -148,18 +117,8 @@ void * SignalReceiver(void *arg)
             }
             if (sigismember(&sigmask, SIGUSR1) || sigismember(&sigmask, SIGUSR2))
             {
-                int err;
-                do
-                {
-                    // sigwait will not block since we already have signal pending
-                    err = sigwait(&sigmask, &numSigReceived);
-                }
-                while (err == EINTR);
-                if (0 != err)
-                {
-                    fprintf(stderr, "sigwait failed with errno %d\n", err);
-                    exit(2);
-                }
+                // sigwait will not block since we already have signal pending
+                sigwait(&sigmask, &numSigReceived);
                 break;
             }
             sched_yield();
@@ -178,13 +137,12 @@ void * SignalReceiver(void *arg)
             iteration++;
             fprintf(fd_signals, "%d", 1 );
         }
-        mutex_unlock_check_errno(&mutex);
-        mutex_lock_check_errno(&mutex1);
-    }
+        sem_post(&mutex);
+        sem_wait(&mutex1);
+    } 
     fclose(fd_signals);
     return NULL;
-}
-
+} 
 
 /*
  *  Send repeatedly signals (SIGUSR1 and SIGUSR2) to the thread which starts execution by invoking the function
@@ -196,7 +154,7 @@ void * SignalSender(void *arg)
     sigset_t sigmask;
     int sigList[2] = {SIGUSR1, SIGUSR2};
     BlockSignals(sigList, 2, &sigmask);
-    mutex_lock_check_errno(&mutex);
+    sem_wait(&mutex);
     do
     {
         pthread_kill(two_tid, SIGUSR2); /* Delivers a signal*/
@@ -209,55 +167,22 @@ void * SignalSender(void *arg)
             while(!WaitChangeSigmask()) sched_yield();
         }
 
-        mutex_unlock_check_errno(&mutex1);
-        mutex_lock_check_errno(&mutex);
+        sem_post(&mutex1);
+        sem_wait(&mutex);           
     }
     while (pthread_kill(two_tid, 0) == 0); // while two_tid is alive
     return NULL;
 }
 
-
-/*
- * Main function
- *
- * Expected arguments:
- * 1 - output file name
- * 2 - Pin executable
- * 3 - "-slow_asserts" (optional)
- * 4 - tool name
- */
 int main(int argc, char * argv[])
 {
     pid_t parentPid = getpid();
 
-    bool validNumberOfArgs = true;
-    if (4 == argc)
+    if (argc != 3 && argc != 4)
     {
-        for (int i = 0; i < argc; ++i)
-        {
-            if (0 == strcmp("-slow_asserts", argv[i])) // not expecting -slow_asserts
-            {
-                validNumberOfArgs = false;
-                break;
-            }
-        }
-    }
-    else if (5 == argc)
-    {
-        if (0 != strcmp("-slow_asserts", argv[3])) // expecting -slow_asserts at position 3
-        {
-            validNumberOfArgs = false;
-        }
-    }
-    else validNumberOfArgs = false; // illegal number of arguments
-
-    if (!validNumberOfArgs)
-    {
-        fprintf(stderr, "Usage: %s <output file> <PIN exe> [-slow_asserts] <Tool name>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <PIN exe> [-slow_asserts] <Tool name>\n", argv[0]);
         return 1;
     }
-
-    FILE_NAME = argv[1];
 
     if (0 != pipe(syncPipe))
     {
@@ -266,43 +191,55 @@ int main(int argc, char * argv[])
     }
     pid_t pid = fork();
     BlockUserSignals();
-
-    if (0 != pid)
+ 
+    if (pid)
     {
-        // In the parent process.
         close(syncPipe[0]); // close the read side of the pipe
-        mutex_lock_check_errno(&mutex);
-        mutex_lock_check_errno(&mutex1);
+        sem_init(&mutex, 0, 0);
+        sem_init(&mutex1, 0, 0);
+    
         /*
-         * create two threads, one which sends signals to the other threads, which receives them.
+         * create two threads, one which sends siganls to the other threads, which receives them.
          */
-        pthread_create(&one_tid, NULL, SignalSender, NULL);
+        pthread_create(&one_tid, NULL, SignalSender, NULL); 
         pthread_create(&two_tid, NULL, SignalReceiver, NULL);
-
+     
         /*
-         * suspended execution until the two threads terminate
+         * suspended excution until the two threads terminate
          */
         pthread_join(two_tid,NULL);
-        mutex_unlock_check_errno(&mutex); // release mutex as one_tid may wait on it
+        sem_post(&mutex); // release mutex as one_tid may wait on it
         pthread_join(one_tid, NULL);
+
+        /*
+         * cleanup  
+         */
+        sem_destroy(&mutex); /* destroy semaphore */
+        sem_destroy(&mutex1); /* destroy semaphore */
     }
-    else
+    else 
     {
-        // In the child process.
         char dummy;
+        // inside child
         close(syncPipe[1]); // close the write side of the pipe
         read(syncPipe[0], &dummy, sizeof(dummy)); // wait for parent
         close(syncPipe[0]); // close the read side as we're done
         char attachPid[MAX_SIZE];
         sprintf(attachPid, "%d", parentPid);
 
-        const char* args[9];
+        char* args[9];
         int argsco = 0;
-        int argsci = 2; // input argument #2 is the Pin executable (see documentation at the top of the main function)
+        int argsci = 1;
         args[argsco++] = argv[argsci++]; // pin executable
-        if (argc == 5)
+        if (argc == 4)
         {
-            const char* slow_assert = args[argsco++] = argv[argsci++]; // -slow_asserts (if present)
+            char* slow_assert = args[argsco++] = argv[argsci++]; // -slow-assert (if presented)
+            if (0 != strcmp(slow_assert, "-slow_asserts"))
+            {
+                fprintf(stderr, "Expected 2nd argument in command line (%s) to be -slow_asserts\n", slow_assert);
+                killpg(0, SIGKILL);
+                return 2;
+            }
         }
         args[argsco++] = "-probe";
         args[argsco++] = "-pid";
@@ -310,14 +247,12 @@ int main(int argc, char * argv[])
         args[argsco++] = "-t";
         args[argsco++] = argv[argsci++]; // tool name
         args[argsco++] = NULL; // end
-
+          
         /*
          * Pin attach to the parent thread.
          * never return
          */
-        execv(args[0], (char * const *)args);
-        perror("execv");
-        return 10;
+        execv(args[0], args);
+        fprintf(stderr, "execl failed with errno: %d\n", errno);
     }
-    return 0;
 }

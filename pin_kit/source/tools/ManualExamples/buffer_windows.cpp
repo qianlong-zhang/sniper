@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -30,7 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
 /*
  * Sample buffering tool
- *
+ * 
  * This tool collects an address trace of instructions that access memory
  * by filling a buffer.  When the buffer overflows,the callback writes all
  * of the collected records to a file.
@@ -39,9 +39,10 @@ END_LEGAL */
 
 #include <iostream>
 #include <fstream>
-#include <cstdlib>
-#include "pin.H"
+#include <stdlib.h>
 
+#include "pin.H"
+#include "portability.H"
 using namespace std;
 
 /*
@@ -116,7 +117,7 @@ VOID Trace(TRACE trace, VOID *v)
             for (UINT32 memOp = 0; memOp < memoryOperands; memOp++)
             {
                 UINT32 refSize = INS_MemoryOperandSize(ins, memOp);
-
+                
                 // Note that if the operand is both read and written we log it once
                 // for each.
                 if (INS_MemoryOperandIsRead(ins, memOp))
@@ -124,7 +125,7 @@ VOID Trace(TRACE trace, VOID *v)
                     INS_InsertFillBuffer(ins, IPOINT_BEFORE, bufId,
                                          IARG_INST_PTR, offsetof(struct MEMREF, pc),
                                          IARG_MEMORYOP_EA, memOp, offsetof(struct MEMREF, ea),
-                                         IARG_UINT32, refSize, offsetof(struct MEMREF, size),
+                                         IARG_UINT32, refSize, offsetof(struct MEMREF, size), 
                                          IARG_BOOL, TRUE, offsetof(struct MEMREF, read),
                                          IARG_END);
                 }
@@ -134,7 +135,7 @@ VOID Trace(TRACE trace, VOID *v)
                     INS_InsertFillBuffer(ins, IPOINT_BEFORE, bufId,
                                          IARG_INST_PTR, offsetof(struct MEMREF, pc),
                                          IARG_MEMORYOP_EA, memOp, offsetof(struct MEMREF, ea),
-                                         IARG_UINT32, refSize, offsetof(struct MEMREF, size),
+                                         IARG_UINT32, refSize, offsetof(struct MEMREF, size), 
                                          IARG_BOOL, FALSE, offsetof(struct MEMREF, read),
                                          IARG_END);
                 }
@@ -211,7 +212,7 @@ INT32 Usage()
  * The main procedure of the tool.
  * This function is called when the application image is loaded but not yet started.
  * @param[in]   argc            total number of elements in the argv array
- * @param[in]   argv            array of command line arguments,
+ * @param[in]   argv            array of command line arguments, 
  *                              including pin -t <toolname> -- ...
  */
 int main(int argc, char *argv[])
@@ -222,7 +223,7 @@ int main(int argc, char *argv[])
     {
         return Usage();
     }
-
+    
     // Initialize the memory reference buffer;
     // set up the callback to process the buffer.
     //
@@ -247,16 +248,16 @@ int main(int argc, char *argv[])
         exit(1);
     }
     ofile << hex;
-
+    
     // Add an instrumentation function
     TRACE_AddInstrumentFunction(Trace, 0);
 
     // Register Fini to be called when the application exits
     PIN_AddFiniFunction(Fini, 0);
-
+    
    // Start the program, never returns
     PIN_StartProgram();
-
+    
     return 0;
 }
 

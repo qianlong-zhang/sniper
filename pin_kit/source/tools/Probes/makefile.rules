@@ -17,11 +17,16 @@
 # This defines tests which run tools of the same name.  This is simply for convenience to avoid
 # defining the test name twice (once in TOOL_ROOTS and again in TEST_ROOTS).
 # Tests defined here should not be defined in TOOL_ROOTS and TEST_ROOTS.
-TEST_TOOL_ROOTS := probemalloctrace iprtool probesleep replace_empty replacesig_empty scan_all_rtns_for_probe \
-                   probe_on_probe1 probe1 ins_fetch_overrun default_probe_size probe_overlap spawn_internal_thread_probe
+TEST_TOOL_ROOTS :=
 
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
 TEST_ROOTS :=
+
+# This defines a list of tests that should run in the "short" sanity. Tests in this list must also
+# appear either in the TEST_TOOL_ROOTS or the TEST_ROOTS list.
+# If the entire directory should be tested in sanity, assign TEST_TOOL_ROOTS and TEST_ROOTS to the
+# SANITY_SUBSET variable in the tests section below (see example in makefile.rules.tmpl).
+SANITY_SUBSET :=
 
 # This defines the tools which will be run during the the tests, and were not already defined in
 # TEST_TOOL_ROOTS.
@@ -36,12 +41,10 @@ TOOL_ROOTS :=
 SA_TOOL_ROOTS :=
 
 # This defines all the applications that will be run during the tests.
-APP_ROOTS := dltest unloadtest sleep replaceapp simplefoo9 simplefoo10 app_trace ipr empty error-app little_malloc \
-             exception_in_probed_call_cpp_after_app exception_in_probed_call_cpp_app ins_fetch_overrun_app \
-             func_nops spawn_internal_thread_probe_app
+APP_ROOTS := dltest
 
 # This defines any additional object files that need to be compiled.
-OBJECT_ROOTS := simplebar ins_fetch_overrun_asm func_nops_asm
+OBJECT_ROOTS :=
 
 # This defines any additional dlls (shared objects), other than the pintools, that need to be compiled.
 DLL_ROOTS := one two
@@ -51,81 +54,83 @@ LIB_ROOTS :=
 
 ###### Place OS-specific definitions here ######
 
-# Linux
-ifeq ($(TARGET_OS),linux)
-    TEST_TOOL_ROOTS += malloctrace2 symbolnames replace_exit unix_parent_tool proto1 proto2 proto3 proto4 probe2 \
-                       probe3 probe5 probe8 probe10 sectest context_probe malloctrace_locktest init remove_probe probe_err1 \
-                       probe_err2 probe_err4 probe_err5 probe_err6 remove_probe2 insert1 insert2 insert3 insert4 insert5 \
-                       insert6 insert7 insert8 insert9 insert10 insert11 insert12 code_range load_map spinlock_replsig \
-                       spinlock_repl spinlock_insert sempost_repl svcraw_repl exit_repl relocate_rtn insert_call_probed \
-                       error-unix-probe error-unix-jit exception_in_dll_tool probesafetest exception_in_probed_call_after \
-                       exception_in_probed_call_sig pthread_exit_tool probe_close exception_in_probe_on_probe \
-                       exception_in_probe_on_probe_sig tpss_lin_libdl tpss_lin_libc \
-                       tpss_lin_libncurses tpss_lin_libpthread tpss_lin_librt atfork_callbacks
-    TEST_ROOTS += insert1_no_xmm follow_execv_with_config1 pthread_atfork pthread_atfork2
-    APP_ROOTS += probesafetest_app replacecall err_call replacefun err_replace bad_jump good_jump fall_thru \
-                 bad_call high_target protofoo simplefoo thd_malloc spin_lock_app sempost_app svcraw_app \
-                 exit_app relocate_app insert_call_probed_app load_map_app exception_in_dll_app pthread_exit_c_app \
-                 pthread_exit_cpp_app dltest-tp child_process parent_process fork_app atfork_callbacks_app
-     OBJECT_ROOTS += probe_safe_test_asm do_nothing_asm simplesp relocate_asm
+# Android
+ifeq ($(TARGET_OS),android)
+    TEST_TOOL_ROOTS += probemalloctrace iprtool malloctrace2 symbolnames replace_exit unix_parent_tool proto1 proto2 \
+                       proto3 proto4 replace_empty replacesig_empty probe1 probe2 probe3 probe5 probe8 probe10 sectest \
+                       context_probe malloctrace_locktest probe_on_probe1 init remove_probe probesleep \
+                       probe_err1 probe_err2 probe_err4 probe_err5 probe_err6 remove_probe2 insert1 insert2 insert3 \
+                       insert4 insert5 insert6 insert7 insert8 insert9 insert10 insert11 insert12 code_range \
+                       spinlock_replsig spinlock_repl spinlock_insert sempost_repl svcraw_repl exit_repl relocate_rtn \
+                       load_map insert_call_probed error-lin-probe error-lin-jit exception_in_dll_tool probesafetest \
+                       exception_in_probed_call_after exception_in_probed_call_sig pthread_exit_tool probe_close \
+                       exception_in_probe_on_probe exception_in_probe_on_probe_sig exception_in_mt_attach \
+                       scan_all_rtns_for_probe tpss_lin_libdl tpss_lin_libncurses tpss_lin_libpthread tpss_lin_librt \
+                       tpss_lin_libc
+    TEST_ROOTS += insert1_no_xmm follow_execv_with_config1
+    APP_ROOTS += probesafetest_app replaceapp replacecall err_call replacefun err_replace bad_jump good_jump fall_thru \
+                 bad_call high_target app_trace protofoo simplefoo thd_malloc spin_lock_app sempost_app svcraw_app \
+                 exit_app relocate_app insert_call_probed_app load_map_app exception_in_probed_call_cpp_after_app \
+                 exception_in_dll_app pthread_exit_c_app exception_in_probed_call_cpp_app pthread_exit_cpp_app \
+                 exception_in_mt_attach_app ipr unloadtest little_malloc sleep simplefoo9 simplefoo10 dltest-tp \
+                 error-app empty child_process parent_process 
+    OBJECT_ROOTS += probe_safe_test_asm do_nothing_asm simplesp relocate_asm
     DLL_ROOTS += mallocwrappers exc
     ifeq ($(TARGET),ia32)
         TEST_TOOL_ROOTS += signals
         APP_ROOTS += signals_app
         LIB_ROOTS += libarglist
     endif
-    # There is no redzone in the stack according to the IA32 ABI so no need to test it
-    ifeq ($(TARGET),intel64)
-        TEST_TOOL_ROOTS += probe4 probe6 probe7 probe9 syscall_in_probe probe_movip redzone
-        APP_ROOTS += replacedisp replacejmp replaceshorty move_ip syscall_in_probe_app redzone_app
-        OBJECT_ROOTS += jmp_in_probe_asm pc64 syscall_yield64 redzone_app_asm
-    endif
-    ifeq ($(ATTACH),1)
-        TEST_TOOL_ROOTS += exception_in_mt_attach
-        APP_ROOTS += exception_in_mt_attach_app
-    endif
 endif
 
-# Mac OS X*
-ifeq ($(TARGET_OS),mac)
-    TEST_TOOL_ROOTS += malloctrace2 replace_exit symbolnames unix_parent_tool proto1 proto2 proto3 proto4 \
-                       replacesig_empty probe2 probe3 probe5 probe8 probe10 sectest context_probe code_range \
-                       remove_probe probe_err1 probe_err2 probe_err4 probe_err5 probe_err6 remove_probe2 insert1 \
-                       insert2 insert3 insert4 insert5 insert6 insert7 insert8 insert9 insert10 insert11 insert12 \
-                       load_map svcraw_repl exit_repl relocate_rtn insert_call_probed insert_call_probed \
-                       probe_close error-unix-probe error-unix-jit exception_in_dll_tool exception_in_probed_call_after \
-                       exception_in_probed_call_sig exception_in_probe_on_probe exception_in_probe_on_probe_sig \
-                       malloctrace_locktest
-    TEST_ROOTS += insert1_no_xmm follow_execv_with_config1 pthread_exit_tool_mac pthread_exit_after_fork
-    TOOL_ROOTS += pthread_exit_tool
-    APP_ROOTS += dltest-tp protofoo err_replace replacecall replacefun bad_jump good_jump simplefoo relocate_app \
-                 fall_thru bad_call high_target load_map_appi svcraw_app exit_app insert_call_probed_app \
-                 pthread_exit_cpp_app pthread_exit_c_app load_map_app exception_in_dll_app parent_process \
-                 child_process thd_malloc pthread_exit_after_fork_c_app
+# Linux
+ifeq ($(TARGET_OS),linux)
+    TEST_TOOL_ROOTS += probemalloctrace iprtool malloctrace2 symbolnames replace_exit unix_parent_tool proto1 proto2 \
+                       proto3 proto4 replace_empty replacesig_empty probe1 probe2 probe3 probe5 probe8 probe10 sectest \
+                       context_probe malloctrace_locktest probe_on_probe1 init remove_probe probesleep probe_err1 \
+                       probe_err2 probe_err4 probe_err5 probe_err6 remove_probe2 insert1 insert2 insert3 insert4 insert5 \
+                       insert6 insert7 insert8 insert9 insert10 insert11 insert12 code_range load_map spinlock_replsig \
+                       spinlock_repl spinlock_insert sempost_repl svcraw_repl exit_repl relocate_rtn insert_call_probed \
+                       error-lin-probe error-lin-jit exception_in_dll_tool probesafetest exception_in_probed_call_after \
+                       exception_in_probed_call_sig pthread_exit_tool probe_close exception_in_probe_on_probe \
+                       exception_in_probe_on_probe_sig exception_in_mt_attach scan_all_rtns_for_probe tpss_lin_libdl \
+                       tpss_lin_libncurses tpss_lin_libpthread tpss_lin_librt tpss_lin_libc
+    TEST_ROOTS += insert1_no_xmm follow_execv_with_config1 pthread_atfork
+    APP_ROOTS += probesafetest_app replaceapp replacecall err_call replacefun err_replace bad_jump good_jump fall_thru \
+                 bad_call high_target app_trace protofoo simplefoo thd_malloc spin_lock_app sempost_app svcraw_app \
+                 exit_app relocate_app insert_call_probed_app load_map_app exception_in_probed_call_cpp_after_app \
+                 exception_in_dll_app pthread_exit_c_app exception_in_probed_call_cpp_app pthread_exit_cpp_app \
+                 exception_in_mt_attach_app ipr unloadtest little_malloc sleep simplefoo9 simplefoo10 dltest-tp \
+                 error-app empty child_process parent_process fork_app
+    OBJECT_ROOTS += probe_safe_test_asm do_nothing_asm simplesp relocate_asm
     DLL_ROOTS += mallocwrappers exc
-    OBJECT_ROOTS += do_nothing_asm local_branch_asm simplesp relocate_asm getstack
-    # There is no redzone in the stack according to the IA32 ABI so no need to test it
+    ifeq ($(TARGET),ia32)
+        TEST_TOOL_ROOTS += signals
+        APP_ROOTS += signals_app
+        LIB_ROOTS += libarglist
+    endif
     ifeq ($(TARGET),intel64)
-        TEST_TOOL_ROOTS += redzone
-        APP_ROOTS += redzone_app
-        OBJECT_ROOTS := redzone_app_asm
+        TEST_TOOL_ROOTS += probe4 probe6 probe7 probe9 syscall_in_probe probe_movip
+        APP_ROOTS += replacedisp replacejmp replaceshorty move_ip syscall_in_probe_app
+        OBJECT_ROOTS += jmp_in_probe_asm pc64 syscall_yield64
     endif
 endif
 
 # Windows
 ifeq ($(TARGET_OS),windows)
-    TEST_TOOL_ROOTS += proto1win proto3win proto1win-err \
-                       probecdecl tpss insert1win insert2win insert3win insert10 insert11 insert12 code_range \
-                       error-win-probe error-win-jit probe_on_probe2 before_after_defaultcall insertstd \
+    TEST_TOOL_ROOTS += probe1 iprtool proto1win proto3win probemalloctrace proto1win-err replace_empty replacesig_empty \
+                       probecdecl tpss insert1win insert2win insert3win insert10 insert11 insert12 code_range probesleep \
+                       error-win-probe error-win-jit scan_all_rtns_for_probe probe_on_probe1 probe_on_probe2 \
                        exception_in_probe exception_in_probe_on_probe exception_in_probed_call exception_in_probe_sig \
                        exception_in_probe_on_probe_sig exception_in_probed_call_sig exception_in_probed_call_after \
-                       malloctrace2win ssewin shortBB before_after_stdcall deadlock_in_ipc
-    APP_ROOTS += before_after_stdcall_app \
-                 create_process_app heavy_stack_win exception_in_probed_call_after_app shortBBapp exception_in_probe_app \
-                 exception_in_probed_call_app before_after_defaultcall_app win_child_process winstd
+                       malloctrace2win ssewin shortBB before_after_stdcall before_after_defaultcall insertstd
+    APP_ROOTS += replaceapp app_trace ipr unloadtest little_malloc sleep simplefoo9 simplefoo10 before_after_stdcall_app \
+                 create_process_app heavy_stack_win exception_in_probed_call_after_app shortBBapp error-app empty \
+                 exception_in_probed_call_app exception_in_probed_call_cpp_app exception_in_probed_call_cpp_after_app \
+                 before_after_defaultcall_app win_child_process exception_in_probe_app
     ifeq ($(TARGET),ia32)
         TEST_TOOL_ROOTS += probestdcall probefastcall probeheapalloc before_after_fastcall
-        APP_ROOTS +=probestdcall_app probefastcall_app before_after_fastcall_app
+        APP_ROOTS +=probestdcall_app probefastcall_app before_after_fastcall_app winstd
     endif
     ifeq ($(TARGET),intel64)
         TEST_TOOL_ROOTS += jmp_in_probe
@@ -137,25 +142,59 @@ endif
 
 ###### Handle exceptions here ######
 
-# See Mantis #4210
-ifeq ($(TARGET_OS),windows)
-    ifeq ($(VisualStudioVersion),15.0)
-        TEST_TOOL_ROOTS := $(filter-out malloctrace2win, $(TEST_TOOL_ROOTS))
+# Disable everything if probe mode is not supported on the platform.
+ifneq ($(TARGET_OS),windows)
+    ifneq ($(PROBE),1)
+        TEST_TOOL_ROOTS :=
+        TEST_ROOTS :=
+        SANITY_SUBSET :=
+        TOOL_ROOTS :=
+        SA_TOOL_ROOTS :=
+        APP_ROOTS :=
+        OBJECT_ROOTS :=
+        DLL_ROOTS :=
+        LIB_ROOTS :=
     endif
 endif
 
-###### Define the sanity subset ######
+# Android
+# See Mantis 3082 for the following tests (compilation errors):  
+#   spinlock_replsig spinlock_repl spinlock_insert tpss_lin_libc tpss_lin_libpthread tpss_lin_librt
+#   exception_in_mt_attach svcraw_repl 
+# See Mantis 3085 for the following tests (runtime errors): 
+#   exception_in_probed_call_after init exception_in_probed_call_sig load_map exception_in_dll_tool
+#   exception_in_probe_on_probe malloctrace2 exception_in_probe_on_probe_sig pthread_exit_tool 
+# See Mantis 3091 for the following tests:
+#   remove_probe, remove_probe2
+# See mantis 3356 for relocate_rtn.
+ifeq ($(TARGET_OS),android)
+    TEST_TOOL_ROOTS := $(filter-out spinlock_replsig spinlock_repl spinlock_insert tpss_lin_libc tpss_lin_libpthread \
+                                    tpss_lin_librt exception_in_mt_attach svcraw_repl exception_in_probed_call_after \
+                                    init exception_in_probed_call_sig malloctrace2 exception_in_probe_on_probe \
+                                    load_map exception_in_dll_tool pthread_exit_tool exception_in_probe_on_probe_sig \
+                                    remove_probe remove_probe2, $(TEST_TOOL_ROOTS))
+    APP_ROOTS := $(filter-out spin_lock_app svcraw_app exception_in_mt_attach_app, $(APP_ROOTS))
+    ifeq ($(NDK_VERSION),10)
+        ifeq ($(TARGET),ia32)
+            TEST_TOOL_ROOTS := $(filter-out relocate_rtn, $(TEST_TOOL_ROOTS))
+        endif
+    endif
+endif
 
-# This defines the list of tests that should run in sanity. It should include all the tests listed in
-# TEST_TOOL_ROOTS and TEST_ROOTS excluding only unstable tests.
-SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
-
+# Disabled malloctrace2 test. See Mantis 3103.
+ifeq ($(TARGET_OS),linux)
+    TEST_TOOL_ROOTS := $(filter-out malloctrace2, $(TEST_TOOL_ROOTS))
+endif
 
 ##############################################################
 #
 # Test recipes
 #
 ##############################################################
+
+###### Finalize sanity here ######
+
+SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 
 # This section contains recipes for tests other than the default.
 # See makefile.default.rules for the default test rules.
@@ -243,11 +282,10 @@ probe9.test: $(OBJDIR)probe9$(PINTOOL_SUFFIX) $(OBJDIR)replaceshorty$(EXE_SUFFIX
 	$(RM) $(OBJDIR)probe9_tool.outfile $(OBJDIR)probe9.out
 
 probe10.test: $(OBJDIR)probe10$(PINTOOL_SUFFIX) $(OBJDIR)good_jump$(EXE_SUFFIX)
-	-$(PIN) -xyzzy -mesgon log_probe -logfile $(OBJDIR)probe10_pin.log -t $(OBJDIR)probe10$(PINTOOL_SUFFIX) \
-          -xyzzy -mesgon log_probe -logfile $(OBJDIR)probe10_tool.log \
-	    -- $(OBJDIR)good_jump$(EXE_SUFFIX) > $(OBJDIR)probe10.out 2>&1
+	-$(PIN) -t $(OBJDIR)probe10$(PINTOOL_SUFFIX) -xyzzy -mesgon log_probe -logfile $(OBJDIR)probe10_tool.log \
+	  -- $(OBJDIR)good_jump$(EXE_SUFFIX) > $(OBJDIR)probe10.out 2>&1
 	$(QGREP) "replacement" $(OBJDIR)probe10.out
-	$(RM) $(OBJDIR)probe10_tool.log $(OBJDIR)probe10_pin.log $(OBJDIR)probe10.out
+	$(RM) $(OBJDIR)probe10_tool.log $(OBJDIR)probe10.out
 
 #probe_err1 is a negative test.
 probe_err1.test: $(OBJDIR)probe_err1$(PINTOOL_SUFFIX) $(OBJDIR)bad_jump$(EXE_SUFFIX)
@@ -300,7 +338,7 @@ probe_err6.test: $(OBJDIR)probe_err6$(PINTOOL_SUFFIX) $(OBJDIR)high_target$(EXE_
 	    -- $(OBJDIR)high_target$(EXE_SUFFIX) > $(OBJDIR)probe_err6.out 2>&1
 	echo "probe_err6 should fail. Ignore the error."
 	$(QGREP) "not suitable" $(OBJDIR)probe_err6.xml
-	$(RM) $(OBJDIR)probe_err6.xml $(OBJDIR)probe_err6_tool.log $(OBJDIR)probe_err6.out
+	$(RM) $(OBJDIR)probe_err6.xml $(OBJDIR)probe_err6_tool.log $(OBJDIR)probe_err6.out 
 
 
 probe_on_probe1.test: $(OBJDIR)probe_on_probe1$(PINTOOL_SUFFIX) $(OBJDIR)replaceapp$(EXE_SUFFIX)
@@ -399,7 +437,7 @@ proto1win.test: $(OBJDIR)proto1win$(PINTOOL_SUFFIX) $(OBJDIR)dltest$(EXE_SUFFIX)
 proto1win-err.test: $(OBJDIR)proto1win-err$(PINTOOL_SUFFIX)
 	echo "proto1win-err should fail. Ignore the error."
 	-$(PIN) -t $(OBJDIR)proto1win-err$(PINTOOL_SUFFIX) -- $(OBJDIR)non-existent-test > $(OBJDIR)proto1win-err.out 2>&1
-	$(EGREP) "No such file or directory|The system cannot find the file specified" $(OBJDIR)proto1win-err.out
+	$(QGREP) "No such file or directory" $(OBJDIR)proto1win-err.out
 	$(RM) $(OBJDIR)proto1win-err.out
 
 proto2.test: $(OBJDIR)proto2$(PINTOOL_SUFFIX) $(OBJDIR)protofoo$(EXE_SUFFIX)
@@ -585,15 +623,17 @@ ssewin.test: $(OBJDIR)ssewin$(PINTOOL_SUFFIX) $(OBJDIR)heavy_stack_win$(EXE_SUFF
 	$(RM) $(OBJDIR)ssewin.out
 
 malloctrace2win.test: $(OBJDIR)malloctrace2win$(PINTOOL_SUFFIX) $(OBJDIR)dltest$(EXE_SUFFIX) $(OBJDIR)$(DLL_PREFIX)one$(DLL_SUFFIX) $(OBJDIR)$(DLL_PREFIX)two$(DLL_SUFFIX)
-	$(PIN) -probe -t $(OBJDIR)malloctrace2win$(PINTOOL_SUFFIX) -o $(OBJDIR)malloctrace2.outfile \
+	$(PIN) -probe -t $(OBJDIR)malloctrace2win$(PINTOOL_SUFFIX) \
 	  -- $(OBJDIR)dltest$(EXE_SUFFIX) > $(OBJDIR)malloctrace2win.out 2>&1
 	$(QGREP) free $(OBJDIR)malloctrace2win.out
-	$(RM) $(OBJDIR)malloctrace2win.out $(OBJDIR)malloctrace2.outfile
-	$(PIN) -t $(OBJDIR)malloctrace2win$(PINTOOL_SUFFIX) -o $(OBJDIR)malloctrace2.outfile \
+	$(RM) $(OBJDIR)malloctrace2win.out malloctrace2.outfile
+	$(PIN) -t $(OBJDIR)malloctrace2win$(PINTOOL_SUFFIX) \
 	  -- $(OBJDIR)dltest$(EXE_SUFFIX) > $(OBJDIR)malloctrace2win.out 2>&1
 	$(QGREP) malloc $(OBJDIR)malloctrace2win.out
-	$(RM) $(OBJDIR)malloctrace2win.out $(OBJDIR)malloctrace2.outfile
+	$(RM) $(OBJDIR)malloctrace2win.out malloctrace2.outfile
 
+# segment registers are causing failures in the jit version, so disable it for now.
+# it does pass on older systems that do not use segment registers.
 malloctrace2.test: $(OBJDIR)malloctrace2$(PINTOOL_SUFFIX) $(OBJDIR)dltest$(EXE_SUFFIX) $(OBJDIR)$(DLL_PREFIX)mallocwrappers$(DLL_SUFFIX) $(OBJDIR)$(DLL_PREFIX)one$(DLL_SUFFIX) $(OBJDIR)$(DLL_PREFIX)two$(DLL_SUFFIX)
 	$(SET_DLL_PATH) $(PIN) -t $(OBJDIR)malloctrace2$(PINTOOL_SUFFIX) \
 	  -- $(OBJDIR)dltest$(EXE_SUFFIX) > $(OBJDIR)malloctrace2.out 2>&1
@@ -806,25 +846,6 @@ pthread_exit_tool.test: $(OBJDIR)pthread_exit_tool$(PINTOOL_SUFFIX) $(OBJDIR)pth
 	$(RM) $(OBJDIR)/pthread_exit_cpp_pin.log
 	$(RM) -f $(OBJDIR)pthread_exit_cpp_tool.log # this file might not be generated so we use the -f flag
 
-# Equivilent to the test pthread_exit_tool for OS X*
-# The only different between the tests is that it doesn't check that pthread_exit() unwound the stack.
-# The feature of stack unwinding on thread exit is not implemented in OS X*.
-pthread_exit_tool_mac.test: $(OBJDIR)pthread_exit_tool$(PINTOOL_SUFFIX) $(OBJDIR)pthread_exit_c_app$(EXE_SUFFIX) $(OBJDIR)pthread_exit_cpp_app$(EXE_SUFFIX)
-	$(PIN) -xyzzy -mesgon log_unwind -logfile $(OBJDIR)pthread_exit_c_pin.log \
-	  -t $(OBJDIR)pthread_exit_tool$(PINTOOL_SUFFIX) -xyzzy -mesgon log_unwind -logfile $(OBJDIR)pthread_exit_c_tool.log \
-	    -- $(OBJDIR)pthread_exit_c_app$(EXE_SUFFIX)
-	$(RM) $(OBJDIR)/pthread_exit_c_pin.log
-	$(RM) -f $(OBJDIR)pthread_exit_c_tool.log # this file might not be generated so we use the -f flag
-	$(PIN) -xyzzy -mesgon log_unwind -logfile $(OBJDIR)pthread_exit_cpp_pin.log \
-	  -t $(OBJDIR)pthread_exit_tool$(PINTOOL_SUFFIX) -xyzzy -mesgon log_unwind \
-	  -logfile $(OBJDIR)pthread_exit_cpp_tool.log \
-	    -- $(OBJDIR)pthread_exit_cpp_app$(EXE_SUFFIX)
-	$(RM) $(OBJDIR)/pthread_exit_cpp_pin.log
-	$(RM) -f $(OBJDIR)pthread_exit_cpp_tool.log # this file might not be generated so we use the -f flag
-
-pthread_exit_after_fork.test: $(OBJDIR)pthread_exit_tool$(PINTOOL_SUFFIX) $(OBJDIR)pthread_exit_after_fork_c_app$(EXE_SUFFIX)
-	$(PIN) -t $(OBJDIR)pthread_exit_tool$(PINTOOL_SUFFIX) -- $(OBJDIR)pthread_exit_after_fork_c_app$(EXE_SUFFIX)
-
 exception_in_dll_tool.test: $(OBJDIR)exception_in_dll_tool$(PINTOOL_SUFFIX) $(OBJDIR)exception_in_dll_app$(EXE_SUFFIX)
 	$(PIN) -t $(OBJDIR)exception_in_dll_tool$(PINTOOL_SUFFIX) \
 	  -- $(OBJDIR)exception_in_dll_app$(EXE_SUFFIX) > $(OBJDIR)exception_in_dll_tool.out 2>&1
@@ -847,16 +868,16 @@ load_map.test: $(OBJDIR)load_map$(PINTOOL_SUFFIX) $(OBJDIR)load_map_app$(EXE_SUF
 	$(QGREP) "2 routines were instrumented" $(OBJDIR)load_map.out
 	$(RM) $(OBJDIR)load_map.out
 
-error-unix-jit.test: $(OBJDIR)error-unix-jit$(PINTOOL_SUFFIX) $(OBJDIR)error-app$(EXE_SUFFIX)
-	$(PIN) -t $(OBJDIR)error-unix-jit$(PINTOOL_SUFFIX) -- $(OBJDIR)error-app$(EXE_SUFFIX) > $(OBJDIR)error-unix-jit.out 2>&1
-	$(QGREP) "Tool: errno=2" $(OBJDIR)error-unix-jit.out
-	$(RM) $(OBJDIR)error-unix-jit.out
+error-lin-jit.test: $(OBJDIR)error-lin-jit$(PINTOOL_SUFFIX) $(OBJDIR)error-app$(EXE_SUFFIX)
+	$(PIN) -t $(OBJDIR)error-lin-jit$(PINTOOL_SUFFIX) -- $(OBJDIR)error-app$(EXE_SUFFIX) > $(OBJDIR)error-lin-jit.out 2>&1
+	$(QGREP) "Tool: errno=2" $(OBJDIR)error-lin-jit.out
+	$(RM) $(OBJDIR)error-lin-jit.out
 
-error-unix-probe.test: $(OBJDIR)error-unix-probe$(PINTOOL_SUFFIX) $(OBJDIR)error-app$(EXE_SUFFIX)
-	$(PIN) -t $(OBJDIR)error-unix-probe$(PINTOOL_SUFFIX) \
-	  -- $(OBJDIR)error-app$(EXE_SUFFIX) > $(OBJDIR)error-unix-probe.out 2>&1
-	$(QGREP) "Tool: errno=2" $(OBJDIR)error-unix-probe.out
-	$(RM) $(OBJDIR)error-unix-probe.out
+error-lin-probe.test: $(OBJDIR)error-lin-probe$(PINTOOL_SUFFIX) $(OBJDIR)error-app$(EXE_SUFFIX)
+	$(PIN) -t $(OBJDIR)error-lin-probe$(PINTOOL_SUFFIX) \
+	  -- $(OBJDIR)error-app$(EXE_SUFFIX) > $(OBJDIR)error-lin-probe.out 2>&1
+	$(QGREP) "Tool: errno=2" $(OBJDIR)error-lin-probe.out
+	$(RM) $(OBJDIR)error-lin-probe.out
 
 error-win-jit.test: $(OBJDIR)error-win-jit$(PINTOOL_SUFFIX) $(OBJDIR)error-app$(EXE_SUFFIX)
 	$(PIN) -t $(OBJDIR)error-win-jit$(PINTOOL_SUFFIX) -- $(OBJDIR)error-app$(EXE_SUFFIX) > $(OBJDIR)error-win-jit.out 2>&1
@@ -877,15 +898,15 @@ insert_call_probed.test: $(OBJDIR)insert_call_probed$(PINTOOL_SUFFIX) $(OBJDIR)i
 	$(RM) $(OBJDIR)insert_call_probed.out $(OBJDIR)insert_call_probed.res.out
 
 follow_execv_with_config1.test: $(OBJDIR)unix_parent_tool$(PINTOOL_SUFFIX) $(OBJDIR)parent_process$(EXE_SUFFIX) $(OBJDIR)child_process$(EXE_SUFFIX)
-	$(RM) -f $(OBJDIR)$(@:.test=.tool.out) $(OBJDIR)$(@:.test=.app.out)
+	$(RM) -f $(OBJDIR)$(@:.test=.tool.out) $(OBJDIR)$(@:.test=.app.out) 
 	$(PIN) -follow_execv 1 -t $(OBJDIR)unix_parent_tool$(PINTOOL_SUFFIX) \
 	  -o $(OBJDIR)$(@:.test=.tool.out) -xyzzy -app child_process_xxx \
 	    -- $(OBJDIR)parent_process$(EXE_SUFFIX) $(OBJDIR)child_process$(EXE_SUFFIX) "param1 param2" param3 \
 	      > $(OBJDIR)$(@:.test=.app.out)
 	## child_process_xxx is not equal to child_process, do not run child under Pin at all
 	$(QGREP) "Do not run Pin under the child process" $(OBJDIR)$(@:.test=.tool.out)
-	$(QGREP) -E "Inserting probe for execve at|Unsafe to probe execve" $(OBJDIR)$(@:.test=.tool.out)
-	$(QGREP) -E "myexecve called|Unsafe to probe execve" $(OBJDIR)$(@:.test=.tool.out)
+	$(QGREP) "Inserting probe for execve at" $(OBJDIR)$(@:.test=.tool.out)
+	$(QGREP) "myexecve called" $(OBJDIR)$(@:.test=.tool.out)
 	## unix_parent_tool should appear 1 time in the output since it was used in parent only
 	$(BASHTEST) `$(CGREP) "In unix_parent_tool PinTool" $(OBJDIR)$(@:.test=.tool.out)` -eq "1"
 	$(RM) $(OBJDIR)$(@:.test=.tool.out) $(OBJDIR)$(@:.test=.app.out)
@@ -925,39 +946,6 @@ pthread_atfork.test: $(OBJDIR)tpss_lin_libc$(PINTOOL_SUFFIX) $(OBJDIR)fork_app$(
     -- $(OBJDIR)fork_app$(EXE_SUFFIX) > $(OBJDIR)pthread_atfork_tpss_libc.out
 	rm $(OBJDIR)pthread_atfork_tpss_libc.out $(OBJDIR)pthread_atfork_tpss_libc.txt child.log father.log
 
-pthread_atfork2.test: $(OBJDIR)tpss_lin_libc$(PINTOOL_SUFFIX) $(OBJDIR)fork_app$(EXE_SUFFIX)
-	$(PIN) -t $(OBJDIR)tpss_lin_libc$(PINTOOL_SUFFIX) -xyzzy -probe-fork-at-routine-granularity -o \
-	  $(OBJDIR)pthread_atfork2_tpss_libc.txt -- $(OBJDIR)fork_app$(EXE_SUFFIX) > $(OBJDIR)pthread_atfork2_tpss_libc.out
-	## Verify no assertion was triggered
-	! ( $(QGREP) "^A: " $(OBJDIR)pthread_atfork2_tpss_libc.out )
-	rm $(OBJDIR)pthread_atfork2_tpss_libc.out $(OBJDIR)pthread_atfork2_tpss_libc.txt child.log father.log
-
-ins_fetch_overrun.test: $(OBJDIR)ins_fetch_overrun$(PINTOOL_SUFFIX) $(OBJDIR)ins_fetch_overrun_app$(EXE_SUFFIX)
-	$(PIN) -xyzzy -logfile $(OBJDIR)$(@:.test=.log) -mesgon log_fetch_rtn_ins \
-	  -t $< -o $(OBJDIR)$(@:.test=.out) -xyzzy -mesgon log_fetch_rtn_ins -- $(OBJDIR)ins_fetch_overrun_app$(EXE_SUFFIX)
-	rm $(OBJDIR)$(@:.test=.log) $(OBJDIR)$(@:.test=.out)
-
-redzone.test: $(OBJDIR)redzone$(PINTOOL_SUFFIX) $(OBJDIR)redzone_app$(EXE_SUFFIX)
-	$(PIN) -t $(OBJDIR)redzone$(PINTOOL_SUFFIX) -- $(OBJDIR)redzone_app$(EXE_SUFFIX) > $(OBJDIR)$(@:.test=.out) 2>&1
-	$(QGREP) "In InsideCheckRedZone_Replacement" $(OBJDIR)$(@:.test=.out)
-	$(RM) $(OBJDIR)$(@:.test=.out)
-
-atfork_callbacks.test: $(OBJDIR)atfork_callbacks$(PINTOOL_SUFFIX) $(OBJDIR)atfork_callbacks_app$(EXE_SUFFIX)
-	$(PIN) -t $(OBJDIR)atfork_callbacks$(PINTOOL_SUFFIX) -- $(OBJDIR)atfork_callbacks_app$(EXE_SUFFIX)
-
-default_probe_size.test: $(OBJDIR)default_probe_size$(PINTOOL_SUFFIX) $(OBJDIR)func_nops$(EXE_SUFFIX)
-	$(PIN) -t $(OBJDIR)default_probe_size$(PINTOOL_SUFFIX) -- $(OBJDIR)func_nops$(EXE_SUFFIX)
-
-probe_overlap.test: $(OBJDIR)probe_overlap$(PINTOOL_SUFFIX) $(OBJDIR)func_nops$(EXE_SUFFIX)
-	$(PIN) -t $(OBJDIR)probe_overlap$(PINTOOL_SUFFIX) -- $(OBJDIR)func_nops$(EXE_SUFFIX)
-
-spawn_internal_thread_probe.test: $(OBJDIR)spawn_internal_thread_probe$(PINTOOL_SUFFIX) $(OBJDIR)spawn_internal_thread_probe_app$(EXE_SUFFIX)
-	$(PIN) -t $(OBJDIR)spawn_internal_thread_probe$(PINTOOL_SUFFIX) \
-	  -- $(OBJDIR)spawn_internal_thread_probe_app$(EXE_SUFFIX) > $(OBJDIR)$(@:.test=.out) 2>&1
-	$(QGREP) "in IntThread going to finish thread gracefully." $(OBJDIR)$(@:.test=.out)
-	$(QGREP) "Tool's thread finished successfully." $(OBJDIR)$(@:.test=.out)
-	$(RM) $(OBJDIR)$(@:.test=.out)
-
 
 ##############################################################
 #
@@ -971,15 +959,6 @@ spawn_internal_thread_probe.test: $(OBJDIR)spawn_internal_thread_probe$(PINTOOL_
 ###### Special tools' build rules ######
 
 $(OBJDIR)unix_parent_tool$(PINTOOL_SUFFIX): $(OBJDIR)unix_parent_tool$(OBJ_SUFFIX) $(OBJDIR)libarglist$(LIB_SUFFIX)
-	$(LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(TOOL_LPATHS) $(TOOL_LIBS)
-
-$(OBJDIR)tpss_lin_libc$(PINTOOL_SUFFIX): $(OBJDIR)tpss_lin_libc$(OBJ_SUFFIX) $(OBJDIR)tpss_lin_libc_tool$(OBJ_SUFFIX)
-	$(LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(TOOL_LPATHS) $(TOOL_LIBS)
-
-$(OBJDIR)tpss_lin_libpthread$(PINTOOL_SUFFIX): $(OBJDIR)tpss_lin_libpthread$(OBJ_SUFFIX) $(OBJDIR)tpss_lin_libpthread_tool$(OBJ_SUFFIX)
-	$(LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(TOOL_LPATHS) $(TOOL_LIBS)
-
-$(OBJDIR)tpss_lin_librt$(PINTOOL_SUFFIX): $(OBJDIR)tpss_lin_librt$(OBJ_SUFFIX) $(OBJDIR)tpss_lin_librt_tool$(OBJ_SUFFIX)
 	$(LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(TOOL_LPATHS) $(TOOL_LIBS)
 
 ###### Special applications' build rules ######
@@ -1038,13 +1017,13 @@ $(OBJDIR)high_target$(EXE_SUFFIX): high_target.c $(OBJDIR)local_branch_asm$(OBJ_
 $(OBJDIR)protofoo$(EXE_SUFFIX): protofoo.c protobar.c
 	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS) $(APP_LIBS)
 
-$(OBJDIR)simplefoo10$(EXE_SUFFIX): simplefoo10.c $(OBJDIR)simplebar$(OBJ_SUFFIX)
+$(OBJDIR)simplefoo10$(EXE_SUFFIX): simplefoo10.c simplebar.c
 	$(APP_CC) $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@ $^ $(APP_LDFLAGS_NOOPT) $(APP_LIBS)
 
-$(OBJDIR)winstd$(EXE_SUFFIX): simplestd10.c $(OBJDIR)simplebar$(OBJ_SUFFIX)
+$(OBJDIR)winstd$(EXE_SUFFIX): simplestd10.c simplebar.c
 	$(APP_CC) $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@ $^ $(APP_LDFLAGS_NOOPT) $(APP_LIBS)
 
-$(OBJDIR)simplefoo9$(EXE_SUFFIX): simplefoo9.c $(OBJDIR)simplebar$(OBJ_SUFFIX)
+$(OBJDIR)simplefoo9$(EXE_SUFFIX): simplefoo9.c simplebar.c
 	$(APP_CC) $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@ $^ $(APP_LDFLAGS_NOOPT) $(APP_LIBS)
 
 $(OBJDIR)empty$(EXE_SUFFIX): empty.c emptysub.c
@@ -1065,7 +1044,7 @@ endif
 # The $(APP_LIBS) is intentionally omitted here since dl-test should be compiled without
 # -lpthread on Unix platforms.
 $(OBJDIR)dltest$(EXE_SUFFIX): dltest_$(OS_TYPE).c
-	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(APP_DL_LIB)
+	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(DL_LIB)
 
 # This is the version which is compiled with -lpthread.
 $(OBJDIR)dltest-tp$(EXE_SUFFIX): dltest_$(OS_TYPE).c
@@ -1074,7 +1053,7 @@ $(OBJDIR)dltest-tp$(EXE_SUFFIX): dltest_$(OS_TYPE).c
 $(OBJDIR)unloadtest$(EXE_SUFFIX): unloadtest_$(OS_TYPE).c
 	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(APP_LIBS)
 
-$(OBJDIR)simplefoo$(EXE_SUFFIX): simplefoo.c $(OBJDIR)simplebar$(OBJ_SUFFIX) $(OBJDIR)simplesp$(OBJ_SUFFIX)
+$(OBJDIR)simplefoo$(EXE_SUFFIX): simplefoo.c simplebar.c $(OBJDIR)simplesp$(OBJ_SUFFIX)
 	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS) $(APP_LIBS)
 
 $(OBJDIR)little_malloc$(EXE_SUFFIX): little_malloc.c
@@ -1104,9 +1083,6 @@ $(OBJDIR)error-app$(EXE_SUFFIX): error-main.c error-sub.c
 $(OBJDIR)pthread_exit_c_app$(EXE_SUFFIX): pthread_exit_app.c
 	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(APP_LIBS)
 
-$(OBJDIR)pthread_exit_after_fork_c_app$(EXE_SUFFIX): pthread_exit_after_fork_app.c
-	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(APP_LIBS)
-
 $(OBJDIR)pthread_exit_cpp_app$(EXE_SUFFIX): pthread_exit_app.c
 	$(APP_CXX) $(APP_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(APP_LIBS)
 
@@ -1128,38 +1104,29 @@ $(OBJDIR)insert_call_probed_app$(EXE_SUFFIX): insert_call_probed_app.c
 $(OBJDIR)sleep$(EXE_SUFFIX): sleep_$(OS_TYPE).c
 	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(APP_LIBS)
 
-$(OBJDIR)ins_fetch_overrun_app$(EXE_SUFFIX): ins_fetch_overrun_app.c $(OBJDIR)ins_fetch_overrun_app_asm$(OBJ_SUFFIX)
-	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS) $(PIE) $(PIC) $(APP_LIBS) $(EXPORT)foo $(EXPORT)bar
-
 # The following test applications on Windows are kept in the source control in binary form because
 # some cygwin/ssh issues prevent us from compiling with /Zi (debug info). So all we need to do
 # is copy the pre-built application (and its corresponding .pdb file) to the proper directory.
 # The original build rule depended on $(OBJDIR)getesp_asm$(OBJ_SUFFIX).
 $(OBJDIR)probestdcall_app$(EXE_SUFFIX):
-	cp probestdcall_app$(EXE_SUFFIX) $(OBJDIR)probestdcall_app$(EXE_SUFFIX)
-	cp probestdcall_app$(DBG_SUFFIX) $(OBJDIR)probestdcall_app$(DBG_SUFFIX)
+	cp probestdcall_app$(EXE_SUFFIX).zi $(OBJDIR)probestdcall_app$(EXE_SUFFIX)
+	cp probestdcall_app.pdb.zi $(OBJDIR)probestdcall_app.pdb
 
 $(OBJDIR)before_after_stdcall_app$(EXE_SUFFIX):
-	cp before_after_stdcall_app_$(TARGET)$(EXE_SUFFIX) $(OBJDIR)before_after_stdcall_app$(EXE_SUFFIX)
-	cp before_after_stdcall_app_$(TARGET)$(DBG_SUFFIX) $(OBJDIR)before_after_stdcall_app$(DBG_SUFFIX)
+	cp before_after_stdcall_app$(EXE_SUFFIX).zi.$(TARGET) $(OBJDIR)before_after_stdcall_app$(EXE_SUFFIX)
+	cp before_after_stdcall_app.pdb.zi.$(TARGET) $(OBJDIR)before_after_stdcall_app.pdb
 
 $(OBJDIR)probefastcall_app$(EXE_SUFFIX):
-	cp probefastcall_app$(EXE_SUFFIX) $(OBJDIR)probefastcall_app$(EXE_SUFFIX)
-	cp probefastcall_app$(DBG_SUFFIX) $(OBJDIR)probefastcall_app$(DBG_SUFFIX)
+	cp probefastcall_app$(EXE_SUFFIX).zi $(OBJDIR)probefastcall_app$(EXE_SUFFIX)
+	cp probefastcall_app.pdb.zi $(OBJDIR)probefastcall_app.pdb
 
 $(OBJDIR)before_after_defaultcall_app$(EXE_SUFFIX):
-	cp before_after_defaultcall_app_$(TARGET)$(EXE_SUFFIX) $(OBJDIR)before_after_defaultcall_app$(EXE_SUFFIX)
-	cp before_after_defaultcall_app_$(TARGET)$(DBG_SUFFIX) $(OBJDIR)before_after_defaultcall_app$(DBG_SUFFIX)
+	cp before_after_defaultcall_app$(EXE_SUFFIX).zi.$(TARGET) $(OBJDIR)before_after_defaultcall_app$(EXE_SUFFIX)
+	cp before_after_defaultcall_app.pdb.zi.$(TARGET) $(OBJDIR)before_after_defaultcall_app.pdb
 
 $(OBJDIR)before_after_fastcall_app$(EXE_SUFFIX):
-	cp before_after_fastcall_app_$(TARGET)$(EXE_SUFFIX) $(OBJDIR)before_after_fastcall_app$(EXE_SUFFIX)
-	cp before_after_fastcall_app_$(TARGET)$(DBG_SUFFIX) $(OBJDIR)before_after_fastcall_app$(DBG_SUFFIX)
-
-$(OBJDIR)redzone_app$(EXE_SUFFIX): redzone_app.c $(OBJDIR)redzone_app_asm$(OBJ_SUFFIX)
-	$(APP_CC) $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@ $^ $(APP_LDFLAGS_NOOPT) $(APP_LIBS)
-
-$(OBJDIR)func_nops$(EXE_SUFFIX): func_nops.c $(OBJDIR)func_nops_asm$(OBJ_SUFFIX)
-	$(APP_CC) $(APP_CXXFLAGS_NOOPT) $(COMP_EXE)$@ $^ $(APP_LDFLAGS_NOOPT) $(APP_LIBS)
+	cp before_after_fastcall_app$(EXE_SUFFIX).zi.$(TARGET) $(OBJDIR)before_after_fastcall_app$(EXE_SUFFIX)
+	cp before_after_fastcall_app.pdb.zi.$(TARGET) $(OBJDIR)before_after_fastcall_app.pdb
 
 ###### Special objects' build rules ######
 
@@ -1168,36 +1135,15 @@ $(OBJDIR)unix_parent_tool$(OBJ_SUFFIX): unix_parent_tool.cpp arglist.h
 
 # This object file may be used later on to build dlls, so it needs to be compiled with the DLL_CXXFLAGS.
 $(OBJDIR)arglist$(OBJ_SUFFIX): arglist.cpp arglist.h
-	$(CXX) $(TOOL_CXXFLAGS) $(DLL_CXXFLAGS) $(COMP_OBJ)$@ $<
-
-$(OBJDIR)tpss_lin_libc$(OBJ_SUFFIX): tpss_lin_libc.c
-	$(APP_CC) $(APP_CXXFLAGS) $(DLL_CXXFLAGS) $(COMP_OBJ)$@ $<
-
-$(OBJDIR)tpss_lin_libpthread$(OBJ_SUFFIX): tpss_lin_libpthread.c
-	$(APP_CC) $(APP_CXXFLAGS) $(DLL_CXXFLAGS) $(COMP_OBJ)$@ $<
-
-$(OBJDIR)tpss_lin_librt$(OBJ_SUFFIX): tpss_lin_librt.c
-	$(APP_CC) $(APP_CXXFLAGS) $(DLL_CXXFLAGS) $(COMP_OBJ)$@ $<
-
-$(OBJDIR)tpss_lin_libc_tool$(OBJ_SUFFIX): tpss_lin_libc_tool.cpp
-	$(CXX) $(TOOL_CXXFLAGS) $(DLL_CXXFLAGS) $(COMP_OBJ)$@ $<
-
-$(OBJDIR)tpss_lin_libpthread_tool$(OBJ_SUFFIX): tpss_lin_libpthread_tool.cpp
-	$(CXX) $(TOOL_CXXFLAGS) $(DLL_CXXFLAGS) $(COMP_OBJ)$@ $<
-
-$(OBJDIR)tpss_lin_librt_tool$(OBJ_SUFFIX): tpss_lin_librt_tool.cpp
-	$(CXX) $(TOOL_CXXFLAGS) $(DLL_CXXFLAGS) $(COMP_OBJ)$@ $<
-
-$(OBJDIR)simplebar$(OBJ_SUFFIX): simplebar.c
-	$(APP_CC) $(APP_CXXFLAGS) $(COMP_OBJ)$@ $<
+	$(APP_CXX) $(APP_CXXFLAGS) $(DLL_CXXFLAGS) $(COMP_OBJ)$@ $<
 
 ###### Special dlls' build rules ######
 
 $(OBJDIR)$(DLL_PREFIX)one$(DLL_SUFFIX): one_$(OS_TYPE).c
-	$(APP_CC) $(APP_CXXFLAGS_NOOPT) $(DLL_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS_NOOPT) $(DLL_LDFLAGS) $(APP_LIBS)
+	$(APP_CC) $(APP_CXXFLAGS) $(DLL_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(DLL_LDFLAGS) $(APP_LIBS)
 
 $(OBJDIR)$(DLL_PREFIX)two$(DLL_SUFFIX): two_$(OS_TYPE).c
-	$(APP_CC) $(APP_CXXFLAGS_NOOPT) $(DLL_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS_NOOPT) $(DLL_LDFLAGS) $(APP_LIBS)
+	$(APP_CC) $(APP_CXXFLAGS) $(DLL_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(DLL_LDFLAGS) $(APP_LIBS)
 
 $(OBJDIR)$(DLL_PREFIX)mallocwrappers$(DLL_SUFFIX): mallocwrappers_$(OS_TYPE).c
 	$(APP_CC) $(APP_CXXFLAGS_NOOPT) $(DLL_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS_NOOPT) $(DLL_LDFLAGS) $(APP_LIBS)

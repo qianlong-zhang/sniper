@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -160,7 +160,7 @@ int main(int argc, char** argv)
         // Inside child
         char attachPid[MAX_SIZE];
         snprintf(attachPid ,MAX_SIZE , "%d", parentPid);
-        execl(argv[1],argv[2],"-pid", attachPid, "-t",  argv[3], "-o", argv[4], NULL);
+        execl(argv[1],argv[2],"-pid", attachPid, "-probe", "-t",  argv[3], "-o", argv[4], NULL);
         perror("execl failed while trying to attach Pin to the application\n");
         exit(RES_EXEC_FAILED);
     }

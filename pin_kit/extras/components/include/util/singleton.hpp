@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,12 +28,14 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+// <ORIGINAL-AUTHOR>: Alex Skaletsky
 // <COMPONENT>: util
 // <FILE-TYPE>: component public header
 
 #ifndef UTIL_SINGLETON_HPP
 #define UTIL_SINGLETON_HPP
 
+#include "fund.hpp"
 
 
 namespace UTIL {
@@ -80,8 +82,8 @@ private:
         //    static initialization time (e.g. clients that replace the "malloc" implementation).
         //    Allocating the data statically like this for a singleton class has no real disadvantage.
 
-        static UINT8 storage[sizeof(T) + ALIGNMENT_OF(T)];
-        return new((void *)RoundUp(&(storage[0]), ALIGNMENT_OF(T))) T();
+        static FUND::UINT8 storage[sizeof(T) + FUND_ALIGNMENT_OF(T)];
+        return new((void *)RoundUp(&(storage[0]), FUND_ALIGNMENT_OF(T))) T();
     }
 
 private:

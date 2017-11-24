@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,14 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Robert Cohn
+  @MAJOR_REWRITE: Gail Lyons
+*/
+
+/* ===================================================================== */
 /*! @file
   Similar to Probes/malloctrace.C, but puts replacement functions in the
   application namespace. Works in probed and jitted mode.
@@ -244,8 +252,7 @@ VOID ImageLoad(IMG img, VOID *v)
              CmpBaseImageName(IMG_Name(img), "msvcr90.dll") ||
              CmpBaseImageName(IMG_Name(img), "msvcr100.dll") ||
              CmpBaseImageName(IMG_Name(img), "msvcr110.dll") ||
-             CmpBaseImageName(IMG_Name(img), "msvcr120.dll") ||
-             CmpBaseImageName(IMG_Name(img), "msvcrt.dll") )
+             CmpBaseImageName(IMG_Name(img), "msvcr120.dll") )
         {
             TraceFile << "Found " << IMG_Name(img) << endl;
             TraceFile.flush();
@@ -265,8 +272,7 @@ VOID ImageLoad(IMG img, VOID *v)
              CmpBaseImageName(IMG_Name(img), "msvcr90.dll") ||
              CmpBaseImageName(IMG_Name(img), "msvcr100.dll") ||
              CmpBaseImageName(IMG_Name(img), "msvcr110.dll") ||
-             CmpBaseImageName(IMG_Name(img), "msvcr120.dll") ||
-             CmpBaseImageName(IMG_Name(img), "msvcrt.dll") )
+             CmpBaseImageName(IMG_Name(img), "msvcr120.dll") )
         {
             TraceFile << "Found " << IMG_Name(img) << endl;
             TraceFile.flush();

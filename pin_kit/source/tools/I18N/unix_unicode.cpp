@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -39,7 +39,7 @@ int main(int argc, char * argv[])
     std::ofstream file;
     file.open("unix_unicode.out");
     //internationalization in Japanese (encoded in UTF-8)
-    char i18n[] = {(char)0xE5, (char)0x9B, (char)0xBD, (char)0xE9, (char)0x9A, (char)0x9B, (char)0xE5, (char)0x8C, (char)0x96, (char)0x00};
+    char i18n[] = {0xE5, 0x9B,  0xBD, 0xE9, 0x9A, 0x9B, 0xE5, 0x8C, 0x96, 0x00};
     if(argc == 1)
     {
         file << "not equal" << endl;

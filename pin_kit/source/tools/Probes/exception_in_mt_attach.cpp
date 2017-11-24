@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,13 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Elena Demikhovsky
+*/
+
+/* ===================================================================== */
 /*! @file
  */
 
@@ -61,39 +68,39 @@ INT32 Usage()
     return -1;
 }
 
-PIN_LOCK pinLock;
+PIN_LOCK lock;
 
 UINT32 threadCounter=0;
 BOOL   isAppStartReceived = FALSE;
 
 VOID AppStart(VOID *v)
 {
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     TraceFile << "Application Start Callback is called from thread " << dec << PIN_GetTid() << endl;
     isAppStartReceived = TRUE;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 }
 
 VOID AttachedThreadStart(VOID *sigmask, VOID *v)
 {
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     TraceFile << "Thread counter is updated to " << dec <<  (threadCounter+1) << endl;
     ++threadCounter;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 }
 
 int PinReady(unsigned int numOfThreads)
 {
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
 	// Check that we don't have any extra thread
 	assert(threadCounter <= numOfThreads);
     if ((threadCounter == numOfThreads) && isAppStartReceived)
     {
         TraceFile.close();
-        PIN_ReleaseLock(&pinLock);
+        PIN_ReleaseLock(&lock);
         return 1;
     }
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
     return 0;
 }
 
@@ -153,7 +160,7 @@ int main(int argc, CHAR *argv[])
     TraceFile << hex;
     TraceFile.setf(ios::showbase);
 
-	PIN_InitLock(&pinLock);
+	PIN_InitLock(&lock);
 	
     IMG_AddInstrumentFunction(ImageLoad, 0);
     PIN_AddApplicationStartFunction(AppStart, 0);

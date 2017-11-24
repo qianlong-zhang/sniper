@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -31,7 +31,6 @@ END_LEGAL */
 #include <stdio.h>
 #include <string>
 #include <stdlib.h>
-#include "tool_macros.h"
 
 #include "pin.H"
 
@@ -48,7 +47,7 @@ static VOID pthread_exit_rep(THREAD_EXIT_T orig_pte, VOID *p0)
 
 static VOID on_module_loading(IMG img, VOID *data)
 {
-    RTN routine = RTN_FindByName(img, C_MANGLE("pthread_exit"));
+    RTN routine = RTN_FindByName(img, "pthread_exit");
 
     if (RTN_Valid(routine))
     {

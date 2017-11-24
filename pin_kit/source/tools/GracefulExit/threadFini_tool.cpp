@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -29,7 +29,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
 /*
- * This tool checks that all thread-fini and application fini callbacks are delivered upon program
+ * This tools checks that all thread-fini and application fini callbacks are delivered upon program
  * termination in the correct order.
  * Various scenarios are checked depending on the application being run with this tool.
  */
@@ -38,7 +38,6 @@ END_LEGAL */
 #include <cstring>
 #include <fstream>
 #include <ctime>
-#include <set>
 #include "pin.H"
 
 using std::ofstream;
@@ -81,15 +80,10 @@ volatile bool releaseExitThread = false;
 //    before one of the ThreadFini callbacks. It should not be negative.
 volatile int numOfActiveThreads = 0;
 
-volatile int numOfFinishedThreads = 0;
-
 // Counter for verifying that all expected threads were created. Its value is printed in the Fini callback
 // and checked in the makefile.
 volatile int totalNumOfThreads = 0;
 
-THREADID myThread = INVALID_THREADID;
-set<THREADID> appThreads;
-PIN_LOCK pinLock;
 
 /**************************************************
  * Function declarations                          *
@@ -128,8 +122,11 @@ static void callExitApplication(bool appThread) {
     }
 }
 
-static VOID AppThreadStart(THREADID threadIndex) {
-    PIN_GetLock(&pinLock, PIN_GetTid());
+
+/**************************************************
+ * Analysis routines                              *
+ **************************************************/
+static VOID ThreadStart(THREADID threadIndex, CONTEXT* c, INT32 flags, VOID *v) {
     ++numOfActiveThreads;
     ++totalNumOfThreads;
     OS_THREAD_ID* tidData = new OS_THREAD_ID(PIN_GetTid());
@@ -137,43 +134,21 @@ static VOID AppThreadStart(THREADID threadIndex) {
     startsOut << *tidData << endl;
     fprintf(outfile, "TOOL: <%d> thread start, active: %d\n", *tidData, numOfActiveThreads);
     fflush(outfile);
-    appThreads.insert(threadIndex);
-    PIN_ReleaseLock(&pinLock);
-}
-
-/**************************************************
- * Analysis routines                              *
- **************************************************/
-
-static VOID ThreadStart(THREADID threadIndex, CONTEXT* c, INT32 flags, VOID *v) {
-    if (myThread == INVALID_THREADID) {
-        myThread = threadIndex;
-        AppThreadStart(threadIndex);
-    }
 }
 
 static VOID ThreadFini(THREADID threadIndex, CONTEXT const * c, INT32 code, VOID *v) {
-    PIN_GetLock(&pinLock, PIN_GetTid());
-    if (appThreads.find(threadIndex) != appThreads.end()) {
-        appThreads.erase(appThreads.find(threadIndex));
-        --numOfActiveThreads;
-        ++numOfFinishedThreads;
-        OS_THREAD_ID* tidData = GetTLSData(threadIndex);
-        finisOut << *tidData << endl;
-        fprintf(outfile, "TOOL: <%d> thread fini, fini: %d\n", *tidData, numOfActiveThreads);
-        fflush(outfile);
-    }
-    PIN_ReleaseLock(&pinLock);
+    --numOfActiveThreads;
+    OS_THREAD_ID* tidData = GetTLSData(threadIndex);
+    finisOut << *tidData << endl;
+    fprintf(outfile, "TOOL: <%d> thread fini, fini: %d\n", *tidData, numOfActiveThreads);
+    fflush(outfile);
 }
 
 static VOID Fini(INT32 code, VOID* v) {
     fprintf(outfile, "TOOL: <%d> fini function %d %d\n", PIN_GetTid(), numOfActiveThreads, totalNumOfThreads);
-    fprintf(outfile, "TOOL: <%d> fini function %d %d\n", PIN_GetTid(), numOfFinishedThreads, totalNumOfThreads);
     fflush(outfile);
-    fclose(outfile);
-    startsOut.close();
-    finisOut.close();
 }
+
 
 /**************************************************
  * Instrumentation routines                       *
@@ -193,12 +168,6 @@ static VOID OnImage(IMG img, VOID *v) {
             fflush(outfile);
             PIN_ExitProcess(102);
         }
-        rtn = RTN_FindByName(img, "DoNewThread");
-        if (RTN_Valid(rtn)) {
-            RTN_Open(rtn);
-            RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)AppThreadStart, IARG_THREAD_ID, IARG_END);
-            RTN_Close(rtn);
-        }
     }
 }
 
@@ -216,7 +185,7 @@ void InternalThreadMain(void* v) {
         PIN_Yield();
         PIN_Sleep(1000); // 1 sec
     }
-
+ 
     fprintf(outfile, "TOOL: timeout = %d, seconds since starting internal thread=%.f\n",timeout, difftime(time(NULL), internal_th_start));
     if (timeout <= 0 ) {
         fprintf(outfile, "TOOL: <%d> Internal thread got time out after 10 minutes - exiting with an error.\n", PIN_GetTid());
@@ -234,11 +203,10 @@ void InternalThreadMain(void* v) {
 // The last parameter is expected to be a number which signifies which test is being run.
 int main(INT32 argc, CHAR **argv) {
 
-    PIN_InitLock(&pinLock);
     // Initialize Pin and TLS
     PIN_InitSymbols();
     PIN_Init(argc, argv);
-    tidKey = PIN_CreateThreadDataKey(NULL);
+    tidKey = PIN_CreateThreadDataKey(0);
 
     // Set up output files
     startsOut.open(KnobThreadsStartsFile.Value().c_str());
@@ -246,19 +214,18 @@ int main(INT32 argc, CHAR **argv) {
     outfile = fopen(KnobOutFile.Value().c_str(), "w");
 
     // Register callbacks
-    PIN_AddThreadStartFunction(ThreadStart, NULL);
-    IMG_AddInstrumentFunction(OnImage, NULL);
-    PIN_AddThreadFiniFunction(ThreadFini, NULL);
-    PIN_AddFiniFunction(Fini, NULL);
-
+    PIN_AddThreadStartFunction(ThreadStart, 0);
+    IMG_AddInstrumentFunction(OnImage, 0);
+    PIN_AddThreadFiniFunction(ThreadFini, 0);
+    PIN_AddFiniFunction(Fini, 0);
+    
     // test "1" calls PIN_ExitApplication by a tool internal thread. We need to create that thread only in this case.
     if (strcmp(argv[argc-1], "1") == 0) {
         CreateToolThread();
     }
-
+    
     // Start running the application
     PIN_StartProgram(); // Never returns
 
     return 0;
 }
-

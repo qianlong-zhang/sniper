@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -65,35 +65,26 @@ int main(int argc, char *argv[])
         // Adding ':' after each string because they all new to be before the old values in the
         // LD_LIBRARY_PATH.
         //
+        bool not_found_32_glibc   = ld_path.find("/ia32/runtime/glibc:")    == std::string::npos;
+        bool not_found_64_glibc   = ld_path.find("/intel64/runtime/glibc:") == std::string::npos;
+        bool not_found_32_runtime = ld_path.find("/ia32/runtime:")          == std::string::npos;
+        bool not_found_64_runtime = ld_path.find("/intel64/runtime:")       == std::string::npos;
+        bool not_found_token      = ld_path.find("/usr/lib")                == std::string::npos;
+        if (not_found_32_glibc || not_found_32_runtime || not_found_64_glibc || not_found_64_runtime ||
+            not_found_token) {
+            std::cout << "Failed! LD_LIBRARY_PATH = " << ld_library_path << std::endl;
+            exit(1);
+        }
     }
 #elif defined(TARGET_MAC)
+    // Check that DYLD_LIBRARY_PATH doesn't contain anything and is unset.
+    //
     char* dyld_library_path = getenv("DYLD_LIBRARY_PATH");
-    // Check that DYLD_LIBRARY_PATH is set and contains the runtime libraries.
-    //
-    if (NULL == dyld_library_path) {
-        std::cout << "Failed in tool! DYLD_LIBRARY_PATH not set" << std::endl;
+    if (dyld_library_path) {
+        std::cout << "Failed in tool! Found: " << dyld_library_path << std::endl;
         exit(1);
     }
-    std::string ld_path(dyld_library_path);
-    bool not_found_32_xed = ld_path.find("/extras/xed-ia32/lib:")    == std::string::npos;
-    bool not_found_64_xed = ld_path.find("/extras/xed-intel64/lib:") == std::string::npos;
-    bool not_found_32_ext = ld_path.find("/ia32/lib-ext:")            == std::string::npos;
-    bool not_found_64_ext = ld_path.find("/intel64/lib-ext:")        == std::string::npos;
-    if (not_found_32_xed || not_found_64_xed || not_found_32_ext || not_found_64_ext) {
-        std::cout << "Failed! DYLD_LIBRARY_PATH = " << dyld_library_path << std::endl;
-        exit(1);
-    }
-# ifdef PIN_CRT
-    // Check that DYLD_LIBRARY_PATH contains the PIN CRT libraries.
-    //
-    bool not_found_32_pincrt = ld_path.find("/ia32/runtime/pincrt:")          == std::string::npos;
-    bool not_found_64_pincrt = ld_path.find("/intel64/runtime/pincrt:")       == std::string::npos;
-    if (not_found_32_pincrt || not_found_64_pincrt) {
-        std::cout << "Failed! DYLD_LIBRARY_PATH = " << dyld_library_path << std::endl;
-        exit(1);
-    }
-# endif // PIN_CRT
-#endif // TARGET_MAC
+#endif
 
     std::cout << "Tool success!" << std::endl;
 

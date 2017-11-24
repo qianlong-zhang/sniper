@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -34,22 +34,22 @@ END_LEGAL */
 #include <limits.h>
 
 #if defined (TARGET_WINDOWS)
-#define EXPORT_SYM __declspec( dllexport )
+#define EXPORT_SYM __declspec( dllexport ) 
 #else
 #define EXPORT_SYM extern
 #endif
 
 EXPORT_SYM void * Bar4( long one, long two )
 {
-    printf(" Hello from Bar4: one = %ld, two = %ld!\n ", one, two );
+    printf(" Hello from Bar4: one = %d, two = %d!\n ", one, two );
 
     return (void *)0xc0decafe00;
 }
 
 EXPORT_SYM void * Blue4( long one, long two )
 {
-    printf(" Hello from Blue4: one = %ld, two = %ld!\n ", one, two );
-
+    printf(" Hello from Blue4: one = %d, two = %d!\n ", one, two );
+    
     return (void *)0xdeadbeef00;
 }
 
@@ -59,10 +59,10 @@ EXPORT_SYM short Bar13(  short s1, short s2, unsigned short us1,
                          long l3, long l4, unsigned long ul2 )
 {
     printf(" Hello from Bar13: \n");
-    printf(" s1 = %hd, s2 = %hd, us1 = %hu\n ", s1, s2, us1 );
-    printf(" s3 = %hd, s4 = %hd, us2 = %hu\n ", s3, s4, us2 );
-    printf(" l1 = %ld, l2 = %ld, ul1 = %lu\n ", l1, l2, ul1 );
-    printf(" l3 = %ld, l4 = %ld, ul2 = %lu\n ", l3, l4, ul2 );
+    printf(" s1 = %d, s2 = %d, us1 = %d\n ", s1, s2, us1 );
+    printf(" s3 = %d, s4 = %d, us2 = %d\n ", s3, s4, us2 );
+    printf(" l1 = %ld, l2 = %ld, ul1 = %ld\n ", l1, l2, ul1 );
+    printf(" l3 = %ld, l4 = %ld, ul2 = %ld\n ", l3, l4, ul2 );
 
     return 1;
 }

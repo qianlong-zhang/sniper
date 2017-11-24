@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -47,9 +47,11 @@ END_LEGAL */
 #endif
 
 #if defined(TARGET_MAC)
-# include <sys/ucontext.h>
+#include <sys/ucontext.h>
+#elif defined(TARGET_ANDROID) && !defined(TARGET_NDK64)
+#include "android_ucontext.h"
 #else
-# include <ucontext.h>
+#include <ucontext.h>
 #endif
 
 // If we defined __USE_GNU ourselves, we need to undefine it here.
@@ -74,7 +76,7 @@ END_LEGAL */
 
 #if defined(TARGET_IA32)
 #   define REG_CX   REG_ECX
-#elif defined(TARGET_IA32E)
+#elif defined(TARGET_IA32E) || defined(TARGET_MIC)
 #   define REG_CX   REG_RCX
 #else
 #   error "No target defined"

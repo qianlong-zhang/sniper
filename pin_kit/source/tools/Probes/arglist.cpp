@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -50,11 +50,11 @@ ARGUMENTS_LIST::~ARGUMENTS_LIST()
 
 void ARGUMENTS_LIST::Add(const string& argsStr)
 {
-    size_t i=0;
+    int i=0;
     while (i<argsStr.size())
     {
         while (argsStr[i] == ' ') i++;
-        size_t j=i;
+        int j=i;
         while((argsStr[j] != ' ') && (j < argsStr.size())) j++;
         string arg = argsStr.substr(i, j-i);
         m_argvStrList.push_back(arg);

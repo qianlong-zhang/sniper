@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -33,12 +33,11 @@ END_LEGAL */
  * "-test" knob to select a specific test.  This tool is meant to be
  * run with "mt-worker-posix.cpp" or "mt-worker-windows.cpp".
  */
-
+ 
 #include <iostream>
 #include "pin.H"
 #include "atomic.hpp"
 
-#include <set>
 
 // The test continues until all threads have run at least this many iterations
 // trying to acquire / release the lock.
@@ -93,8 +92,6 @@ PIN_RWMUTEX RWMutex;
 PIN_SEMAPHORE Sem1;
 PIN_SEMAPHORE Sem2;
 
-PIN_LOCK pinLock;
-
 THREADID HasLock = INVALID_THREADID;
 REG RegThreadInfo;
 BOOL FoundTestFunc = FALSE;
@@ -113,6 +110,7 @@ struct THREAD_INFO
 
 
 static TEST GetTestType(const std::string &);
+static VOID OnThreadStart(THREADID, CONTEXT *, INT32, VOID *);
 static VOID OnThreadFini(THREADID, const CONTEXT *, INT32, VOID *);
 static void InstrumentRtn(RTN ins, VOID *);
 static void OnExit(INT32, VOID *);
@@ -139,8 +137,6 @@ int main(int argc, char * argv[])
 {
     PIN_Init(argc, argv);
     PIN_InitSymbols();
-
-    PIN_InitLock(&pinLock);
 
     RegThreadInfo = PIN_ClaimToolRegister();
     if (RegThreadInfo == REG_INVALID())
@@ -196,11 +192,12 @@ int main(int argc, char * argv[])
         ASSERTX(0);
     }
 
-    PIN_AddThreadFiniFunction(OnThreadFini, NULL);
-    RTN_AddInstrumentFunction(InstrumentRtn, NULL);
-    PIN_AddFiniFunction(OnExit, NULL);
+    PIN_AddThreadStartFunction(OnThreadStart, 0);
+    PIN_AddThreadFiniFunction(OnThreadFini, 0);
+    RTN_AddInstrumentFunction(InstrumentRtn, 0);
+    PIN_AddFiniFunction(OnExit, 0);
     PIN_StartProgram();
-    return 1;
+    return 0;
 }
 
 static TEST GetTestType(const std::string &name)
@@ -240,44 +237,32 @@ static TEST GetTestType(const std::string &name)
     return TEST_INVALID;
 }
 
-set<THREADID> appThreads;
-
-static VOID AppThreadStart(THREADID tid, PIN_REGISTER* regval)
+static VOID OnThreadStart(THREADID tid, CONTEXT *ctxt, INT32, VOID *)
 {
+    // Skip root thread.
+    //
+    if (tid == 0)
+        return;
+
     // Give each worker thread a unique, contiguous ID.
     //
     static unsigned workerCount = 0;
-    regval->qword[0] = (UINT64)(reinterpret_cast<ADDRINT>(new THREAD_INFO(workerCount++)));
-    PIN_GetLock(&pinLock, PIN_GetTid());
-    appThreads.insert(tid);
-    PIN_ReleaseLock(&pinLock);
+    THREAD_INFO *info = new THREAD_INFO(workerCount++);
+    PIN_SetContextReg(ctxt, RegThreadInfo, reinterpret_cast<ADDRINT>(info));
 }
-
 
 static VOID OnThreadFini(THREADID tid, const CONTEXT *ctxt, INT32, VOID *)
 {
-    if (appThreads.find(tid) != appThreads.end())
-    {
-        appThreads.erase(appThreads.find(tid));
-        ADDRINT addrInfo = PIN_GetContextReg(ctxt, RegThreadInfo);
-        THREAD_INFO *info = reinterpret_cast<THREAD_INFO *>(addrInfo);
-        delete info;
-    }
+    if (tid == 0)
+        return;
 
+    ADDRINT addrInfo = PIN_GetContextReg(ctxt, RegThreadInfo);
+    THREAD_INFO *info = reinterpret_cast<THREAD_INFO *>(addrInfo);
+    delete info;
 }
-
 
 static void InstrumentRtn(RTN rtn, VOID *)
 {
-    if (RTN_Name(rtn) == "TellPinThreadStart" || RTN_Name(rtn) == "_TellPinThreadStart")
-    {
-        RTN_Open(rtn);
-        RTN_InsertCall(rtn, IPOINT_BEFORE, AFUNPTR(AppThreadStart),
-            IARG_THREAD_ID, IARG_REG_REFERENCE, RegThreadInfo,
-            IARG_END);
-        RTN_Close(rtn);
-    }
-
     if (RTN_Name(rtn) == "TellPinThreadCount" || RTN_Name(rtn) == "_TellPinThreadCount")
     {
         FoundThreadCountFunc = TRUE;
@@ -703,6 +688,7 @@ static void DoTestSemaphore(THREAD_INFO *info, UINT32 *done)
     // each other's semaphore.  We make sure that a thread does not wake up from
     // the semaphore unless it is set.  We also check for deadlocks due to missing
     // wakeups.
+
     if (info->_workerId == 0)
     {
         PIN_SemaphoreWait(&Sem1);

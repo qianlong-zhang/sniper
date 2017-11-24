@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -49,11 +49,16 @@ END_LEGAL */
 #include <iostream>
 #include <cstdlib>
 #include <pthread.h>
+#if !defined(TARGET_ANDROID)
 #include <sched.h>
+#endif
 #include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/syscall.h>
+#if defined(TARGET_ANDROID)
+#include <android_sched.h>
+#endif
 
 // The number of times that the scheduler thread tries to lower the priority
 // of the worker thread.  The test exits with success if we can complete this
@@ -118,9 +123,9 @@ int main()
     //
     if (!CheckSupported())
     {
-        std::cout << "No RT support\n";
+        std::cout << "Exiting with success, but could not perform test\n";
         TellPinNotSupported();
-        return 1;
+        return 0;
     }
 
     // Figure out the priority levels to use for "high" and "low".
@@ -240,7 +245,7 @@ extern "C" void DoGetLockWithPin()
 
 extern "C" void TellPinNotSupported()
 {
-    // The Pin tool instruments this function, so that it is informed if the
+    // The Pin tool instrumentats this function, so that it is informed if the
     // test is not run because the O/S doesn't support real-time scheduling.
 }
 

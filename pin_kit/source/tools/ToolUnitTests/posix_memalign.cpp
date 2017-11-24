@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -102,7 +102,7 @@ int main(int argc, char * argv[])
 
 static BOOL TestAlign(size_t align, size_t size)
 {
-    void *p = NULL;
+    void *p;
 
     int err = posix_memalign(&p, align, size);
 

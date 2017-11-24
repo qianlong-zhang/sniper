@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -50,14 +50,7 @@ END_LEGAL */
  * appropriately.
  */
 
-// A knob for defining the output file name
-KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o", "special.out",
-                            "specify file name for special case output");
-
-// ofstream object for handling the output.
-ofstream outstream;
-
-
+ofstream outstream("special.out");
 ADDRINT redEnter;
 ADDRINT blueEnter;
 ADDRINT commonEnter;
@@ -155,8 +148,6 @@ int main(int argc, char * argv[])
 
     // Initialize pin
     PIN_Init(argc, argv);
-
-    outstream.open(KnobOutputFile.Value().c_str());
 
     // Register Instruction to be called to instrument instructions
     TRACE_AddInstrumentFunction(Trace, 0);

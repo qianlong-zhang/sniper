@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -33,10 +33,16 @@ END_LEGAL */
 #include <unistd.h>
 #include <sched.h>
 #include <cassert>
+#include <sys/syscall.h>
 
 FILE* master = NULL;
 FILE* generated = NULL;
-OS_THREAD_ID mainTid;
+pid_t masterPid;
+
+pid_t GetTid()
+{
+     return syscall(__NR_gettid);
+}
 
 VOID onImageLoad(IMG img, VOID *v)
 {
@@ -54,8 +60,8 @@ VOID onAppStart(VOID *v)
 // This is done under the Pin client lock so there is no race on the global variables.
 VOID onThreadAttach(VOID *sigset, VOID *v)
 {
-    OS_THREAD_ID tid = PIN_GetTid(); // The master thread's tid is the same as the pid of the entire process.
-    if (tid == mainTid) { // This is the master thread which should be first.
+    pid_t tid = GetTid(); // The master thread's tid is the same as the pid of the entire process.
+    if (tid == masterPid) { // This is the master thread which should be first.
         fprintf(generated, "3\n");
     }
     else { // This is the second thread which should be last, therefore close the file and exit.
@@ -79,8 +85,7 @@ int main(int argc, char** argv)
 {
     if (!PIN_Init(argc, argv))
     {
-        PIN_InitSymbols();
-        mainTid = PIN_GetTid();
+        masterPid = getpid();
         
         buildMasterFile();
         generated = fopen("threadOrder_generated.out", "w");

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -39,32 +39,29 @@ END_LEGAL */
 
 #include <stdio.h>
 #include <string>
-#include <fstream>
 #include <iostream>
 #include <memory.h>
 #include "pin.H"
 
 using namespace std;
 
+
 /*
  * Verify the FP state of the exception context
  */
 KNOB<BOOL> KnobCheckFp(KNOB_MODE_WRITEONCE, "pintool", "checkfp", "0", "Check FP state");
-KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
-    "o", "exception_context_monitor_tool.out", "specify file name");
 
-static ofstream* logFile = NULL;
 
-ADDRINT appMainStart = 0;
-ADDRINT appMainEnd = 0;
+
+
 
 /*!
  * Exit with the specified error message
  */
 static void Abort(const char * msg)
 {
-    cerr << "Tool: " << msg << endl;
-    PIN_ExitProcess(1);
+    cerr << msg << endl;
+    exit(1);
 }
 
 /*!
@@ -74,10 +71,10 @@ static void Abort(const char * msg)
  */
 static bool CheckMyFpContext(const CONTEXT * pContext)
 {
-    unsigned char fpContextSpaceForXsave[sizeof (FPSTATE)+ FPSTATE_ALIGNMENT];
+	unsigned char fpContextSpaceForXsave[sizeof (FPSTATE)+ FPSTATE_ALIGNMENT];
     FPSTATE *fpState= 
-        reinterpret_cast<FPSTATE *>
-        (( reinterpret_cast<ADDRINT>(fpContextSpaceForXsave) + (FPSTATE_ALIGNMENT - 1)) & (-1*FPSTATE_ALIGNMENT));
+		reinterpret_cast<FPSTATE *>
+		(( reinterpret_cast<ADDRINT>(fpContextSpaceForXsave) + (FPSTATE_ALIGNMENT - 1)) & (-1*FPSTATE_ALIGNMENT));
 
     PIN_GetContextFPState(pContext, fpState);
 
@@ -109,65 +106,44 @@ static void OnException(THREADID threadIndex,
                   INT32 info, 
                   VOID *v)
 {
-    // check if this is an Exception from our app code
-    ADDRINT exceptionAddr = PIN_GetContextReg(ctxtFrom, REG_INST_PTR);
-    *logFile << "got exception at address " << hexstr(exceptionAddr) << " reason: " << hexstr(reason) << endl;
     if (reason == CONTEXT_CHANGE_REASON_EXCEPTION)
     {
-        if (exceptionAddr < appMainStart || exceptionAddr > appMainEnd) return;
-
-        *logFile << "handling exception" << endl;
-        hadException = TRUE;
+		hadException = TRUE;
         static bool first = true;
 
         if (first)
         {
-            *logFile << "first time" << endl;
             first = false;
         }
         else
         {
-            if (KnobCheckFp)
+            if (KnobCheckFp && !CheckMyFpContext(ctxtFrom))
             {
-                *logFile << "tool: checking FP" << endl;
-                if (!CheckMyFpContext(ctxtFrom)) Abort("Mismatch in the FP context");
+                Abort("Tool: Mismatch in the FP context");
             }
         }
     }
 }
 
-// Image load callback for the first Pin session
-VOID ImageLoad(IMG img,  VOID *v)
-{
-    *logFile << "img load " << IMG_Name(img) << endl;
-    if (IMG_IsMainExecutable(img))
-    {
-        RTN mainRtn = RTN_FindByName(img, "main");
-        if (!RTN_Valid(mainRtn)) Abort("could not find main in application");
-
-        appMainStart = RTN_Address(mainRtn);
-        appMainEnd = RTN_Size(mainRtn) + appMainStart;
-        *logFile << "main exec range " << hexstr(appMainStart) << "-" << hexstr(appMainEnd) << endl;
-    }
-}
-
 VOID Fini(INT32 code, VOID *v)
 {
-    if (!hadException) Abort("Did not detect exception");
+	if (!hadException)
+	{
+		Abort("Did not detect exception");
+		exit(-1);
+	}
 }
 
 int main(INT32 argc, CHAR **argv)
 {
-    if (PIN_Init(argc, argv)) Abort("Invalid arguments");
+    if (PIN_Init(argc, argv))
+    {
+        Abort("Tool: Invalid arguments");
+    }
 
-    PIN_InitSymbols();
-
-    logFile = new std::ofstream(KnobOutputFile.Value().c_str());
-
-    IMG_AddInstrumentFunction(ImageLoad, 0);
     PIN_AddContextChangeFunction(OnException, 0);
 
-    PIN_AddFiniFunction(Fini, 0);
+	PIN_AddFiniFunction(Fini, 0);
 
     // Never returns
     PIN_StartProgram();

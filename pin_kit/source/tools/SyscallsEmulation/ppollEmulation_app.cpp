@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -35,8 +35,6 @@ END_LEGAL */
  *    which was interrupted by a time out.
  * 3. ppollEmulationSignalInterrupt.test- tests the correctness of the emulation of a ppoll system call
  *    which was interrupted by a signal.
- * 4. ppollEmulationNullSigmask.test - tests that Pin properly handles a NULL signal mask passed to the ppoll
- *    system call.
  */
 
 #include <stdio.h>
@@ -74,13 +72,15 @@ enum ExitType {
 
 void * thread_handler(void *arg)
 {
-    int fdWriteThread = open(pipeName, O_RDWR );
+    int fdWriteThread, i;
+
+    fdWriteThread = open(pipeName, O_RDWR );
     if (fdWriteThread < 0)
     {
         perror("Failed to open fd");
         exit(RES_OPEN_FD_ERROR);
     }
-    for (unsigned int i = 0; i < 10; i++)
+    for (i = 0; i < 10; i++)
     {
         sleep(10);
         int ret = write(fdWriteThread, MSG, sizeof(MSG));
@@ -99,11 +99,12 @@ void * thread_handler(void *arg)
 void * timer_handler(void *arg)
 {
     struct timespec tm;
-    for (unsigned int i = 0; i < 100; i++)
+    unsigned long i;
+    for (i = 0; i < 100; i++)
     {
         tm.tv_sec = 0;
         tm.tv_nsec = 250*1000*1000;
-        nanosleep(&tm, NULL);
+        nanosleep(& tm, NULL);
         pthread_kill(main_th, SIGALRM);
     }
     return NULL;
@@ -157,18 +158,19 @@ int main(int argc, char* argv[] )
         perror ("Error opening file");
         return RES_OPEN_FILE_ERROR;
     }
-
+    
     pipeName = argv[3];
-    pthread_t th1;
-    sigset_t ppollSigmask;
-    sigemptyset(&ppollSigmask);
-    sigset_t* ppollSigmaskPtr = &ppollSigmask;
+    int mode, i, count;
+    pthread_t th1, th2;
+    sigset_t sigs1;
+    sigset_t sigs2 ;
     struct pollfd list;
     char buf[20];
     struct sigaction sigact;
     struct timespec tem;
+    sigemptyset(&sigs1);
 
-    int mode = S_IWGRP | S_IWOTH | S_IWUSR | S_IRGRP | S_IROTH | S_IRUSR;
+    mode = S_IWGRP | S_IWOTH | S_IWUSR | S_IRGRP | S_IROTH | S_IRUSR;
     if (mkfifo(pipeName, mode) < 0)
     {
         perror("mkfifo");
@@ -179,7 +181,7 @@ int main(int argc, char* argv[] )
     fdMainThread = open(pipeName, O_RDWR);
 
     if (fdMainThread < 0)
-    {
+    { 
         perror("Failed to open fd");
         return RES_OPEN_FD_ERROR;
     }
@@ -188,12 +190,9 @@ int main(int argc, char* argv[] )
 
     switch (testType)
     {
-        case 4:
-            ppollSigmaskPtr = NULL;
-            // fallthrough to case 1
         case 1:
         {
-            if (pthread_create(&th1, NULL, thread_handler, 0) != 0)
+            if (pthread_create(& th1, NULL, thread_handler, 0) != 0)
             {
                 printf("pthread_create error\n");
                 return RES_THREADCREATE_FAILED;
@@ -204,30 +203,32 @@ int main(int argc, char* argv[] )
         }
         case 2:
         {
-            if (pthread_create(&th1, NULL, timer_handler, 0) != 0)
+            if (pthread_create(& th1, NULL, timer_handler, 0) != 0)
             {
                 printf("pthread_create error\n");
                 return RES_THREADCREATE_FAILED;
             }
             tem.tv_sec = 60;
             tem.tv_nsec = 0;
-            sigaddset(&ppollSigmask, SIGQUIT);
-            int signalsToHandle[] = {SIGINT, SIGTERM, SIGALRM};
-            for(unsigned int i = 0; i < sizeof(signalsToHandle)/sizeof(int) ; i++)
+            sigemptyset(& sigs2);
+            sigaddset(& sigs2, SIGQUIT);
+            int sig[] = {SIGINT, SIGTERM, SIGALRM};
+            for(i = 0; i < 3 ; i++)
             {
                 sigact.sa_flags = SA_SIGINFO | SA_NODEFER;
                 sigact.sa_sigaction = sig_handler;
                 sigemptyset (&sigact.sa_mask);
-                if (sigaction (signalsToHandle[i], &sigact, 0) < 0) {
+                if (sigaction (sig[i], &sigact, 0) < 0) {
                     perror("sigaction failed");
                     return RES_SIGACTION_FAILED;
                 }
+                sigaddset(& sigs1, sig[i]);
             }
             break;
         }
         case 3:
         {
-            if (pthread_create(&th1, NULL, do_nothing, 0) != 0)
+            if (pthread_create(& th1, NULL, do_nothing, 0) != 0)
             {
                 printf("pthread_create error\n");
                 return RES_THREADCREATE_FAILED;
@@ -246,7 +247,7 @@ int main(int argc, char* argv[] )
         usleep(1000);
         list.fd = fdMainThread;
         list.events = (POLLIN | POLLHUP | POLLERR | POLLNVAL);
-        int ret = ppoll(&list, 1, &tem, ppollSigmaskPtr);
+        int ret = ppoll(&list, 1, &tem, &sigs2);
 
         if(ret == 0)
         {
@@ -269,8 +270,8 @@ int main(int argc, char* argv[] )
         }
         else if (list.revents & POLLIN)
         {
-            fprintf(pFile, "PPOLL succeeded:%d\n", (int)ret);
-            int count = read(fdMainThread, buf, 20);
+            fprintf(pFile, "PPOLL succeeded:%d\n", (int)ret); 
+            count = read(fdMainThread, buf, 20);
             if (count<0) perror("read"); else fprintf(pFile, "ppoll succeeded\n");;
             stop = true;
         }

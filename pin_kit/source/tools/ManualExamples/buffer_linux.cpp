@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -30,7 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
 /*
  * Sample buffering tool
- *
+ * 
  * This tool collects an address trace of instructions that access memory
  * by filling a buffer.  When the buffer overflows,the callback writes all
  * of the collected records to a file.
@@ -39,11 +39,11 @@ END_LEGAL */
 
 #include <iostream>
 #include <fstream>
-#include <cstdlib>
-#include <cstddef>
-#include <unistd.h>
-#include "pin.H"
+#include <stdlib.h>
+#include <stddef.h>
 
+#include "pin.H"
+#include "portability.H"
 using namespace std;
 
 /*
@@ -99,16 +99,16 @@ class MLOG
 
 MLOG::MLOG(THREADID tid)
 {
-    const string filename = KnobOutputFile.Value() + "." + decstr(getpid()) + "." + decstr(tid);
-
+    string filename = KnobOutputFile.Value() + "." + decstr(getpid_portable()) + "." + decstr(tid);
+    
     _ofile.open(filename.c_str());
-
+    
     if ( ! _ofile )
     {
         cerr << "Error: could not open output file." << endl;
         exit(1);
     }
-
+    
     _ofile << hex;
 }
 
@@ -165,7 +165,7 @@ VOID Trace(TRACE trace, VOID *v)
                     INS_InsertFillBuffer(ins, IPOINT_BEFORE, bufId,
                                          IARG_INST_PTR, offsetof(struct MEMREF, pc),
                                          IARG_MEMORYOP_EA, memOp, offsetof(struct MEMREF, ea),
-                                         IARG_UINT32, refSize, offsetof(struct MEMREF, size),
+                                         IARG_UINT32, refSize, offsetof(struct MEMREF, size), 
                                          IARG_BOOL, TRUE, offsetof(struct MEMREF, read),
                                          IARG_END);
                 }
@@ -175,7 +175,7 @@ VOID Trace(TRACE trace, VOID *v)
                     INS_InsertFillBuffer(ins, IPOINT_BEFORE, bufId,
                                          IARG_INST_PTR, offsetof(struct MEMREF, pc),
                                          IARG_MEMORYOP_EA, memOp, offsetof(struct MEMREF, ea),
-                                         IARG_UINT32, refSize, offsetof(struct MEMREF, size),
+                                         IARG_UINT32, refSize, offsetof(struct MEMREF, size), 
                                          IARG_BOOL, FALSE, offsetof(struct MEMREF, read),
                                          IARG_END);
                 }
@@ -210,7 +210,7 @@ VOID * BufferFull(BUFFER_ID id, THREADID tid, const CONTEXT *ctxt, VOID *buf,
     MLOG * mlog = static_cast<MLOG*>( PIN_GetThreadData( mlog_key, tid ) );
 
     mlog->DumpBufferToFile( reference, numElements, tid );
-
+    
     return buf;
 }
 
@@ -259,7 +259,7 @@ INT32 Usage()
  * The main procedure of the tool.
  * This function is called when the application image is loaded but not yet started.
  * @param[in]   argc            total number of elements in the argv array
- * @param[in]   argv            array of command line arguments,
+ * @param[in]   argv            array of command line arguments, 
  *                              including pin -t <toolname> -- ...
  */
 int main(int argc, char *argv[])
@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
     {
         return Usage();
     }
-
+    
     // Initialize the memory reference buffer;
     // set up the callback to process the buffer.
     //
@@ -285,7 +285,7 @@ int main(int argc, char *argv[])
 
     // Initialize thread-specific data not handled by buffering api.
     mlog_key = PIN_CreateThreadDataKey(0);
-
+   
     // add an instrumentation function
     TRACE_AddInstrumentFunction(Trace, 0);
 
@@ -295,7 +295,7 @@ int main(int argc, char *argv[])
 
     // Start the program, never returns
     PIN_StartProgram();
-
+    
     return 0;
 }
 

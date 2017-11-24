@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -52,7 +52,7 @@ int main()
 
 EXPORT_SYM void first( unsigned long arg )
 {
-    printf( "first: 0x%lx\n", arg);
+    printf( "first: 0x%x\n", arg);
     
     second( 0xdeadc0de );
 }
@@ -60,7 +60,7 @@ EXPORT_SYM void first( unsigned long arg )
 
 EXPORT_SYM void second( unsigned long arg )
 {
-    printf( "second: 0x%lx\n", arg );
+    printf( "second: 0x%x\n", arg );
     
     third( 0xc0ffee );
 }
@@ -68,7 +68,7 @@ EXPORT_SYM void second( unsigned long arg )
 
 EXPORT_SYM void third( unsigned long arg )
 {
-    printf( "third: 0x%lx\n", arg );
+    printf( "third: 0x%x\n", arg );
     
     fourth( 0xbeeffeed );
 }
@@ -76,7 +76,7 @@ EXPORT_SYM void third( unsigned long arg )
 
 EXPORT_SYM void fourth( unsigned long arg )
 {
-    printf( "fourth: 0x%lx\n", arg );
+    printf( "fourth: 0x%x\n", arg );
 }
 
 

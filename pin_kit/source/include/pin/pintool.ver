@@ -2,7 +2,7 @@ Base {
     global:
         main;
         ClientIntC;
-        PinCommitHashC;
+        CharmVersionC;
 
     local:
         *;

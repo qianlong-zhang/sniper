@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -38,7 +38,6 @@ END_LEGAL */
 #include "pin.H"
 #include <iostream>
 #include <stdlib.h>
-#include "tool_macros.h"
 
 using namespace std;
 
@@ -74,7 +73,7 @@ VOID ImageLoad(IMG img, VOID *v)
     PROTO proto_malloc = PROTO_Allocate( PIN_PARG(void *), CALLINGSTD_DEFAULT,
                                          "my_malloc", PIN_PARG(size_t), PIN_PARG_END() );
     
-    RTN rtn = RTN_FindByName(img, C_MANGLE("my_malloc"));
+    RTN rtn = RTN_FindByName(img, "my_malloc");
     if (RTN_Valid(rtn))
     {
         Sanity(img, rtn);

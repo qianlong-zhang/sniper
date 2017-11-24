@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -53,8 +53,6 @@ static KNOB<BOOL>   KnobCountMemory(KNOB_MODE_WRITEONCE, "pintool", "memory", "0
 static KNOB<BOOL>   KnobSlow(KNOB_MODE_WRITEONCE, "pintool", "slow", "0", "use simple (but slow) instrumentation");
 static KNOB<BOOL>   KnobAddresses(KNOB_MODE_WRITEONCE, "pintool", "address", "0", "log addresses accessed in first 1000 REP ops");
 static ofstream out;
-
-THREADID myThread = INVALID_THREADID;
 
 #define STRINGIZE(a)  #a
 
@@ -307,14 +305,7 @@ static VOID InstrumentTrace(TRACE trace, VOID *v)
 // code which just confuses the educational points being made).
 static VOID CheckThreadCount(THREADID threadIndex, CONTEXT *, INT32, VOID *)
 {
-    if (myThread == INVALID_THREADID)
-    {
-        myThread = threadIndex;
-    }
-
-    #ifndef _WIN32
-        ASSERT (threadIndex == myThread, "This tool does not handle multiple threads\n");
-    #endif
+    ASSERT (threadIndex==0, "This tool does not handle multiple threads\n");
 }
 
 

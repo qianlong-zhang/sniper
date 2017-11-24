@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -88,8 +88,9 @@ const string roleStrings[ROLE_SIZE] = { "WAIT", "LOOP", "FINISH", "EXIT", "CANCE
 /**************************************************
  * Function declarations                          *
  **************************************************/
+static void* DoNewThread(void* threadNumArg);
 extern "C" EXPORT_SYM volatile void doExit(bool appThread);
-extern "C" EXPORT_SYM volatile void* DoNewThread(void* threadNumArg);
+
 
 /**************************************************
  * Utility functions                              *
@@ -108,7 +109,7 @@ static bool createThreads() {
 /**************************************************
  * Secondary threads main function                *
  **************************************************/
-volatile void* DoNewThread(void* threadNumArg) {
+void* DoNewThread(void* threadNumArg) {
     int threadNum = *((int*)threadNumArg);
     Print(roleStrings[threadNum] + " thread was created succesfully."); // FOR DEBUG
     IncThreads();
@@ -183,16 +184,11 @@ static void waitForThreads() {
         DoYield();
     }
     
-    // Wait for the ROLE_CANCELED thread to be ready for cancellation
+    // Wait for the ROLE_CANCELED thread to be ready for cancelation
     while (!readyToCancel) {
         DoYield();
     }
     
-    // If the secondary thread calls exit, the internal data structures used by the utility functions
-    // (e.g. CancelThread, WaitForThread etc.) may become invalid at any point. Therefore calling these
-    // functions is not safe so simply return.
-    if (EXIT_SEC_EXIT == exitType) return;
-
     // Send a cancel request to the ROLE_CANCELED thread.
     CancelThread(threads[ROLE_CANCELED]);
     
@@ -243,9 +239,9 @@ static void waitOrExit() {
 int main(int argc, const char* argv[]) {
     parseArgs(argc, argv);
 
-    InitLocks();
+//    Print("main thread starting the test..."); // FOR DEBUG
 
-    // Print("main thread starting the test..."); // FOR DEBUG
+    InitLocks();
 
     SetTimeout();
 

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -282,18 +282,22 @@ static VOID OnThreadEnd(THREADID tid, const CONTEXT *ctxt, INT32, VOID *)
 
 static VOID Instruction(INS ins, VOID *)
 {
-    if (!EnableInstrumentation) return;
+    if (!EnableInstrumentation)
+        return;
 
     if (INS_RegWContain(ins, REG_STACK_PTR))
     {
-        if (INS_IsSysenter(ins)) return; // no need to instrument system calls
+        IPOINT where = IPOINT_AFTER;
+        if (!INS_HasFallThrough(ins))
+            where = IPOINT_TAKEN_BRANCH;
 
-        const IPOINT where = INS_HasFallThrough(ins) ? IPOINT_AFTER : IPOINT_TAKEN_BRANCH;
-        INS_InsertIfCall(ins, where, (AFUNPTR)OnStackChangeIf, IARG_REG_VALUE, REG_STACK_PTR, IARG_REG_VALUE, RegTinfo, IARG_END);
+        INS_InsertIfCall(ins, where, (AFUNPTR)OnStackChangeIf, IARG_REG_VALUE, REG_STACK_PTR,
+            IARG_REG_VALUE, RegTinfo, IARG_END);
 
         // We use IARG_CONST_CONTEXT here instead of IARG_CONTEXT because it is faster.
         //
-        INS_InsertThenCall(ins, where, (AFUNPTR)DoBreakpoint, IARG_CONST_CONTEXT, IARG_THREAD_ID, IARG_END);
+        INS_InsertThenCall(ins, where, (AFUNPTR)DoBreakpoint, 
+            IARG_CONST_CONTEXT, IARG_THREAD_ID, IARG_END);
     }
 }
 

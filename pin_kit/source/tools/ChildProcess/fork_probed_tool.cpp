@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -58,39 +58,39 @@ pid_t parentPid = 0;
 
 void BeforeFork(UINT32 childPid, void *data)
 {
-    parentPid = PIN_GetPid();
+	parentPid = PIN_GetPid();
     Out << "TOOL: Before fork.." << endl;
 }
 
 void AfterForkInParent(UINT32 childPid, void *data)
 {
-    activeProcessId = PIN_GetPid();
+	activeProcessId = PIN_GetPid();
     Out << "TOOL: After fork in parent." << endl;
 }
 
 void AfterForkInChild(UINT32 childPid, void *data)
 {
-    activeProcessId = PIN_GetPid();
+	activeProcessId = PIN_GetPid();
     Out << "TOOL: After fork in child." << endl;
 }
 
 BOOL FollowChild(CHILD_PROCESS childProcess, VOID * userData)
 {
-    if (PIN_GetPid() == parentPid)
-    {
-        Out << "TOOL: At follow child callback in parent process." << endl;
-    }
-    else
-    {
-        Out << "TOOL: At follow child callback in child process." << endl;
-    }
-    // Pin replaces vfork with fork. In this case the global variable
-    // activeProcessId will receive the right value
+	if (PIN_GetPid() == parentPid)
+	{
+    	Out << "TOOL: At follow child callback in parent process." << endl;
+	}
+	else
+	{
+    	Out << "TOOL: At follow child callback in child process." << endl;
+	}
+	// Pin replaces vfork with fork. In this case the global variable
+	// activeProcessId will receive the right value
     if (activeProcessId != PIN_GetPid())
-    {
-        fprintf(stderr, "vfork works incorrectly with -follow_execv\n");
-        exit(-1);
-    }
+	{
+		fprintf(stderr, "vfork works incorrectly with -follow_execv\n");
+		exit(-1);
+	}
     return TRUE;
 }
 
@@ -103,7 +103,7 @@ int main(int argc, CHAR *argv[])
     {
         return Usage();
     }
-
+	
     string outFileName = KnobOutputFile.Value() + string("_") + decstr(PIN_GetPid());
     Out.open(outFileName.c_str(), ios_base::app);
     if (!Out.is_open()) 

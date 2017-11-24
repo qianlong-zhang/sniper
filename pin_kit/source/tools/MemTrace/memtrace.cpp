@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -52,14 +52,14 @@ END_LEGAL */
  * empty the log and reset the log pointer.
  *
  */
-#include <cassert>
-#include <cstdio>
+#include <assert.h>
+#include <stdio.h>
 #include <iostream>
 #include <fstream>
 #include <map>
 #include <set>
-#include <unistd.h>
 #include "pin.H"
+#include "portability.H"
 
 #define MEMTRACE_DEBUG 0
 
@@ -111,15 +111,15 @@ class REF
 {
   public:
     REF() {};
-
+    
     REF(ADDRINT ip, BOOL read)
     {
         _ip = ip;
         _read = read;
     }
-
+    
     ADDRINT IP() const { return _ip; }
-
+        
   private:
     // ip of instruction making reference
     ADDRINT _ip;
@@ -128,7 +128,7 @@ class REF
     BOOL _read;
 
 };
-
+    
 /*
  * Instrumentation call
  *
@@ -152,7 +152,7 @@ class CALL
     {
         INS_InsertCall(_ins, IPOINT_BEFORE, _afunptr, IARG_FAST_ANALYSIS_CALL, IARG_REG_VALUE, scratch_reg0, IARG_ADDRINT, ADDRINT(_offset - frameSize), _itype, IARG_END);
     }
-
+    
   private:
     INS _ins;
     AFUNPTR _afunptr;
@@ -187,6 +187,34 @@ typedef enum
 } TCMD_TYPE;
 
 /*
+ * Some commands require extra data that is determined at instrumentation
+ * time
+ */
+class TCMD_DATA_REG_VALUE
+{
+    REG _reg;
+};
+
+class TCMD_DATA_REG_OFFSET
+{
+    REG _reg;
+    UINT32 _addressOffset;
+};
+
+class TCMD_DATA_TRACE_OFFSET
+{
+    INT32 _traceOffset;
+    INT32 _addressOffset;
+};
+
+typedef union 
+{
+    TCMD_DATA_REG_VALUE _rvalue;
+    TCMD_DATA_REG_OFFSET _roffset;
+    TCMD_DATA_TRACE_OFFSET _toffset;
+} TCMD_DATA;
+    
+/*
  *
  * Temporarily store trace header information until all information is
  * known, then a more compact one is generated from this
@@ -202,7 +230,7 @@ class SCRATCH_TRACE_HEADER
         // The first element of the log is the trace header so leave space for it
         _frameOffset = sizeof(TRACE_HEADER*);
     };
-
+    
     UINT32 NumCmds() const { return _cmds.size(); }
 
     /*
@@ -218,12 +246,13 @@ class SCRATCH_TRACE_HEADER
   private:
     INT32 _frameOffset;
     vector<TCMD_TYPE> _cmds;
+    vector<TCMD_DATA> _data;
     vector<REF> _refs;
     vector<CALL> _calls;
 };
 
 /*
- *
+ * 
  * Permanent trace header storage
  *
  */
@@ -236,11 +265,12 @@ class TRACE_HEADER
     int NumCmds() const { return _numCmds; }
     TCMD_TYPE CmdType(int i) const { assert(i < NumCmds()); return _cmds[i]; }
     REF const * Ref(int i) const { assert(i < NumCmds()); return _refs + i; }
-
+    
   private:
     int _logBytes;
     int _numCmds;
     TCMD_TYPE * _cmds;
+    TCMD_DATA * _cmdData;
     REF * _refs;
 };
 
@@ -281,7 +311,7 @@ class MLOG
     static ADDRINT PIN_FAST_ANALYSIS_CALL  TraceAllocIf(char * logCursor, char * logEnd, ADDRINT size);
     static char * PIN_FAST_ANALYSIS_CALL  TraceAllocThen(char * logCursor, ADDRINT size, THREADID tid);
     static char * PIN_FAST_ANALYSIS_CALL  RecordTraceBegin(char * logCursor, TRACE_HEADER * theader, ADDRINT size);
-
+    
     /*
      * Add a trace header to the log and return next logCursor
      */
@@ -309,7 +339,7 @@ class MLOG
      * Reset log cursor to the beginning of the buffer
      */
     void ResetLogCursor(char ** logCursor);
-
+    
     /*
      * Return true if position in log is empty
      */
@@ -330,26 +360,26 @@ class MLOG
     {
         return *reinterpret_cast<ADDRINT*>(logCursor);
     }
-
+    
     static TRACE_HEADER const * TraceHeader(char * logCursor)
     {
         return *reinterpret_cast<TRACE_HEADER const **>(logCursor);
     }
-
+    
     static void RecordTraceHeader(char * logCursor, TRACE_HEADER * traceHeader)
     {
         *reinterpret_cast<TRACE_HEADER const **>(logCursor) = traceHeader;
     }
-
+    
     /*
      * Mark all the slots in the log as empty
      */
      void Reset();
-
+    
     int NumLogBytes(TCMD_TYPE ttype);
 
     void ExpandTrace(TRACE_HEADER const * traceHeader, char * logCursor);
-
+    
     char * _data;
 };
 
@@ -357,12 +387,12 @@ MLOG::MLOG(THREADID tid)
 {
     if (KnobEmitTrace)
     { // no need for output file if nothing is being emitted
-        const string filename = KnobOutputFile.Value() + "." + decstr(getpid()) + "." + decstr(tid);
+        string filename = KnobOutputFile.Value() + "." + decstr(getpid_portable()) + "." + decstr(tid);
         // Open the memtrace file
         ofile.open(filename.c_str());
         ofile << hex;
     }
-
+    
     _data = new char[BUFFER_SIZE];
     Reset();
 }
@@ -379,7 +409,7 @@ MLOG::~MLOG()
 
     delete [] _data;
 }
-
+    
 /*
  * Mark all the slots in the log as empty
  */
@@ -427,12 +457,12 @@ void MLOG::Expand()
 #if MEMTRACE_DEBUG > 10
     fprintf(stderr,"WriteLog\n");
 #endif
-
+    
     if (!KnobEmitTrace)
         return;
-
+    
     TRACE_HEADER const * theader = 0;
-
+    
     for (char * logCursor = Begin(); !EmptySlot(logCursor); logCursor += theader->LogBytes())
     {
         // Read the trace header
@@ -464,7 +494,7 @@ ADDRINT MLOG::TraceAllocIf(char * logCursor, char * logEnd, ADDRINT size)
 char * MLOG::TraceAllocThen(char * logCursor, ADDRINT size, THREADID tid)
 {
     MLOG * mlog = static_cast<MLOG*>(PIN_GetThreadData(mlog_key, tid));
-
+    
     // If adding this trace will exceed the buffer size then flush the log
     assert(logCursor + size >= mlog->End());
     mlog->Expand();
@@ -503,7 +533,7 @@ char * MLOG::BeginTrace(char * logCursor, char * logEnd, TRACE_HEADER * theader,
     {
         logCursor = TraceAllocThen(logCursor, size, tid);
     }
-
+    
     logCursor = RecordTraceBegin(logCursor, theader, size);
 
     return logCursor;
@@ -544,7 +574,13 @@ TRACE_HEADER::TRACE_HEADER(SCRATCH_TRACE_HEADER * scratch)
     {
         _cmds[i] = scratch->_cmds[i];
     }
-
+    
+    _cmdData = new TCMD_DATA[scratch->_data.size()];
+    for (UINT32 i = 0; i < scratch->_data.size(); i++)
+    {
+        _cmdData[i] = scratch->_data[i];
+    }
+    
     _refs = new REF[scratch->_refs.size()];
     for (UINT32 i = 0; i < scratch->_refs.size(); i++)
     {
@@ -572,12 +608,12 @@ void SCRATCH_TRACE_HEADER::RecordLogImmediate(INS ins, IARG_TYPE itype)
     _refs.push_back(REF(INS_Address(ins), itype != IARG_MEMORYWRITE_EA));
     _calls.push_back(CALL(ins, AFUNPTR(MLOG::RecordImmediate), _frameOffset, itype));
     _frameOffset += sizeof(ADDRINT);
-
+    
 #if MEMTRACE_DEBUG > 5
     fprintf(stderr,"InsertLogImmediate ip %p\n",INS_Address(ins));
 #endif
 }
-
+    
 
 void InstrumentBBL(BBL bbl, SCRATCH_TRACE_HEADER * theader)
 {
@@ -614,10 +650,10 @@ void InstrumentTrace(TRACE trace, void *)
     // No addresses in this trace
     if (scratchHeader.NumCmds() == 0)
         return;
-
+    
     // Pack everything into a TRACE_HEADER
     TRACE_HEADER * theader = new TRACE_HEADER(&scratchHeader);
-
+    
     // Now that we know how many MLOG bytes are needed, we can insert instrumentation
     // Insert call to allocate trace entries and write trace header to log
 #define INSERT_IF
@@ -702,6 +738,6 @@ int main(int argc, char * argv[])
     PIN_AddThreadFiniFunction(ThreadFini, 0);
 
     PIN_StartProgram();
-
+    
     return 0;
 }

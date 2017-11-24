@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -32,7 +32,6 @@ END_LEGAL */
  * This tool is meant to be used with the mt_thread.cpp application. It tests the correctness of PIN_AddDetachFunction.
  * We expect to get exactly one detach callback regardless of the number of threads in the application or the number of
  * detach requests.
- * Also check detach callback was called
  */
 
 #include <cstdio>
@@ -53,19 +52,18 @@ ofstream outfile;
 volatile UINT32 instrumentedInstructions = 0; // the number of instructions that were instrumented.
 volatile UINT32 runtimeCount = 0; // the number of executed instructions until detaching.
 INT32 threadCounter = 0;
-PIN_LOCK pinLock;
+PIN_LOCK lock;
 volatile bool detached = false;
+
 
 VOID docount()
 {
-    ASSERT(!detached, "Analysis function was called after detach ended");
     ATOMIC::OPS::Increment<UINT32>(&runtimeCount, (UINT32)1); // the instrumented application may be multi-threaded
 }
 
     
 VOID Instruction(INS ins, VOID *v)
 {
-    ASSERT(!detached, "Callback function was called after detach ended");
     ++instrumentedInstructions;
     if (threadCounter >= 2)
     {
@@ -94,12 +92,11 @@ VOID Detach(VOID *v)
 
 VOID ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, VOID *v)
 {
-    ASSERT(!detached, "Callback function was called after detach ended");
     OS_THREAD_ID tid = PIN_GetTid();
-    PIN_GetLock(&pinLock, tid);
+    PIN_GetLock(&lock, tid);
     outfile << "Thread " << tid << " has started." << endl;
     ++threadCounter;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 }
 
 
@@ -112,11 +109,11 @@ VOID ThreadEnd(THREADID threadid, const CONTEXT *ctxt, INT32 code, VOID *v)
         exit(30); // use exit instead of PIN_ExitProcess because we don't know if it is available at this point.
     }
     OS_THREAD_ID tid = PIN_GetTid();
-    PIN_GetLock(&pinLock, tid);
+    PIN_GetLock(&lock, tid);
     outfile << "Thread " << tid << " has ended." << endl;
     assert(threadCounter > 0);
     --threadCounter;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 }
 
 
@@ -131,7 +128,7 @@ int main(int argc, char * argv[])
         PIN_ExitProcess(10);
     }
 
-    PIN_InitLock(&pinLock);
+    PIN_InitLock(&lock);
 
     INS_AddInstrumentFunction(Instruction, 0);
     PIN_AddThreadStartFunction(ThreadStart, 0);

@@ -9,20 +9,17 @@
 #define EnterPinClientSlaveMode() CheckPinClientLock(__FUNCTION__)
 #define ExitPinClientSlaveMode() CheckPinClientLock(__FUNCTION__)
 #ifndef PIN_GENERATED_MESSAGE_PIN_H
-#define LOG_IMAGE(s)         if(ClientInt()->_VmLog) ClientInt()->_VmLog("IMAGE", s);
-#define LOG_SYM(s)           if(ClientInt()->_VmLog) ClientInt()->_VmLog("SYMBOLS", s);
-#define LOG_PROBE(s)         if(ClientInt()->_VmLog) ClientInt()->_VmLog("PROBE", s);
-#define LOG_FETCH_RTN_INS(s) if(ClientInt()->_VmLog) ClientInt()->_VmLog("FETCH_RTN_INS", s);
-#define LOG_UNWIND(s)        if(ClientInt()->_VmLog) ClientInt()->_VmLog("UNWIND", s);
-#define LOG_BUFFER(s)        if(ClientInt()->_VmLog) ClientInt()->_VmLog("BUFFER", s);
+#define LOG_IMAGE(s)         if(MessageTypeLogImage.on())       ClientInt()->_VmLog("IMAGE", s);
+#define LOG_SYM(s)           if(MessageTypeLogSym.on())         ClientInt()->_VmLog("SYMBOLS", s);
+#define LOG_PROBE(s)         if(MessageTypeLogProbe.on())       ClientInt()->_VmLog("PROBE", s);
+#define LOG_FETCH_RTN_INS(s) if(MessageTypeLogFetchRtnIns.on()) ClientInt()->_VmLog("FETCH_RTN_INS", s);
+#define LOG_UNWIND(s)        if(MessageTypeLogUnwind.on())      ClientInt()->_VmLog("UNWIND", s);
+#define LOG_BUFFER(s)        if(MessageTypeLogBuffer.on())      ClientInt()->_VmLog("BUFFER", s);
 #endif
 class TRACE_CLASS;
 
                                                                   /* DO NOT EDIT */
 typedef TRACE_CLASS * TRACE;
-
-                                                                  /* DO NOT EDIT */
-typedef VOID * PIN_CONFIGURATION_INFO;
 
                                                                   /* DO NOT EDIT */
 class COMPLEX_CALLBACKVAL_BASE;
@@ -46,13 +43,7 @@ typedef VOID (*DETACH_PROBED_CALLBACK)(VOID *v);
 typedef VOID (*ATTACH_PROBED_CALLBACK)(VOID *v);
 
                                                                   /* DO NOT EDIT */
-typedef VOID (*ATTACH_CALLBACK)(VOID *v);
-
-                                                                  /* DO NOT EDIT */
 typedef VOID (*APPLICATION_START_CALLBACK)(VOID *v);
-
-                                                                  /* DO NOT EDIT */
-typedef VOID (*PREPARE_FOR_FINI_CALLBACK)(VOID *v);
 
                                                                   /* DO NOT EDIT */
 typedef VOID (*FINI_CALLBACK)(INT32 code, VOID *v);
@@ -68,9 +59,6 @@ typedef VOID (*OUT_OF_MEMORY_CALLBACK)(size_t size, VOID *v);
 typedef ADDRINT (PIN_FAST_ANALYSIS_CALL * MEMORY_ADDR_TRANS_CALLBACK)(PIN_MEM_TRANS_INFO* memTransInfo, VOID *v);
 
                                                                   /* DO NOT EDIT */
-typedef VOID (*SMC_CALLBACK)(ADDRINT traceStartAddress, ADDRINT traceEndAddress, VOID *v);
-
-                                                                  /* DO NOT EDIT */
 typedef VOID (*FORK_CALLBACK)(THREADID threadid, const CONTEXT *ctxt, VOID *v);
 
                                                                   /* DO NOT EDIT */
@@ -83,12 +71,6 @@ typedef VOID (*THREAD_ATTACH_PROBED_CALLBACK)(VOID *sigmask, VOID *v);
 typedef VOID (*THREAD_DETACH_PROBED_CALLBACK)(VOID *v);
 
                                                                   /* DO NOT EDIT */
-typedef VOID (*THREAD_ATTACH_CALLBACK)(THREADID threadIndex, CONTEXT *ctxt, VOID *v);
-
-                                                                  /* DO NOT EDIT */
-typedef VOID (*THREAD_DETACH_CALLBACK)(THREADID threadIndex, const CONTEXT *ctxt, VOID *v);
-
-                                                                  /* DO NOT EDIT */
 typedef VOID (*THREAD_FINI_CALLBACK)(THREADID threadIndex, const CONTEXT *ctxt, INT32 code, VOID *v);
 
                                                                   /* DO NOT EDIT */
@@ -96,11 +78,11 @@ typedef VOID (*CONTEXT_CHANGE_CALLBACK)(THREADID threadIndex, CONTEXT_CHANGE_REA
                                                    const CONTEXT *from, CONTEXT *to, INT32 info, VOID *v);
 
                                                                   /* DO NOT EDIT */
-typedef VOID (*SYSCALL_ENTRY_CALLBACK)(THREADID threadIndex, CONTEXT *ctxt,
+typedef VOID (*SYSCALL_ENTRY_CALLBACK)(THREADID threadIndex, CONTEXT *ctxt, 
                                                   SYSCALL_STANDARD std, VOID *v);
 
                                                                   /* DO NOT EDIT */
-typedef VOID (*SYSCALL_EXIT_CALLBACK)(THREADID threadIndex, CONTEXT *ctxt,
+typedef VOID (*SYSCALL_EXIT_CALLBACK)(THREADID threadIndex, CONTEXT *ctxt, 
                                                  SYSCALL_STANDARD std, VOID *v);
 
                                                                   /* DO NOT EDIT */
@@ -138,6 +120,12 @@ extern VOID PIN_LockClient();
 extern VOID PIN_UnlockClient();
 
                                                                   /* DO NOT EDIT */
+extern VOID PIN_LockClient();
+
+                                                                  /* DO NOT EDIT */
+extern VOID PIN_UnlockClient();
+
+                                                                  /* DO NOT EDIT */
 extern VOID PIN_WriteErrorMessage( const char * msg, INT32 type, PIN_ERR_SEVERITY_TYPE severity, INT32 num, ... );
 
                                                                   /* DO NOT EDIT */
@@ -157,7 +145,7 @@ enum PROBE_MODE
 extern AFUNPTR RTN_ReplaceProbed(RTN replacedRtn, AFUNPTR replacementFun);
 
                                                                   /* DO NOT EDIT */
-extern AFUNPTR RTN_ReplaceProbedEx(RTN replacedRtn, PROBE_MODE mode,
+extern AFUNPTR RTN_ReplaceProbedEx(RTN replacedRtn, PROBE_MODE mode, 
                                  AFUNPTR replacementFun);
 
                                                                   /* DO NOT EDIT */
@@ -192,13 +180,16 @@ extern INT32 CALLBACK_GetExecutionPriority(PIN_CALLBACK callback);
 extern PIN_CALLBACK TRACE_AddInstrumentFunction(TRACE_INSTRUMENT_CALLBACK fun, VOID *val);
 
                                                                   /* DO NOT EDIT */
+extern PIN_CALLBACK CODECACHE_AddTraceInsertedFunction(TRACE_INSTRUMENT_CALLBACK fun, VOID *val);
+
+                                                                  /* DO NOT EDIT */
 extern PIN_CALLBACK INS_AddInstrumentFunction(INS_INSTRUMENT_CALLBACK fun, VOID *val);
 
                                                                   /* DO NOT EDIT */
 extern PIN_CALLBACK PIN_AddFiniFunction(FINI_CALLBACK fun, VOID *val);
 
                                                                   /* DO NOT EDIT */
-extern PIN_CALLBACK PIN_AddPrepareForFiniFunction(PREPARE_FOR_FINI_CALLBACK fun, VOID *val);
+extern PIN_CALLBACK PIN_AddFiniUnlockedFunction(FINI_CALLBACK fun, VOID *val);
 
                                                                   /* DO NOT EDIT */
 extern VOID PIN_AddFetchFunction(FETCH_CALLBACK fun, VOID *val);
@@ -212,9 +203,6 @@ extern VOID PIN_AddOutOfMemoryFunction(OUT_OF_MEMORY_CALLBACK fun, VOID *val);
 
                                                                   /* DO NOT EDIT */
 extern VOID PIN_AddMemoryAddressTransFunction(MEMORY_ADDR_TRANS_CALLBACK fun, VOID *val);
-
-                                                                  /* DO NOT EDIT */
-extern VOID TRACE_AddSmcDetectedFunction(SMC_CALLBACK fun, VOID *val);
 
                                                                   /* DO NOT EDIT */
 extern MEMORY_ADDR_TRANS_CALLBACK PIN_GetMemoryAddressTransFunction();
@@ -232,14 +220,8 @@ extern PIN_CALLBACK PIN_AddThreadStartFunction(THREAD_START_CALLBACK fun, VOID *
 extern PIN_CALLBACK PIN_AddThreadAttachProbedFunction(THREAD_ATTACH_PROBED_CALLBACK fun, VOID *val);
 
                                                                   /* DO NOT EDIT */
-extern PIN_CALLBACK PIN_AddThreadAttachFunction(THREAD_ATTACH_CALLBACK fun, VOID *val);
-
-                                                                  /* DO NOT EDIT */
 extern PIN_CALLBACK PIN_AddThreadDetachProbedFunction(
         THREAD_DETACH_PROBED_CALLBACK fun, VOID *val);
-
-                                                                  /* DO NOT EDIT */
-extern PIN_CALLBACK PIN_AddThreadDetachFunction(THREAD_DETACH_CALLBACK fun, VOID *val);
 
                                                                   /* DO NOT EDIT */
 extern PIN_CALLBACK PIN_AddApplicationStartFunction(APPLICATION_START_CALLBACK fun, VOID *val);
@@ -263,16 +245,6 @@ extern BOOL PIN_InterceptSignal(INT32 sig, INTERCEPT_SIGNAL_CALLBACK fun, VOID *
 extern BOOL PIN_UnblockSignal(INT32 sig, BOOL enable);
 
                                                                   /* DO NOT EDIT */
-typedef enum
-{
-    SMC_ENABLE,
-    SMC_DISABLE
-} SMC_ENABLE_DISABLE_TYPE;
-
-                                                                  /* DO NOT EDIT */
-extern VOID PIN_SetSmcSupport(SMC_ENABLE_DISABLE_TYPE enable_disable);
-
-                                                                  /* DO NOT EDIT */
 extern PIN_CALLBACK PIN_AddProbesInsertedFunction( PROBES_INSERTED_CALLBACK fun, VOID *val );
 
                                                                   /* DO NOT EDIT */
@@ -290,30 +262,16 @@ extern PIN_CALLBACK PIN_AddForkFunction(FPOINT point, FORK_CALLBACK fun, VOID *v
 extern VOID PIN_RemoveInstrumentation();
 
                                                                   /* DO NOT EDIT */
-extern VOID PIN_RemoveInstrumentationInRange(ADDRINT start, ADDRINT end);
-
-                                                                  /* DO NOT EDIT */
 extern VOID PIN_RemoveFiniFunctions();
 
                                                                   /* DO NOT EDIT */
 extern VOID PIN_Detach();
 
                                                                   /* DO NOT EDIT */
-enum ATTACH_STATUS
-{
-    ATTACH_INITIATED,       ///< Attach request was delivered successfully to PIN
-    ATTACH_FAILED_DETACH    ///< Attach request was not delivered to Pin
-                            ///< since detach session hasn't completed yet.
-};
-
-                                                                  /* DO NOT EDIT */
-extern ATTACH_STATUS PIN_Attach(ATTACH_CALLBACK fun, VOID *val);
-
-                                                                  /* DO NOT EDIT */
 extern VOID PIN_DetachProbed();
 
                                                                   /* DO NOT EDIT */
-extern ATTACH_STATUS PIN_AttachProbed(ATTACH_PROBED_CALLBACK fun, VOID *val);
+extern VOID PIN_AttachProbed(ATTACH_PROBED_CALLBACK fun, VOID *val);
 
                                                                   /* DO NOT EDIT */
 extern VOID INS_InsertPredicatedCall(INS ins, IPOINT ipoint, AFUNPTR funptr, ...);
@@ -334,16 +292,7 @@ extern VOID INS_InsertIfPredicatedCall(INS ins, IPOINT action, AFUNPTR funptr, .
 extern VOID INS_InsertThenPredicatedCall(INS ins, IPOINT action, AFUNPTR funptr, ...);
 
                                                                   /* DO NOT EDIT */
-extern PIN_CONFIGURATION_INFO PIN_CreateDefaultConfigurationInfo();
-
-                                                                  /* DO NOT EDIT */
-extern VOID PIN_SetAllowedConcurrentCallbacks(PIN_CONFIGURATION_INFO options, PIN_CALLBACK_TYPE callbackType);
-
-                                                                  /* DO NOT EDIT */
-extern VOID PIN_StartProgram(PIN_CONFIGURATION_INFO options=PIN_CreateDefaultConfigurationInfo());
-
-                                                                  /* DO NOT EDIT */
-extern VOID PIN_StartProgram(PIN_CONFIGURATION_INFO options);
+extern VOID PIN_StartProgram();
 
                                                                   /* DO NOT EDIT */
 extern VOID PIN_StartProgramProbed();
@@ -387,6 +336,9 @@ extern BBL TRACE_BblHead(TRACE trace);
 extern BBL TRACE_BblTail(TRACE trace);
 
                                                                   /* DO NOT EDIT */
+extern BOOL TRACE_Original(TRACE trace);
+
+                                                                  /* DO NOT EDIT */
 extern ADDRINT TRACE_Address(TRACE trace);
 
                                                                   /* DO NOT EDIT */
@@ -403,6 +355,9 @@ extern UINT32 TRACE_NumBbl(TRACE trace);
 
                                                                   /* DO NOT EDIT */
 extern UINT32 TRACE_NumIns(TRACE trace);
+
+                                                                  /* DO NOT EDIT */
+extern USIZE TRACE_StubSize(TRACE trace);
 
                                                                   /* DO NOT EDIT */
 extern VOID BBL_InsertCall(BBL bbl, IPOINT action, AFUNPTR funptr, ...);
@@ -439,9 +394,6 @@ extern VOID PIN_SetContextFPState(CONTEXT * ctxt, const FPSTATE * fpstate);
 
                                                                   /* DO NOT EDIT */
 extern VOID PIN_GetContextFPState(const CONTEXT * ctxt, FPSTATE * fpstate);
-
-                                                                  /* DO NOT EDIT */
-extern REGSET PIN_GetFullContextRegsSet();
 
                                                                   /* DO NOT EDIT */
 extern VOID PIN_SaveContext(const CONTEXT * ctxtFrom, CONTEXT * ctxtTo);
@@ -497,12 +449,12 @@ extern PIN_DEPRECATED_API BOOL INS_ChangeMemOpToBaseRegisterAddressMode(INS ins,
 /* INS_RewriteMemoryAddressingToBaseRegisterOnly is now deprecated and no longer supported. See INS_RewriteMemoryOperand
  * for a more powerful replacement.
  */
-extern PIN_DEPRECATED_API  BOOL INS_RewriteMemoryAddressingToBaseRegisterOnly(INS ins,
+extern PIN_DEPRECATED_API  BOOL INS_RewriteMemoryAddressingToBaseRegisterOnly(INS ins, 
                                                                                 MEMORY_TYPE mtype,
                                                                                 REG newBase);
 
                                                                   /* DO NOT EDIT */
-extern VOID INS_RewriteMemoryOperand(INS ins,
+extern VOID INS_RewriteMemoryOperand(INS ins, 
                                         UINT32 memindex,
                                         REG reg);
 
@@ -513,6 +465,12 @@ extern VOID INS_InsertIndirectJump(INS ins, IPOINT ipoint, REG reg);
 extern VOID INS_InsertDirectJump(INS ins, IPOINT ipoint, ADDRINT tgt);
 
                                                                   /* DO NOT EDIT */
+extern VOID GetVmLock();
+
+                                                                  /* DO NOT EDIT */
+extern VOID ReleaseVmLock();
+
+                                                                  /* DO NOT EDIT */
 extern REG PIN_ClaimToolRegister();
 
                                                                   /* DO NOT EDIT */
@@ -520,6 +478,9 @@ extern CHAR * PIN_VmFullPath();
 
                                                                   /* DO NOT EDIT */
 extern const CHAR * PIN_ToolFullPath();
+
+                                                                  /* DO NOT EDIT */
+extern BOOL PIN_IsProcessExiting();
 
                                                                   /* DO NOT EDIT */
 extern NORETURN VOID PIN_ExitProcess(INT32 exitCode);
@@ -543,9 +504,9 @@ extern VOID IARGLIST_Free(IARGLIST args);
 extern size_t PIN_SafeCopy(VOID * dst, const VOID * src, size_t size);
 
                                                                   /* DO NOT EDIT */
-extern size_t PIN_SafeCopyEx(VOID * dst,
-                                const VOID * src,
-                                size_t size,
+extern size_t PIN_SafeCopyEx(VOID * dst, 
+                                const VOID * src, 
+                                size_t size, 
                                 EXCEPTION_INFO * pExceptInfo);
 
                                                                   /* DO NOT EDIT */
@@ -580,9 +541,6 @@ extern BOOL PIN_CheckReadAccess(VOID * addr);
 
                                                                   /* DO NOT EDIT */
 extern BOOL PIN_CheckWriteAccess(VOID * addr);
-
-                                                                  /* DO NOT EDIT */
-extern ADDRINT PIN_GetAuxVectorValue(ADDRINT type, bool *found);
 
                                                                   /* DO NOT EDIT */
 

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -95,10 +95,15 @@ static VOID IntThread(VOID * arg)
 /*!
  * Process exit callback (unlocked).
  */
-static VOID PrepareForFini(VOID *v)
+static VOID FiniUnlocked(INT32 code, VOID *v)
 {
     BOOL waitStatus;
     INT32 threadExitCode;
+
+    if (code != 0)
+    {
+        AbortProcess("Application exited abnormally", code);
+    }
 
     // Notify internal thread to finish.
     *pTid = 0;
@@ -120,17 +125,6 @@ static VOID PrepareForFini(VOID *v)
 }
 
 /*!
- * Process exit callback.
- */
-static VOID Fini(INT32 code, VOID *v)
-{
-    if (code != 0)
-    {
-        AbortProcess("Application exited abnormally", code);
-    }
-}
-
-/*!
  * The main procedure of the tool.
  */
 int main(int argc, char *argv[])
@@ -139,8 +133,7 @@ int main(int argc, char *argv[])
 
     PIN_Init(argc, argv);
 
-    PIN_AddPrepareForFiniFunction(PrepareForFini, 0);
-    PIN_AddFiniFunction(Fini, 0);
+    PIN_AddFiniUnlockedFunction(FiniUnlocked, 0);
 
     // Spawn the main internal thread. When this thread starts it spawns all other internal threads.
     THREADID intThreadId = PIN_SpawnInternalThread(IntThread, NULL, 0, &intThreadUid);

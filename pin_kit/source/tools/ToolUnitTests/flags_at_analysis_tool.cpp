@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -46,33 +46,39 @@ instrumented:
 SetOfFlag_asm ENDP
 */
 
-#include <cstdio>
+#include <stdio.h>
+#include "pin.H"
+#include "instlib.H"
+#include "portability.H"
 #include <iostream>
 #include <sstream>
 #include <iomanip>
 #include <fstream>
 #include <cstdlib>
+#include <stdlib.h>
 
-#ifdef TARGET_LINUX
-#include <unistd.h>
-#include <syscall.h>
-#include <errno.h>
-# ifdef TARGET_IA32E
-# include <asm/prctl.h>
-# include <sys/prctl.h>
-# endif // TARGET_IA32E
-#endif // TARGET_LINUX
 
-#include "pin.H"
-#include "instlib.H"
-
-// windows.h must be included after pin.H
 #ifdef TARGET_WINDOWS
 namespace WIND
 {
 #include <windows.h>
 }
-#endif // TARGET_WINDOWS
+
+
+
+#endif
+
+#ifdef TARGET_LINUX
+#include <unistd.h>
+#include <syscall.h>
+#include <errno.h>
+
+#ifdef TARGET_IA32E
+#include <asm/prctl.h> 
+#include <sys/prctl.h> 
+
+#endif
+#endif
 
 
 BOOL x = TRUE;
@@ -137,10 +143,10 @@ VOID Image(IMG img, VOID * v)
         for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn))
         {
             // Prepare for processing of RTN, an  RTN is not broken up into BBLs,
-            // it is merely a sequence of INSs
+            // it is merely a sequence of INSs 
             RTN_Open(rtn);
-
-
+            
+            
             for (INS ins = RTN_InsHead(rtn); INS_Valid(ins); ins = INS_Next(ins))
             {
                 if (INS_Opcode(ins)==XED_ICLASS_POPF
@@ -156,9 +162,9 @@ VOID Image(IMG img, VOID * v)
 
                     printf ("next ins should be cmp al, 0x81   it is   %s\n", INS_Disassemble(INS_Next(ins)).c_str());
                     printf ("next ins should be xor ecx, ecx   it is   %s\n", INS_Disassemble(INS_Next(INS_Next(ins))).c_str());
-
+                    
                     // Insert analysis calls to read the value of the flags register just after the cmp al, 0x81 - the OF flag should be set
-                    INS_InsertIfCall(INS_Next(INS_Next(ins)), IPOINT_BEFORE, (AFUNPTR)IfReturnTrue,
+                    INS_InsertIfCall(INS_Next(INS_Next(ins)), IPOINT_BEFORE, (AFUNPTR)IfReturnTrue, 
                          IARG_INST_PTR,
                          IARG_END);
                     INS_InsertThenCall(INS_Next(INS_Next(ins)), IPOINT_BEFORE, (AFUNPTR)ThenFunc,
@@ -203,7 +209,7 @@ int main(int argc, char *argv[])
 
     // Never returns
     PIN_StartProgram();
-
+    
     return 0;
 }
 

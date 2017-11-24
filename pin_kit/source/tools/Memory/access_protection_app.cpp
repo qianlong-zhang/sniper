@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -87,7 +87,7 @@ const char * MmapWrapperNoMemoryAccess()
 #if defined(TARGET_MAC)
     return reinterpret_cast<const char *> (mmap(0, GetPageSize(),  PROT_NONE, MAP_ANON | MAP_PRIVATE, -1, 0));
 #else
-   return reinterpret_cast<const char *> (mmap(0, GetPageSize(), PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0));
+   return reinterpret_cast<const char *> (mmap(0, GetPageSize(), PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, 0, 0));
 #endif
 }
 
@@ -96,7 +96,7 @@ const char * MmapWrapperWriteAndReadMemoryAccess()
 #if defined(TARGET_MAC)
     return reinterpret_cast<const char *> (mmap(0, GetPageSize(), PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0));
 #else
-   return reinterpret_cast<const char *> (mmap(0, GetPageSize(), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0));
+   return reinterpret_cast<const char *> (mmap(0, GetPageSize(), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, 0, 0));
 #endif
 }
 

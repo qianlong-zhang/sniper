@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -33,7 +33,6 @@ END_LEGAL */
 #include <sys/mman.h>
 #include <dlfcn.h>
 #include <stdio.h>
-#include "../InstLib/tool_macros.h"
 
 void Load(char * name, int expect)
 {
@@ -67,8 +66,8 @@ void Load(char * name, int expect)
 
 int main()
 {
-    Load(SHARED_LIB("libone"), 1);
-    Load(SHARED_LIB("libtwo"), 2);
+    Load("libone.so", 1);
+    Load("libtwo.so", 2);
 
     return 0;
 }

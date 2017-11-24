@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -42,7 +42,6 @@ END_LEGAL */
 #include "pin.H"
 #include <iostream>
 #include <stdlib.h>
-#include "tool_macros.h"
 
 using namespace std;
 
@@ -102,7 +101,7 @@ VOID ImageLoad(IMG img, VOID *v)
     PROTO proto = PROTO_Allocate( PIN_PARG(void), CALLINGSTD_DEFAULT,
                                   "one", PIN_PARG_END() );
     
-    RTN rtn = RTN_FindByName(img, C_MANGLE("one"));
+    RTN rtn = RTN_FindByName(img, "one");
     if (RTN_Valid(rtn))
     {
         Sanity(img, rtn);
@@ -126,7 +125,7 @@ VOID ImageUnload(IMG img, VOID *v)
 /* ===================================================================== */
 VOID ProbesInserted( IMG img, VOID *v )
 { 
-    RTN rtn = RTN_FindByName(img, C_MANGLE("one"));
+    RTN rtn = RTN_FindByName(img, "one");
     if (RTN_Valid(rtn))
     {
         PIN_CODE_RANGE * ranges = 0;
@@ -143,7 +142,7 @@ VOID ProbesInserted( IMG img, VOID *v )
         {
             LOG(" " + decstr(RTN_Id(rtn)) + "       " +
                 hexstr(ranges[i].start_address) + "        " +
-                hexstr((UINT64)ranges[i].size) + "\n");
+                hexstr(ranges[i].size) + "\n");
         }
         free (ranges);
     }

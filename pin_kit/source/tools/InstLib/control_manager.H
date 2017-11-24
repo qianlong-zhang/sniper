@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -66,9 +66,7 @@ class CONTROL_CHAIN;
 class ALARM_MANAGER;
 class CONTROLLER_EVENTS;
 class CONTROL_IREGIONS;
-class CONTROL_PCREGIONS;
 class IREGION;
-class PCREGION;
 
 class CONTROL_ARGS
 {
@@ -102,38 +100,30 @@ public:
      * ch - function to call when event triggers 
      * val - argument to pass for the called function
      * passContext - context's necessity in the called function
-     * late_ch - function to call when event triggers after instruction and analysis routines execution
      */   
-    VOID RegisterHandler(CONTROL_HANDLER ch, VOID* val, BOOL passContext=FALSE, CONTROL_HANDLER late_ch=NULL);
-
+    VOID RegisterHandler(CONTROL_HANDLER ch, VOID* val, BOOL passContext);
+        
     // activate the controller
     VOID Activate();
 
-    //return the call order of the controller instrumentations
+    //return the call order of the controller instrumantations
     UINT32 GetInsOrder();
-    UINT32 GetLateInsOrder();
     
     //return the thread id of the uniform sampling
     THREADID GetUniformTid();
     
     //return True if uniform sampling is used  
     BOOL UniformActive();
-
+    
     //return True if uniform sampling id done
     BOOL UniformIsDone();
-
+    
     //return the last triggered region
     IREGION * CurrentIregion(THREADID tid=0) const;
-
-    //return the last triggered region
-    PCREGION * CurrentPCregion(THREADID tid=0) const;
-
+    
     //return True if region control is active
     BOOL IregionsActive() const;
-
-    //return True if region control is active
-    BOOL PCregionsActive() const;
-
+    
     //FIXME:I think this is not required since we have the focus tid knob
     BOOL StartTIDActive(){return FALSE;}
 
@@ -143,7 +133,7 @@ public:
     
     //adds a start event at the beginning of the run
     VOID AddDefaultStart();
-
+    
     //trigger all registered control handlers
     //eventID - the Id of the event
     //tid     - the triggering thread 
@@ -151,18 +141,11 @@ public:
     VOID Fire(EVENT_TYPE eventID, CONTEXT* ctx, VOID * ip, 
               THREADID tid, BOOL bcast);
 
-    //trigger all registered late control handlers
-    //eventID - the Id of the event
-    //tid     - the triggering thread 
-    //bcast   - whether this event affects all threads 
-    VOID LateFire(EVENT_TYPE eventID, CONTEXT* ctxt, 
-        VOID * ip, THREADID tid, BOOL bcast);
 
 private:
     //enable those classes to access private members
     friend class CONTROL_CHAIN;
     friend class CONTROL_IREGIONS;
-    friend class CONTROL_PCREGIONS;
     friend class INIT_ALARM;
 
     //add Icount instrumentation, used for logging controller events
@@ -178,10 +161,7 @@ private:
     
     //return True if one of the control chains has start event
     BOOL HasStartEvent();
-
-    // Set late handler flags in chains and alarms
-    VOID SetLateHandler();
-
+     
     //translate all old controller knobs to the new "chain" format
     VOID AddOldKnobs();
 
@@ -206,8 +186,6 @@ private:
         
     BOOL PassContext(){return _pass_context;}
 
-    BOOL HasLateHandler(){return _late_handler;}
-
     INTERACTIVE_LISTENER* GetListener(){return _interactive_listener;}
   
     string _control_family;
@@ -215,7 +193,6 @@ private:
     string _family_description;
 
     UINT32 _call_order;
-    UINT32 _late_call_order;
 
     KNOB_COMMENT* _control_knob_family;
     KNOB<string>* _control_knob;
@@ -223,7 +200,7 @@ private:
     KNOB<BOOL>* _control_log_knob;
     KNOB<string>* _control_log_file_knob;
     KNOB<BOOL>* _control_default_start;
-
+  
     KNOB<string>* _control_skip;
     KNOB<string>* _control_length;
     KNOB<string>* _control_start_address;
@@ -242,21 +219,16 @@ private:
     KNOB<string>* _control_interactive;
 
     CONTROL_IREGIONS* _iregions;
-    CONTROL_PCREGIONS* _pcregions;
 
     //list of all control chains
     list<CONTROL_CHAIN*>  _control_chain;
-
+    
     //list of all chains translated from legacy knobs
     list<CONTROL_CHAIN*>  _legacy_control_chain;
     
     //list of registered control handlers
     list<CONTROL_HANDLER_PARAMS> _control_handler;
- 
-    //list of late registered control handlers
-    list<CONTROL_HANDLER_PARAMS> _late_control_handler;
-    BOOL _late_handler;
-
+    
     //the events manager
     CONTROLLER_EVENTS _events;
     
@@ -275,6 +247,4 @@ private:
 } //namespace
 //must be here due to code dependency
 #include "regions_control.H"
-#include "pcregions_control.H"
 #endif
-

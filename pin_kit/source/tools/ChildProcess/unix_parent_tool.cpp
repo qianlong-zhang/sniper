@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -40,7 +40,6 @@ END_LEGAL */
 #include <iostream>
 #include <fstream>
 #include "arglist.h"
-#include "tool_macros.h"
 
 /* ===================================================================== */
 /* Command line Switches */
@@ -83,7 +82,7 @@ BOOL FollowChild(CHILD_PROCESS childProcess, VOID * userData)
     ARGUMENTS_LIST appCmd(appArgc, appArgv);
     string childApp(appArgv[0]);
 
-    if (KnobApplication.Value() == "ALL" || KnobApplication.Value() == childApp)
+    if (KnobApplication.Value() == childApp)
     {
         // Change pin command line if defined, otherwise just follow child
         if (!KnobPin.Value().empty())
@@ -91,6 +90,7 @@ BOOL FollowChild(CHILD_PROCESS childProcess, VOID * userData)
             ARGUMENTS_LIST newPinCmd;
             newPinCmd.Add(KnobPin.Value());
             newPinCmd.Add("--");
+            newPinCmd.Add(appCmd.String());
 
             CHILD_PROCESS_SetPinCommandLine(childProcess, newPinCmd.Argc(), newPinCmd.Argv());
             OutFile << "Process to execute: " << newPinCmd.String()  << endl;
@@ -102,7 +102,7 @@ BOOL FollowChild(CHILD_PROCESS childProcess, VOID * userData)
         }
         return TRUE;
     }
-    OutFile << "knob val " << KnobApplication.Value() << ", app " << childApp << endl;
+    OutFile << "knob val " << KnobApplication.Value() << "app " << childApp << endl;
     OutFile << "Do not run Pin under the child process" << endl;
     return FALSE;
 }
@@ -127,10 +127,18 @@ VOID ExitInProbeMode(INT code)
 
 VOID ImageLoad(IMG img, VOID *v)
 {
-    RTN exitRtn = RTN_FindByName(img, C_MANGLE("_exit"));
+    RTN exitRtn = RTN_FindByName(img, "_exit");
     if (RTN_Valid(exitRtn) && RTN_IsSafeForProbedReplacement(exitRtn))
     {
         origExit = (EXITFUNCPTR) RTN_ReplaceProbed(exitRtn, AFUNPTR(ExitInProbeMode));
+    }
+    else
+    {
+        exitRtn = RTN_FindByName(img, "exit");    
+        if (RTN_Valid(exitRtn) && RTN_IsSafeForProbedReplacement(exitRtn))
+        {
+            origExit = (EXITFUNCPTR) RTN_ReplaceProbed(exitRtn, AFUNPTR(ExitInProbeMode));
+        }
     }
 }
 /* ===================================================================== */
@@ -138,7 +146,6 @@ VOID ImageLoad(IMG img, VOID *v)
 int main(INT32 argc, CHAR **argv)
 {
     if (PIN_Init(argc, argv)) return Usage();
-    PIN_InitSymbols();
 
     // Can't just open for writing because the child process' Pintool may overwrite
     // the parent process' Pintool file (when the -o parameter doesn't change).

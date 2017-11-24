@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -29,12 +29,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
 #include <unistd.h>
-#include <fcntl.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <errno.h>
-#include <unistd.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -85,48 +82,9 @@ static void ParseArguments(const int argc, const char* argv[], vector<string>& p
     }
 }
 
-// Verify application is ready to be attached by checking that "/proc/CHILD_PID/exe" exists
-// and has read and execute permissions
-static void VerifyAppReadyForAttach(pid_t child)
-{
-    stringstream childS;
-    childS << child;
-    const string file = "/proc/" + childS.str() + "/exe";
-
-    int attempts = 0;
-
-    while (1)
-    {
-        attempts++;
-        errno = 0;
-        const int ret = access(file.c_str(), R_OK | X_OK);
-        if (ret == 0)
-        {
-            break;
-        }
-        else if (attempts == 1000)
-        {
-            const string errorMsg = "LAUNCHER: Application not ready to be attached, need execute and read access to "
-                    + file + ", errno=" + string(strerror(errno)) + "\n";
-            perror(errorMsg.c_str());
-            kill(child, SIGKILL);
-            exit(1);
-        }
-        usleep(1000);
-    }
-}
 
 static pid_t LaunchApp(const vector<string>& appCmd)
 {
-    // Create the synchronization pipe. This is used to make sure that the launcher continues only after the child has
-    // successfully execed to the application.
-    int fd[2];
-    if (pipe(fd) != 0)
-    {
-        perror("LAUNCHER ERROR: Pipe creation failed");
-        exit(1);
-    }
-
     // Prepare the argument list.
     const unsigned int appArgc = appCmd.size();
     char** appArgv = new char*[appArgc + 1]; // additional slot for the NULL terminator
@@ -146,20 +104,6 @@ static pid_t LaunchApp(const vector<string>& appCmd)
     else if (0 == child)
     {
         // In the child process.
-        close(fd[0]); // close the read end of the pipe, the write end will be automatically closed upon a successful exec
-        int fdflags = fcntl(fd[1], F_GETFD); // get the file descriptor flags for the write end of the pipe
-        if (fdflags < 0)
-        {
-            perror("LAUNCHER ERROR: Failed to read the file descriptor flags");
-            exit(1);
-        }
-        fdflags |= FD_CLOEXEC; // this will set the write end of the pipe to be closed by the exec system call
-        if (fcntl(fd[1], F_SETFD, fdflags) < 0) // set the new flags
-        {
-            perror("LAUNCHER ERROR: Failed to set the file descriptor flags");
-            exit(1);
-        }
-
         cout << endl << "LAUNCHER: Running the application with pid [" << getpid() << "]:" << endl << appArgv[0];
         for (unsigned int i = 1; NULL != appArgv[i]; ++i)
         {
@@ -172,18 +116,6 @@ static pid_t LaunchApp(const vector<string>& appCmd)
     }
 
     // In the parent process.
-    close(fd[1]); // close the write end of the pipe since it is not used
-    char buf [2] = { 0 };
-    if (read(fd[0], buf, 1) < 0) // wait here until the child execs to the application
-    {
-        perror("LAUNCHER: read from the pipe failed");
-        kill(child, SIGKILL);
-        exit(1);
-    }
-    close(fd[0]); // close the read end of the pipe now that we're done with it
-
-    VerifyAppReadyForAttach(child);
-
     return child;
 }
 

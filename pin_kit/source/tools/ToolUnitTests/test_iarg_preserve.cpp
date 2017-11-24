@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -38,7 +38,7 @@ namespace WIND
 }
 #define EXPORT_CSYM extern "C" __declspec( dllexport )
 #else
-#define EXPORT_CSYM extern "C"
+#define EXPORT_CSYM extern "C" 
 #endif
 #ifdef TARGET_WINDOWS
 #define ASMNAME(name)
@@ -52,8 +52,7 @@ namespace WIND
 #define EXTERN_C
 #endif
 
-EXTERN_C BOOL ProcessorSupportsAvx() ASMNAME("ProcessorSupportsAvx");
-EXTERN_C BOOL SupportsAvx512f() ASMNAME("SupportsAvx512f");
+extern "C" BOOL ProcessorSupportsAvx() ASMNAME("ProcessorSupportsAvx");
 EXTERN_C VOID FldzToTop3() ASMNAME("FldzToTop3");
 EXTERN_C VOID SetXmmRegsToZero() ASMNAME("SetXmmRegsToZero");
 EXTERN_C VOID SetIntRegsToZero() ASMNAME("SetIntRegsToZero");
@@ -67,7 +66,7 @@ double var2=2.0;
 double var3=2.0;
 
 
-//ALIGN16
+//ALIGN16 
 static UINT64 vals[]=
 {1,0,2,0,3,0,4,0,5,0,6,0,7,0,8,0,9,0,10,0,11,0,12,0,13,0,14,0,15,0,16,0};
 
@@ -222,9 +221,9 @@ VOID Trace (TRACE trace, VOID *v)
                             REGSET_Clear(regsXMM);
 
                             // need to declare X87 preserved also - because otherwise the fxsave/fxrstor will preserve the
-                            // xmm regs
+                            // xmm regs 
                             REGSET_Insert (regsXMM, REG_X87);
-
+                            
                             REGSET_Insert (regsXMM, REG_XMM0);
                             REGSET_Insert (regsXMM, REG_XMM1);
                             REGSET_Insert (regsXMM, REG_XMM2);
@@ -243,17 +242,6 @@ VOID Trace (TRACE trace, VOID *v)
                                 REGSET_Insert (regsXMM, REG_YMM5);
                                 REGSET_Insert (regsXMM, REG_YMM6);
                                 REGSET_Insert (regsXMM, REG_YMM7);
-                            }
-                            if (SupportsAvx512f())
-                            {
-                                REGSET_Insert (regsXMM, REG_ZMM0);
-                                REGSET_Insert (regsXMM, REG_ZMM1);
-                                REGSET_Insert (regsXMM, REG_ZMM2);
-                                REGSET_Insert (regsXMM, REG_ZMM3);
-                                REGSET_Insert (regsXMM, REG_ZMM4);
-                                REGSET_Insert (regsXMM, REG_ZMM5);
-                                REGSET_Insert (regsXMM, REG_ZMM6);
-                                REGSET_Insert (regsXMM, REG_ZMM7);
                             }
 #ifdef TARGET_IA32E
                             REGSET_Insert (regsXMM, REG_XMM8);
@@ -274,33 +262,6 @@ VOID Trace (TRACE trace, VOID *v)
                                 REGSET_Insert (regsXMM, REG_YMM13);
                                 REGSET_Insert (regsXMM, REG_YMM14);
                                 REGSET_Insert (regsXMM, REG_YMM15);
-                            }
-                            if (SupportsAvx512f())
-                            {
-                                REGSET_Insert (regsXMM, REG_ZMM8);
-                                REGSET_Insert (regsXMM, REG_ZMM9);
-                                REGSET_Insert (regsXMM, REG_ZMM10);
-                                REGSET_Insert (regsXMM, REG_ZMM11);
-                                REGSET_Insert (regsXMM, REG_ZMM12);
-                                REGSET_Insert (regsXMM, REG_ZMM13);
-                                REGSET_Insert (regsXMM, REG_ZMM14);
-                                REGSET_Insert (regsXMM, REG_ZMM15);
-                                REGSET_Insert (regsXMM, REG_ZMM16);
-                                REGSET_Insert (regsXMM, REG_ZMM17);
-                                REGSET_Insert (regsXMM, REG_ZMM18);
-                                REGSET_Insert (regsXMM, REG_ZMM19);
-                                REGSET_Insert (regsXMM, REG_ZMM20);
-                                REGSET_Insert (regsXMM, REG_ZMM21);
-                                REGSET_Insert (regsXMM, REG_ZMM22);
-                                REGSET_Insert (regsXMM, REG_ZMM23);
-                                REGSET_Insert (regsXMM, REG_ZMM24);
-                                REGSET_Insert (regsXMM, REG_ZMM25);
-                                REGSET_Insert (regsXMM, REG_ZMM26);
-                                REGSET_Insert (regsXMM, REG_ZMM27);
-                                REGSET_Insert (regsXMM, REG_ZMM28);
-                                REGSET_Insert (regsXMM, REG_ZMM29);
-                                REGSET_Insert (regsXMM, REG_ZMM30);
-                                REGSET_Insert (regsXMM, REG_ZMM31);
                             }
 #endif
                             INS_InsertCall(INS_Next(INS_Next(ins)), IPOINT_AFTER, AFUNPTR(CallToSetXmmRegsToZero), IARG_PRESERVE, &regsXMM, IARG_END);
@@ -639,7 +600,7 @@ int main(int argc, char *argv[])
 
     // Never returns
     PIN_StartProgram();
-
+    
     return 0;
 }
 

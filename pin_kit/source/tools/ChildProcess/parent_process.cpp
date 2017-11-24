@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,13 +28,6 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
-/*! @file
- * In addition to what this test checks, we also check these:
- * - Checking if an environment variable which is set after Pin took over the application is being passed to
- *   the application which will be executed by the current application
- *   Application is executed from child (unlike follow_child_app1.cpp)
- */
-
 // Application that creates new process
 
 #include <sys/types.h>
@@ -42,7 +35,6 @@ END_LEGAL */
 #include <unistd.h>
 #include <iostream>
 #include <string>
-#include <stdlib.h>
 using namespace std;
 
 //Wait for a process completion
@@ -60,10 +52,6 @@ int main(int argc, char * argv[])
     pid_t pid = fork();
     if (pid == 0)
     {
-        // Checking if an environment variable which is set after Pin took over the application is being passed to
-        // the application we're about to execute below (as expected)
-        setenv("ParentEnv", "1", 1);
-
         // child process
         execv(childArgvArray[0], childArgvArray);
         cout << "Execve failed "<< argv[1] << " " << argv[2] << " " << argv[3] << endl;

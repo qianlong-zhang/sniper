@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -29,20 +29,23 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
 // leave.cpp -- testing  the leave instruction's memory address
-#include <iostream>
-#include <iomanip>
-#include <fstream>
+
+
 #include "pin.H"
+#include "portability.H"
 extern "C" {
 #include "xed-interface.h"
 }
+#include <iostream>
+#include <iomanip>
+#include <fstream>
 
 
 class simple_test_t
 {
   public:
     simple_test_t()
-        : knob_output_file(KNOB_MODE_WRITEONCE,"pintool", "o",
+        : knob_output_file(KNOB_MODE_WRITEONCE,"pintool", "o", 
                            "leave.out", "specify profile file name")
     {
         out = 0;
@@ -56,7 +59,7 @@ class simple_test_t
 
     std::ofstream* out;
     KNOB<string> knob_output_file;
-
+    
     void activate()
     {
         string filename =  knob_output_file.Value();
@@ -67,7 +70,7 @@ class simple_test_t
         PIN_AddThreadFiniFunction(reinterpret_cast<THREAD_FINI_CALLBACK>(thread_end),
                                  this);
 
-        TRACE_AddInstrumentFunction(reinterpret_cast<TRACE_INSTRUMENT_CALLBACK>(instrument_trace),
+        TRACE_AddInstrumentFunction(reinterpret_cast<TRACE_INSTRUMENT_CALLBACK>(instrument_trace), 
                                     this);
         *out << "tool activated" << endl;
     }
@@ -81,18 +84,18 @@ class simple_test_t
     {
     }
 
-    static void print_memop(ADDRINT memea,
+    static void print_memop(ADDRINT memea, 
                             ADDRINT memsize,
                             ADDRINT pc,
                             THREADID tid,
                             simple_test_t* pthis ) {
-        *pthis->out
+        *pthis->out 
             << std::hex << std::setw(sizeof(ADDRINT)*2)
-            << pc
+            << pc 
             << " TID: "
             << std::setw(2)
             << tid
-            << " LEAVE memea: "
+            << " LEAVE memea: " 
             << std::setw(sizeof(ADDRINT)*2)
             << memea
             << " length " << memsize
@@ -103,12 +106,12 @@ class simple_test_t
     {
         *out << "INSTRUMENT: "
              << std::setw(16)
-             << std::hex
-             << INS_Address(ins)
-             << std::dec
+             << std::hex 
+             << INS_Address(ins) 
+             << std::dec 
              << " "
              << INS_Disassemble(ins) << std::endl;
-
+        
         INS_InsertCall(ins, IPOINT_BEFORE,
                        AFUNPTR(print_memop),
                        IARG_MEMORYREAD_EA,
@@ -118,12 +121,12 @@ class simple_test_t
                        IARG_PTR, this,
                        IARG_END);
     }
+    
 
-
-
+    
     static bool check_for_leave(INS ins, simple_test_t* pthis) {
         xed_iclass_enum_t iclass = static_cast<xed_iclass_enum_t>(INS_Opcode(ins));
-        if (iclass == XED_ICLASS_LEAVE)
+        if (iclass == XED_ICLASS_LEAVE) 
             return true;
         return false;
     }
@@ -158,6 +161,6 @@ int main(int argc, char * argv[])
 
     // Never returns
     PIN_StartProgram();
-
+    
     return 0;
 }

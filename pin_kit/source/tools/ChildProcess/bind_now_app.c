@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -41,7 +41,7 @@ void check_ld_bind()
     const char *bind = getenv("LD_BIND_NOW");
     if (bind)
     {
-        fprintf(stderr, "Found LD_BIND_NOW, exiting...\n");
+        fprintf(stderr, "Found LD_BIND_NOW, existing...\n");
         exit(1);
     }
 }
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
             childArgvArray[1] = NULL;
             fprintf(stderr, "Going to execv...\n");
             execv(childArgvArray[0], childArgvArray);
-            fprintf(stderr, "execv failed, exiting...\n");
+            fprintf(stderr, "execv failed, existing...\n");
         }
     }
     else

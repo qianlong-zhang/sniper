@@ -22,6 +22,12 @@ TEST_TOOL_ROOTS :=
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
 TEST_ROOTS :=
 
+# This defines a list of tests that should run in the "short" sanity. Tests in this list must also
+# appear either in the TEST_TOOL_ROOTS or the TEST_ROOTS list.
+# If the entire directory should be tested in sanity, assign TEST_TOOL_ROOTS and TEST_ROOTS to the
+# SANITY_SUBSET variable in the tests section below (see example in makefile.rules.tmpl).
+SANITY_SUBSET :=
+
 # This defines the tools which will be run during the the tests, and were not already defined in
 # TEST_TOOL_ROOTS.
 TOOL_ROOTS :=
@@ -62,6 +68,7 @@ endif
 ifeq ($(TARGET_OS),mac)
     TEST_TOOL_ROOTS :=
     TEST_ROOTS :=
+    SANITY_SUBSET :=
     TOOL_ROOTS :=
     SA_TOOL_ROOTS :=
     APP_ROOTS :=
@@ -69,12 +76,6 @@ ifeq ($(TARGET_OS),mac)
     DLL_ROOTS :=
     LIB_ROOTS :=
 endif
-
-###### Define the sanity subset ######
-
-# This defines the list of tests that should run in sanity. It should include all the tests listed in
-# TEST_TOOL_ROOTS and TEST_ROOTS excluding only unstable tests.
-SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 
 
 ##############################################################

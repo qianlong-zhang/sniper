@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,12 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: S. Bharadwaj Yadavalli
+*/
+
+/* ===================================================================== */
 /*! @file
  *  This file contains a test for correctness of the size of memory read
     for cmp instructions with repeat string operation prefix.
@@ -35,13 +41,14 @@ END_LEGAL */
     operations).
  */
 
-#include <cstdio>
-#include <cstring>
+#include <stdio.h>
+#include <string.h>
 #ifdef TARGET_LINUX
 # include <unistd.h>
 #endif
 #include "pin.H"
 #include "instlib.H"
+#include "portability.H"
 
 /* ===================================================================== */
 /* Global Variables */
@@ -60,18 +67,18 @@ ADDRINT GetInstructionLength (ADDRINT ip)
     xed_error_enum_t xed_error;
     xed_decoded_inst_t xedd;
     ostringstream os;
-    if (sizeof(ADDRINT) == 4)
-        xed_state_init(&dstate,
+    if (sizeof(ADDRINT) == 4) 
+        xed_state_init(&dstate,     
                        XED_MACHINE_MODE_LEGACY_32,
-                       XED_ADDRESS_WIDTH_32b,
+                       XED_ADDRESS_WIDTH_32b, 
                        XED_ADDRESS_WIDTH_32b);
     else
         xed_state_init(&dstate,
                        XED_MACHINE_MODE_LONG_64,
-                       XED_ADDRESS_WIDTH_64b,
+                       XED_ADDRESS_WIDTH_64b, 
                        XED_ADDRESS_WIDTH_64b);
 
-
+    
     xed_decoded_inst_zero_set_mode(&xedd, &dstate);
     UINT32 len = 15;
 
@@ -86,7 +93,7 @@ ADDRINT GetInstructionLength (ADDRINT ip)
 
 
 int numCallsToAfter1WithContext = 0;
-static VOID After1WithContext  (ADDRINT ip,
+static VOID After1WithContext  (ADDRINT ip, 
                                 ADDRINT repInsAddr,
                                 CONTEXT * ctxt,
                                 CONTEXT *constCtxt,
@@ -95,9 +102,9 @@ static VOID After1WithContext  (ADDRINT ip,
 {
     ADDRINT expectedIpAfter;
     numCallsToAfter1WithContext++;
-    printf ("***After1WithContext#    %d repInsAddr %p ip %p\n",//*constRefToIp %p\n",
+    printf ("***After1WithContext#    %d repInsAddr %p ip %p\n",//*constRefToIp %p\n", 
            numCallsToAfter1WithContext, (char *)repInsAddr, (char *)ip
-           //,(char *)constRefToIp,
+           //,(char *)constRefToIp, 
            //(char *)(*constRefToIp)
            );
     if (numCallsToAfter1WithContext == 2)
@@ -108,7 +115,7 @@ static VOID After1WithContext  (ADDRINT ip,
     {
         expectedIpAfter = repInsAddr;
     }
-
+    
     if (ip != *constRefToIp)
     {
         printf ("Unexpcted diff between ip and *constRefToIp\n");
@@ -137,7 +144,7 @@ static VOID After1WithContext  (ADDRINT ip,
 }
 
 int numCallsToAfter1WithoutContext = 0;
-static VOID After1WithoutContext  (ADDRINT ip,
+static VOID After1WithoutContext  (ADDRINT ip, 
                                    ADDRINT repInsAddr,
                                    CONTEXT *constCtxt,
                                    ADDRINT *constRefToIp
@@ -154,7 +161,7 @@ static VOID After1WithoutContext  (ADDRINT ip,
     {
         expectedIpAfter = repInsAddr;
     }
-
+    
     if (ip != *constRefToIp)
     {
         printf ("Unexpcted diff between ip and *constRefToIp\n");
@@ -179,7 +186,7 @@ static VOID After1WithoutContext  (ADDRINT ip,
 
 
 int numCallsToAfter2WithContext = 0;
-static VOID After2WithContext  (ADDRINT ip,
+static VOID After2WithContext  (ADDRINT ip, 
                                 ADDRINT repInsAddr,
                                 CONTEXT * ctxt,
                                 CONTEXT *constCtxt,
@@ -197,13 +204,13 @@ static VOID After2WithContext  (ADDRINT ip,
     {
         expectedIpAfter = repInsAddr;
     }
-
+    
     if (ip != *constRefToIp)
     {
         printf ("Unexpcted diff between ip and *constRefToIp\n");
         exit (1);
     }
-
+    
 
     if (PIN_GetContextReg( ctxt, REG_INST_PTR )!=expectedIpAfter)
     {
@@ -226,7 +233,7 @@ static VOID After2WithContext  (ADDRINT ip,
 }
 
 int numCallsToAfter2WithoutContext = 0;
-static VOID After2WithoutContext  (ADDRINT ip,
+static VOID After2WithoutContext  (ADDRINT ip, 
                                    ADDRINT repInsAddr,
                                    CONTEXT *constCtxt,
                                    ADDRINT *constRefToIp
@@ -234,7 +241,7 @@ static VOID After2WithoutContext  (ADDRINT ip,
 {
     ADDRINT expectedIpAfter;
     numCallsToAfter2WithoutContext++;
-    printf ("***After2WithoutContext# %d repInsAddr %p ip %p\n", numCallsToAfter2WithoutContext,
+    printf ("***After2WithoutContext# %d repInsAddr %p ip %p\n", numCallsToAfter2WithoutContext, 
             (char *)repInsAddr, (char *)ip);
     if (numCallsToAfter2WithoutContext == 9)
     { // see "Test same string comparison" in rep_ip_at_ipoint_after_app.c
@@ -244,12 +251,12 @@ static VOID After2WithoutContext  (ADDRINT ip,
     {
         expectedIpAfter = repInsAddr;
     }
-
+    
     if (ip != *constRefToIp)
     {
         printf ("Unexpcted diff between ip and *constRefToIp\n");
         exit (1);
-    }
+    }   
 
     if (PIN_GetContextReg( constCtxt, REG_INST_PTR )!=expectedIpAfter)
     {
@@ -266,7 +273,7 @@ static VOID After2WithoutContext  (ADDRINT ip,
 
 
 int numCallsToAfter3WithContext = 0;
-static VOID After3WithContext  (ADDRINT ip,
+static VOID After3WithContext  (ADDRINT ip, 
                                 ADDRINT repInsAddr,
                                 CONTEXT * ctxt,
                                 CONTEXT *constCtxt,
@@ -312,7 +319,7 @@ static VOID After3WithContext  (ADDRINT ip,
 }
 
 int numCallsToAfter3WithoutContext = 0;
-static VOID After3WithoutContext  (ADDRINT ip,
+static VOID After3WithoutContext  (ADDRINT ip, 
                                    ADDRINT repInsAddr,
                                    CONTEXT *constCtxt,
                                    ADDRINT *constRefToIp
@@ -329,12 +336,12 @@ static VOID After3WithoutContext  (ADDRINT ip,
     {
         expectedIpAfter = repInsAddr;
     }
-
+    
     if (ip != *constRefToIp)
     {
         printf ("Unexpcted diff between ip and *constRefToIp\n");
         exit (1);
-    }
+    }    
 
     if (PIN_GetContextReg( constCtxt, REG_INST_PTR )!=expectedIpAfter)
     {
@@ -352,7 +359,7 @@ static VOID After3WithoutContext  (ADDRINT ip,
 
 
 int numCallsToAfter4WithContext = 0;
-static VOID After4WithContext  (ADDRINT ip,
+static VOID After4WithContext  (ADDRINT ip, 
                                 ADDRINT repInsAddr,
                                 CONTEXT * ctxt,
                                 CONTEXT *constCtxt,
@@ -370,12 +377,12 @@ static VOID After4WithContext  (ADDRINT ip,
     {
         expectedIpAfter = repInsAddr;
     }
-
+    
     if (ip != *constRefToIp)
     {
         printf ("Unexpcted diff between ip and *constRefToIp\n");
         exit (1);
-    }
+    }   
 
     if (PIN_GetContextReg( ctxt, REG_INST_PTR )!=expectedIpAfter)
     {
@@ -398,7 +405,7 @@ static VOID After4WithContext  (ADDRINT ip,
 }
 
 int numCallsToAfter4WithoutContext = 0;
-static VOID After4WithoutContext  (ADDRINT ip,
+static VOID After4WithoutContext  (ADDRINT ip, 
                                    ADDRINT repInsAddr,
                                    CONTEXT *constCtxt,
                                    ADDRINT *constRefToIp
@@ -415,12 +422,12 @@ static VOID After4WithoutContext  (ADDRINT ip,
     {
         expectedIpAfter = repInsAddr;
     }
-
+    
     if (ip != *constRefToIp)
     {
         printf ("Unexpcted diff between ip and *constRefToIp\n");
         exit (1);
-    }
+    }   
 
     if (PIN_GetContextReg( constCtxt, REG_INST_PTR )!=expectedIpAfter)
     {
@@ -437,7 +444,7 @@ static VOID After4WithoutContext  (ADDRINT ip,
 
 
 int numCallsToAfter5WithContext = 0;
-static VOID After5WithContext  (ADDRINT ip,
+static VOID After5WithContext  (ADDRINT ip, 
                                 ADDRINT repInsAddr,
                                 CONTEXT * ctxt,
                                 CONTEXT *constCtxt,
@@ -455,12 +462,12 @@ static VOID After5WithContext  (ADDRINT ip,
     {
         expectedIpAfter = repInsAddr;
     }
-
+    
     if (ip != *constRefToIp)
     {
         printf ("Unexpcted diff between ip and *constRefToIp\n");
         exit (1);
-    }
+    }    
 
     if (PIN_GetContextReg( ctxt, REG_INST_PTR )!=expectedIpAfter)
     {
@@ -483,7 +490,7 @@ static VOID After5WithContext  (ADDRINT ip,
 }
 
 int numCallsToAfter5WithoutContext = 0;
-static VOID After5WithoutContext  (ADDRINT ip,
+static VOID After5WithoutContext  (ADDRINT ip, 
                                    ADDRINT repInsAddr,
                                    CONTEXT *constCtxt,
                                    ADDRINT *constRefToIp
@@ -500,12 +507,12 @@ static VOID After5WithoutContext  (ADDRINT ip,
     {
         expectedIpAfter = repInsAddr;
     }
-
+    
     if (ip != *constRefToIp)
     {
         printf ("Unexpcted diff between ip and *constRefToIp\n");
         exit (1);
-    }
+    }   
 
     if (PIN_GetContextReg( constCtxt, REG_INST_PTR )!=expectedIpAfter)
     {
@@ -522,7 +529,7 @@ static VOID After5WithoutContext  (ADDRINT ip,
 
 
 int numCallsToAfter6WithContext = 0;
-static VOID After6WithContext  (ADDRINT ip,
+static VOID After6WithContext  (ADDRINT ip, 
                                 ADDRINT repInsAddr,
                                 CONTEXT * ctxt,
                                 CONTEXT *constCtxt,
@@ -540,12 +547,12 @@ static VOID After6WithContext  (ADDRINT ip,
     {
         expectedIpAfter = repInsAddr;
     }
-
+    
     if (ip != *constRefToIp)
     {
         printf ("Unexpcted diff between ip and *constRefToIp\n");
         exit (1);
-    }
+    }  
 
     if (PIN_GetContextReg( ctxt, REG_INST_PTR )!=expectedIpAfter)
     {
@@ -568,7 +575,7 @@ static VOID After6WithContext  (ADDRINT ip,
 }
 
 int numCallsToAfter6WithoutContext = 0;
-static VOID After6WithoutContext  (ADDRINT ip,
+static VOID After6WithoutContext  (ADDRINT ip, 
                                    ADDRINT repInsAddr,
                                    CONTEXT *constCtxt,
                                    ADDRINT *constRefToIp
@@ -585,12 +592,12 @@ static VOID After6WithoutContext  (ADDRINT ip,
     {
         expectedIpAfter = repInsAddr;
     }
-
+    
     if (ip != *constRefToIp)
     {
         printf ("Unexpcted diff between ip and *constRefToIp\n");
         exit (1);
-    }
+    }   
 
     if (PIN_GetContextReg( constCtxt, REG_INST_PTR )!=expectedIpAfter)
     {
@@ -608,7 +615,7 @@ static VOID After6WithoutContext  (ADDRINT ip,
 
 
 int numCallsToAfter7WithContext = 0;
-static VOID After7WithContext  (ADDRINT ip,
+static VOID After7WithContext  (ADDRINT ip, 
                                 ADDRINT repInsAddr,
                                 CONTEXT * ctxt,
                                 CONTEXT *constCtxt,
@@ -626,12 +633,12 @@ static VOID After7WithContext  (ADDRINT ip,
     {
         expectedIpAfter = repInsAddr;
     }
-
+    
     if (ip != *constRefToIp)
     {
         printf ("Unexpcted diff between ip and *constRefToIp\n");
         exit (1);
-    }
+    }   
 
     if (PIN_GetContextReg( ctxt, REG_INST_PTR )!=expectedIpAfter)
     {
@@ -654,7 +661,7 @@ static VOID After7WithContext  (ADDRINT ip,
 }
 
 int numCallsToAfter7WithoutContext = 0;
-static VOID After7WithoutContext  (ADDRINT ip,
+static VOID After7WithoutContext  (ADDRINT ip, 
                                    ADDRINT repInsAddr,
                                    CONTEXT *constCtxt,
                                    ADDRINT *constRefToIp
@@ -671,12 +678,12 @@ static VOID After7WithoutContext  (ADDRINT ip,
     {
         expectedIpAfter = repInsAddr;
     }
-
+    
     if (ip != *constRefToIp)
     {
         printf ("Unexpcted diff between ip and *constRefToIp\n");
         exit (1);
-    }
+    }   
 
     if (PIN_GetContextReg( constCtxt, REG_INST_PTR )!=expectedIpAfter)
     {
@@ -706,16 +713,16 @@ static void DoInstrumentation1 (INS ins)
     }
 
     INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)After1WithoutContext,
-                    IARG_REG_VALUE, REG_INST_PTR ,
-                    IARG_INST_PTR,
-                    IARG_CONST_CONTEXT, // has CONST_CONTEXT but not CONTEXT
+                    IARG_REG_VALUE, REG_INST_PTR , 
+                    IARG_INST_PTR, 
+                    IARG_CONST_CONTEXT, // has CONST_CONTEXT but not CONTEXT 
                     IARG_REG_CONST_REFERENCE, REG_INST_PTR ,
                     IARG_END);
     INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)After1WithContext,
-                    IARG_REG_VALUE, REG_INST_PTR ,
-                    IARG_INST_PTR,
-                    IARG_CONTEXT,
-                    IARG_CONST_CONTEXT,
+                    IARG_REG_VALUE, REG_INST_PTR , 
+                    IARG_INST_PTR, 
+                    IARG_CONTEXT, 
+                    IARG_CONST_CONTEXT, 
                     IARG_REG_CONST_REFERENCE, REG_INST_PTR ,
                     IARG_END);
 }
@@ -735,16 +742,16 @@ static void DoInstrumentation2 (INS ins)
     }
 
     INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)After2WithContext,
-                    IARG_REG_VALUE, REG_INST_PTR ,
-                    IARG_INST_PTR,
-                    IARG_CONTEXT,
+                    IARG_REG_VALUE, REG_INST_PTR , 
+                    IARG_INST_PTR, 
+                    IARG_CONTEXT, 
                     IARG_CONST_CONTEXT,
                     IARG_REG_CONST_REFERENCE, REG_INST_PTR ,
                     IARG_END);
 
     INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)After2WithoutContext,
-                    IARG_REG_VALUE, REG_INST_PTR ,
-                    IARG_INST_PTR,
+                    IARG_REG_VALUE, REG_INST_PTR , 
+                    IARG_INST_PTR, 
                     IARG_CONST_CONTEXT, // has CONST_CONTEXT but not CONTEXT
                     IARG_REG_CONST_REFERENCE, REG_INST_PTR ,
                     IARG_END);
@@ -765,16 +772,16 @@ static void DoInstrumentation3 (INS ins)
     }
 
     INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)After3WithContext,
-                    IARG_REG_VALUE, REG_INST_PTR ,
-                    IARG_INST_PTR,
-                    IARG_CONTEXT,
-                    IARG_CONST_CONTEXT,
+                    IARG_REG_VALUE, REG_INST_PTR , 
+                    IARG_INST_PTR, 
+                    IARG_CONTEXT, 
+                    IARG_CONST_CONTEXT, 
                     IARG_REG_CONST_REFERENCE, REG_INST_PTR ,
                     IARG_END);
     INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)After3WithoutContext,
-                    IARG_REG_VALUE, REG_INST_PTR ,
-                    IARG_INST_PTR,
-                    IARG_CONST_CONTEXT, // has CONST_CONTEXT but not CONTEXT
+                    IARG_REG_VALUE, REG_INST_PTR , 
+                    IARG_INST_PTR, 
+                    IARG_CONST_CONTEXT, // has CONST_CONTEXT but not CONTEXT 
                     IARG_REG_CONST_REFERENCE, REG_INST_PTR ,
                     IARG_END);
 }
@@ -792,18 +799,18 @@ static void DoInstrumentation4 (INS ins)
         printf ("Unexpected fourth rep type\n");
         exit (1);
     }
-
+    
     INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)After4WithContext,
-                    IARG_REG_VALUE, REG_INST_PTR ,
-                    IARG_INST_PTR,
-                    IARG_CONTEXT,
+                    IARG_REG_VALUE, REG_INST_PTR , 
+                    IARG_INST_PTR, 
+                    IARG_CONTEXT, 
                     IARG_CONST_CONTEXT,
                     IARG_REG_CONST_REFERENCE, REG_INST_PTR ,
                     IARG_END);
     INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)After4WithoutContext,
-                    IARG_REG_VALUE, REG_INST_PTR ,
-                    IARG_INST_PTR,
-                    IARG_CONST_CONTEXT, // has CONST_CONTEXT but not CONTEXT
+                    IARG_REG_VALUE, REG_INST_PTR , 
+                    IARG_INST_PTR, 
+                    IARG_CONST_CONTEXT, // has CONST_CONTEXT but not CONTEXT 
                     IARG_REG_CONST_REFERENCE, REG_INST_PTR ,
                     IARG_END);
 }
@@ -823,16 +830,16 @@ static void DoInstrumentation5 (INS ins)
     }
 
     INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)After5WithContext,
-                    IARG_REG_VALUE, REG_INST_PTR ,
-                    IARG_INST_PTR,
-                    IARG_CONTEXT,
+                    IARG_REG_VALUE, REG_INST_PTR , 
+                    IARG_INST_PTR, 
+                    IARG_CONTEXT, 
                     IARG_CONST_CONTEXT,
                     IARG_REG_CONST_REFERENCE, REG_INST_PTR ,
                     IARG_END);
     INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)After5WithoutContext,
-                    IARG_REG_VALUE, REG_INST_PTR ,
-                    IARG_INST_PTR,
-                    IARG_CONST_CONTEXT, // has CONST_CONTEXT but not CONTEXT
+                    IARG_REG_VALUE, REG_INST_PTR , 
+                    IARG_INST_PTR, 
+                    IARG_CONST_CONTEXT, // has CONST_CONTEXT but not CONTEXT 
                     IARG_REG_CONST_REFERENCE, REG_INST_PTR ,
                     IARG_END);
 }
@@ -852,16 +859,16 @@ static void DoInstrumentation6 (INS ins)
     }
 
     INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)After6WithContext,
-                    IARG_REG_VALUE, REG_INST_PTR ,
-                    IARG_INST_PTR,
-                    IARG_CONTEXT,
-                    IARG_CONST_CONTEXT,
+                    IARG_REG_VALUE, REG_INST_PTR , 
+                    IARG_INST_PTR, 
+                    IARG_CONTEXT, 
+                    IARG_CONST_CONTEXT, 
                     IARG_REG_CONST_REFERENCE, REG_INST_PTR ,
                     IARG_END);
     INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)After6WithoutContext,
-                    IARG_REG_VALUE, REG_INST_PTR ,
-                    IARG_INST_PTR,
-                    IARG_CONST_CONTEXT, // has CONST_CONTEXT but not CONTEXT
+                    IARG_REG_VALUE, REG_INST_PTR , 
+                    IARG_INST_PTR, 
+                    IARG_CONST_CONTEXT, // has CONST_CONTEXT but not CONTEXT 
                     IARG_REG_CONST_REFERENCE, REG_INST_PTR ,
                     IARG_END);
 }
@@ -881,16 +888,16 @@ static void DoInstrumentation7 (INS ins)
     }
 
     INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)After7WithContext,
-                    IARG_REG_VALUE, REG_INST_PTR ,
-                    IARG_INST_PTR,
-                    IARG_CONTEXT,
+                    IARG_REG_VALUE, REG_INST_PTR , 
+                    IARG_INST_PTR, 
+                    IARG_CONTEXT, 
                     IARG_CONST_CONTEXT,
                     IARG_REG_CONST_REFERENCE, REG_INST_PTR ,
                     IARG_END);
     INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)After7WithoutContext,
-                    IARG_REG_VALUE, REG_INST_PTR ,
-                    IARG_INST_PTR,
-                    IARG_CONST_CONTEXT, // has CONST_CONTEXT but not CONTEXT
+                    IARG_REG_VALUE, REG_INST_PTR , 
+                    IARG_INST_PTR, 
+                    IARG_CONST_CONTEXT, // has CONST_CONTEXT but not CONTEXT 
                     IARG_REG_CONST_REFERENCE, REG_INST_PTR ,
                     IARG_END);
 }
@@ -981,7 +988,7 @@ VOID Image (IMG img, void *dummy)
         printf ("Found %s\n", RTN_Name(rtn).c_str());
 
         RTN_Open(rtn);
-
+                
         RTN_InsertCall(rtn, IPOINT_AFTER, AFUNPTR(ToolRepAppAtIpointAfterStarted), IARG_END);
 
         RTN_Close(rtn);
@@ -1002,7 +1009,7 @@ int main(int argc, char *argv[])
 
     // Never returns
     PIN_StartProgram();
-
+    
     return 0;
 }
 

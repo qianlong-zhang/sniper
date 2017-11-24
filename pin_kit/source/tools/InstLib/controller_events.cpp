@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -48,9 +48,6 @@ CONTROLLER_EVENTS::CONTROLLER_EVENTS(){
     _events["epilog-stop"] = EVENT_EPILOG_STOP;
     _events["stats-emit"] = EVENT_STATS_EMIT;
     _events["stats-reset"] = EVENT_STATS_RESET;
-    //This event emits the stats for the tid who received the event, and resets
-    //the stats immediately.
-    _events["stats-emit-reset"] = EVENT_STATS_EMIT_RESET;
 }
 
 EVENT_TYPE CONTROLLER_EVENTS::AddEvent(const string& event_name){

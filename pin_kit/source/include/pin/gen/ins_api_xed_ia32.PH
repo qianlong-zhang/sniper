@@ -103,7 +103,7 @@ extern BOOL INS_IsVscatter(INS ins);
 extern BOOL INS_HasMemoryVector(INS ins);
 
                                                                   /* DO NOT EDIT */
-extern VOID INS_GetFarPointer(INS ins,
+extern VOID INS_GetFarPointer(INS ins, 
                                  UINT16& segment_selector,
                                  UINT32& displacement);
 
@@ -142,6 +142,9 @@ extern BOOL INS_IsRDTSC(const INS ins);
 
                                                                   /* DO NOT EDIT */
 extern BOOL INS_IsMaskMov(const INS ins);
+
+                                                                  /* DO NOT EDIT */
+extern BOOL INS_IsMaskedJump(const INS ins);
 
                                                                   /* DO NOT EDIT */
 extern REG INS_RepCountRegister(INS ins);

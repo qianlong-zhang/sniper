@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,17 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+/*
+ * This tool should instrument iarg_explicit_memory_ea_app.
+ * First, this tool instrument every instuction with explicit memory operand with IARG_INST_PTR
+ * and IARG_EXPLICIT_MEMORY_EA and then records these instructions when the application executes them.
+ * Afterward, the application calls checkVar() (which is instrumented by this tool)
+ * specifying some important instructions that was executed, providing their expected memory operand
+ * value and instruction pointer.
+ * This tool then checks that it managed to record these important instructions
+ * and that it managed to catch the correct memory operand vaoues for the instruction
+ * using IARG_EXPLICIT_MEMORY_EA.
+  */
 #include "pin.H"
 #include <fstream>
 #include <iostream>
@@ -48,23 +59,6 @@ KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE,        "pintool",
 
 static ofstream* out = NULL;
 static set<pair<ADDRINT,ADDRINT> > memOpAddresses;
-
-
-THREADID myThread = INVALID_THREADID;
-
-ADDRINT IfMyThread(THREADID threadId)
-{
-    return threadId == myThread;
-}
-
-VOID ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, VOID *v)
-{
-    if (myThread == INVALID_THREADID)
-    {
-        myThread = threadid;
-    }
-}
-
 
 /* =====================================================================
  * Called upon bad command line argument
@@ -111,8 +105,7 @@ VOID Trace(TRACE trace, VOID *v)
         {
             if (INS_HasExplicitMemoryReference(ins))
             {
-                INS_InsertIfCall(ins, IPOINT_BEFORE, AFUNPTR(IfMyThread), IARG_THREAD_ID, IARG_END);
-                INS_InsertThenCall(ins, IPOINT_BEFORE, AFUNPTR(MemOpAnalysis),
+                INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(MemOpAnalysis),
                         IARG_INST_PTR, IARG_EXPLICIT_MEMORY_EA, IARG_END);
             }
         }
@@ -164,16 +157,14 @@ int main(int argc, CHAR *argv[])
         return Usage();
     }
     out = new std::ofstream(KnobOutputFile.Value().c_str());
-    IMG_AddInstrumentFunction(ImageLoad, NULL);
-    TRACE_AddInstrumentFunction(Trace, NULL);
+    IMG_AddInstrumentFunction(ImageLoad, 0);
+    TRACE_AddInstrumentFunction(Trace, 0);
 
-    PIN_AddThreadStartFunction(ThreadStart, NULL);
-
-    PIN_AddFiniFunction(Fini, NULL);
+    PIN_AddFiniFunction(Fini, 0);
 
     // Never returns
     PIN_StartProgram();
-    return 1;
+    return 0;
 }
 
 /* ===================================================================== */

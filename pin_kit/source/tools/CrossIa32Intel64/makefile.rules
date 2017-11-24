@@ -40,6 +40,12 @@ TEST_TOOL_ROOTS :=
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
 TEST_ROOTS :=
 
+# This defines a list of tests that should run in the "short" sanity. Tests in this list must also
+# appear either in the TEST_TOOL_ROOTS or the TEST_ROOTS list.
+# If the entire directory should be tested in sanity, assign TEST_TOOL_ROOTS and TEST_ROOTS to the
+# SANITY_SUBSET variable in the tests section below (see example in makefile.rules.tmpl).
+SANITY_SUBSET :=
+
 # This defines the tools which will be run during the the tests, and were not already defined in
 # TEST_TOOL_ROOTS.
 TOOL_ROOTS :=
@@ -71,25 +77,6 @@ ifeq ($(TARGET_OS),linux)
     ifeq ($(TARGET),intel64)
         TEST_TOOL_ROOTS +=
         TEST_ROOTS += cross_32_64_32 cross_64_32_64 environment space_$(TARGET_OS) sigchld_cross child_process_injection \
-                      child_process_injection1 cross_32_64_32_probe space_probe_$(TARGET_OS)
-        TOOL_ROOTS += follow_child_tool_dummy child_process_injection_dummy
-        SA_TOOL_ROOTS +=
-        APP_ROOTS += parent_process_$(TARGET_OS)_dummy child_process_$(TARGET_OS)_dummy \
-                     grand_child_process_$(TARGET_OS)_dummy child_process_injection_app_dummy sigchld_app_dummy \
-                     child_process_injection_app1_dummy
-        OBJECT_ROOTS +=
-        DLL_ROOTS +=
-        LIB_ROOTS +=
-    endif
-endif
-
-# OS X*
-ifeq ($(TARGET_OS),mac)
-    ifeq ($(TARGET),intel64)
-        # TODO: child_process_injection_app1 requires /usr/bin/chfn. If this fails during testing, add a check
-        #       to see if it exists and if not, remove the application and the child_process_injection1 test.
-        TEST_TOOL_ROOTS +=
-        TEST_ROOTS += cross_32_64_32 cross_64_32_64 space_$(TARGET_OS) sigchld_cross child_process_injection \
                       child_process_injection1
         TOOL_ROOTS += follow_child_tool_dummy child_process_injection_dummy
         SA_TOOL_ROOTS +=
@@ -99,6 +86,9 @@ ifeq ($(TARGET_OS),mac)
         OBJECT_ROOTS +=
         DLL_ROOTS +=
         LIB_ROOTS +=
+        ifeq ($(PROBE),1)
+            TEST_ROOTS += cross_32_64_32_probe space_probe_$(TARGET_OS)
+        endif
     endif
 endif
 
@@ -128,6 +118,11 @@ endif
 
 DONT_RUN :=
 
+# No need to do anything for WRL.
+ifdef WRL_BUILD # This is defined on the WRL build system.
+    DONT_RUN := 1
+endif
+
 # The tests are supported only in the kit environment.
 ifneq ($(KIT),1)
     DONT_RUN := 1
@@ -136,6 +131,7 @@ endif
 ifeq ($(DONT_RUN),1)
     TEST_TOOL_ROOTS :=
     TEST_ROOTS :=
+    SANITY_SUBSET :=
     TOOL_ROOTS :=
     SA_TOOL_ROOTS :=
     APP_ROOTS :=
@@ -157,36 +153,12 @@ ifeq ($(TARGET_OS),linux)
     endif
 endif
 
-ifeq ($(TARGET_OS),mac)
-    # See Mantis 4402
-    TEST_ROOTS := $(filter-out child_process_injection1, $(TEST_ROOTS))
-endif
-
 # See Mantis 3197
 ifeq ($(TARGET_OS),windows)
     TEST_ROOTS := $(filter-out cross_32_64_early_termination_debugged cross_32_64_early_termination_probed_debugged \
                                cross_64_32_early_termination_debugged cross_64_32_early_termination_probed_debugged, \
                                $(TEST_ROOTS))
 endif
-
-# See Mantis #4211
-ifeq ($(TARGET_OS),windows)
-    ifeq ($(TARGET),intel64)
-        ifeq ($(VisualStudioVersion),15.0)
-            TEST_ROOTS := $(filter-out cross_32_64_32 cross_64_32_64 cross_32_64_32_probe cross_64_64_32_log cross_32_32_64_probe_log \
-                                       cross_32_64_32_sym cross_64_32_64_sym cross_32_64_32_probe_sym cross_64_32_64_probe_sym \
-                                       cross_64_32_early_termination cross_64_32_early_termination_probed \
-                                       cross_32_64_early_termination cross_32_64_early_termination_probed \
-                                       win_app32_tool_arch_mismatch win_app64_tool_arch_mismatch, $(TEST_ROOTS))
-        endif
-    endif
-endif
-
-###### Define the sanity subset ######
-
-# This defines the list of tests that should run in sanity. It should include all the tests listed in
-# TEST_TOOL_ROOTS and TEST_ROOTS excluding only unstable tests.
-SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 
 
 ##############################################################
@@ -199,17 +171,12 @@ SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 # See makefile.default.rules for the default test rules.
 # All tests in this section should adhere to the naming convention: <testname>.test
 
-ifeq ($(TARGET_OS),windows)
-    PINFLAGS += -cc_memory_size 0x2000000
-endif
-
-child_process_injection.test: $(OBJDIR)child_process_injection$(PINTOOL_SUFFIX) $(XOBJDIR)child_process_injection$(PINTOOL_SUFFIX) $(OBJDIR)child_process_injection_app$(EXE_SUFFIX) $(HELLO_APP)
+child_process_injection.test: $(OBJDIR)child_process_injection$(PINTOOL_SUFFIX) $(XOBJDIR)child_process_injection$(PINTOOL_SUFFIX) $(OBJDIR)child_process_injection_app$(EXE_SUFFIX)
 	$(PIN) -follow_execv 1 -t64 $(OBJDIR)child_process_injection$(PINTOOL_SUFFIX) \
 	  -t $(XOBJDIR)child_process_injection$(PINTOOL_SUFFIX) \
-	    -- $(OBJDIR)child_process_injection_app$(EXE_SUFFIX) $(HELLO_APP) > $(OBJDIR)$(@:%.test=%).out 
+	    -- $(OBJDIR)child_process_injection_app$(EXE_SUFFIX) > $(OBJDIR)$(@:%.test=%).out 
 	$(QGREP) "Parent report: Child process exited successfully" $(OBJDIR)$(@:%.test=%).out
 	$(QGREP) "End of tool" $(OBJDIR)$(@:%.test=%).out
-	$(QGREP) "Hello world" $(OBJDIR)$(@:%.test=%).out
 	$(RM) $(OBJDIR)$(@:%.test=%).out 
 
 # The xml error file is created by a grandchild child of the original Pin process, therefore the makefile recipe will not
@@ -333,20 +300,11 @@ environment.test: $(OBJDIR)parent_process_$(TARGET_OS)$(EXE_SUFFIX) $(XOBJDIR)ch
 	  -- $(OBJDIR)parent_process_$(TARGET_OS)$(EXE_SUFFIX) $(XOBJDIR)child_process_$(TARGET_OS)$(EXE_SUFFIX) \
 	     $(OBJDIR)grand_child_process_$(TARGET_OS)$(EXE_SUFFIX) "param1 param2" param3 > $(OBJDIR)$(@:%.test=%).out
 	$(GREP) "LD_LIBRARY_PATH for injector" $(OBJDIR)$(@:%.test=%).log | $(GREP) $(TARGET)/runtime >> $(OBJDIR)$(@:%.test=%).out
-	$(GREP) "LD_LIBRARY_PATH for pin vm" $(OBJDIR)$(@:%.test=%).log | $(GREP) $(TARGET)/runtime/pincrt >> $(OBJDIR)$(@:%.test=%).out
-	$(GREP) "LD_LIBRARY_PATH for the application" $(OBJDIR)$(@:%.test=%).log | $(GREP) APP_PATH >> $(OBJDIR)$(@:%.test=%).out
+	$(GREP) "LD_LIBRARY_PATH for pin vm" $(OBJDIR)$(@:%.test=%).log | $(GREP) $(TARGET)/runtime/glibc >> $(OBJDIR)$(@:%.test=%).out
+	$(GREP) "LD_LIBRARY_PATH for application" $(OBJDIR)$(@:%.test=%).log | $(GREP) APP_PATH >> $(OBJDIR)$(@:%.test=%).out
 	$(RM) $(OBJDIR)$(@:%.test=%).out $(OBJDIR)$(@:%.test=%).log
 
 space_linux.test: $(OBJDIR)follow_child_tool$(PINTOOL_SUFFIX) $(XOBJDIR)follow_child_tool$(PINTOOL_SUFFIX) $(OBJDIR)parent_process_$(TARGET_OS)$(EXE_SUFFIX) $(XOBJDIR)child_process_$(TARGET_OS)$(EXE_SUFFIX) $(OBJDIR)grand_child_process_$(TARGET_OS)$(EXE_SUFFIX)
-	mkdir -p "Dir with space 1"
-	$(PIN) -follow_execv -t64 "Dir with space 1"/../$(OBJDIR)follow_child_tool$(PINTOOL_SUFFIX) \
-	  -t "Dir with space 1"/../$(XOBJDIR)follow_child_tool$(PINTOOL_SUFFIX) \
-	    -- $(OBJDIR)parent_process_$(TARGET_OS)$(EXE_SUFFIX) $(XOBJDIR)child_process_$(TARGET_OS)$(EXE_SUFFIX) \
-	       $(OBJDIR)grand_child_process_$(TARGET_OS)$(EXE_SUFFIX) "param1 param2" param3 > $(OBJDIR)$(@:%.test=%).out
-	$(BASHTEST) `$(CGREP) "At follow child callback" $(OBJDIR)$(@:%.test=%).out` -eq "2"
-	$(RM) -r $(OBJDIR)$(@:%.test=%).out "Dir with space 1"
-
-space_mac.test: $(OBJDIR)follow_child_tool$(PINTOOL_SUFFIX) $(XOBJDIR)follow_child_tool$(PINTOOL_SUFFIX) $(OBJDIR)parent_process_$(TARGET_OS)$(EXE_SUFFIX) $(XOBJDIR)child_process_$(TARGET_OS)$(EXE_SUFFIX) $(OBJDIR)grand_child_process_$(TARGET_OS)$(EXE_SUFFIX)
 	mkdir -p "Dir with space 1"
 	$(PIN) -follow_execv -t64 "Dir with space 1"/../$(OBJDIR)follow_child_tool$(PINTOOL_SUFFIX) \
 	  -t "Dir with space 1"/../$(XOBJDIR)follow_child_tool$(PINTOOL_SUFFIX) \

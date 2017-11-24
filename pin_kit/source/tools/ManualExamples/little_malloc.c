@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -51,29 +51,29 @@ static void my_free( void * ptr )
 
 int main( int argc, char * argv[] )
 {
-    char * buffer1 = NULL;
-    char * buffer2 = NULL;
-    char * buffer3 = NULL;
-    char * buffer4 = NULL;
-    int success = 0;
+    char * buffer1;
+    char * buffer2;
+    char * buffer3;
+    char * buffer4;
+    int success=0;
 
     buffer1 = (char *)my_malloc( 64 );
-    printf("little_malloc: %p\n", (void*)buffer1 );
+    printf("little_malloc: 0x%lx\n", buffer1 );
 
     buffer2 = (char *)my_malloc( 128 );
-    printf("little_malloc: %p\n", (void*)buffer2 );
+    printf("little_malloc: 0x%lx\n", buffer2 );
 
     buffer3 = (char *)my_malloc( 256 );
-    printf("little_malloc: %p\n", (void*)buffer3 );
+    printf("little_malloc: 0x%lx\n", buffer3 );
 
     buffer4 = (char *)my_malloc( 512 );
-    printf("little_malloc: %p\n", (void*)buffer4 );
+    printf("little_malloc: 0x%lx\n", buffer4 );
 
 
-    if ( buffer1 > 0 &&
-         buffer2 > 0 &&
-         buffer3 > 0 &&
-         buffer4 > 0 )
+    if ( buffer1 >= 0 &&
+         buffer2 >= 0 &&
+         buffer3 >= 0 &&
+         buffer4 >= 0 )
         success = 1;
 
     if (success)
@@ -90,3 +90,7 @@ int main( int argc, char * argv[] )
 
     return 0;
 }
+
+
+    
+    

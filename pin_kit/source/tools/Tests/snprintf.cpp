@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -41,7 +41,7 @@ VOID sn()
     char a[100];
     
     // snprintf does a movaps, which needs the stack aligned correctly
-#if defined(PIN_GNU_COMPATIBLE) || defined(PIN_CRT)
+#if defined(PIN_GNU_COMPATIBLE)
     snprintf(a, 10, "a %f\n", fl);
 #elif defined(PIN_MS_COMPATIBLE)
     _snprintf(a, 10, "a %f\n", fl);

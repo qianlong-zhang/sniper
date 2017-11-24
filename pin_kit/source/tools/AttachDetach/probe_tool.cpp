@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,9 +28,14 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Elena Demikhovsky
+*/
+
+/* ===================================================================== */
 /*! @file
- * Among other things this test checks:
- *  - Verify that all image load callbacks and all thread attach callbacks are being called before starting to Probe.
  */
 
 #include "pin.H"
@@ -39,10 +44,6 @@ END_LEGAL */
 #include <stdlib.h>
 #include <sched.h>
 #include <assert.h>
-#if defined(TARGET_LINUX)
-#include <elf.h>
-#endif
-#include "tool_macros.h"
 
 using namespace std;
 
@@ -53,11 +54,6 @@ using namespace std;
 
 KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
     "o", "probe_tool.out", "specify file name");
-
-#ifdef TARGET_LINUX
-KNOB<BOOL> KnobJustQueryAuxv(KNOB_MODE_WRITEONCE, "pintool",
-    "just_auxv", "0", "just test availability of auxv values");
-#endif
 
 ofstream TraceFile;
 /* ===================================================================== */
@@ -72,71 +68,50 @@ INT32 Usage()
     return -1;
 }
 
-PIN_LOCK pinLock;
+PIN_LOCK lock;
 
 UINT32 threadCounter=0;
 BOOL   isAppStartReceived = FALSE;
 
-volatile BOOL probeBegan = FALSE; // True if probing has started
-
-#ifdef TARGET_LINUX
-void QueryAuxv(const char* name, ADDRINT value)
-{
-    bool found = false;
-    ADDRINT vdso = PIN_GetAuxVectorValue(value, &found);
-    if (found)
-    {
-        TraceFile << name << " value: " << vdso << endl;
-    }
-    else
-    {
-        TraceFile << "Could not find auxv value " << name << endl;
-    }
-}
-#endif
-
 VOID AppStart(VOID *v)
 {
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     TraceFile << "Application Start Callback is called from thread " << dec << PIN_GetTid() << endl;
     isAppStartReceived = TRUE;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 }
 
 VOID AttachedThreadStart(VOID *sigmask, VOID *v)
 {
-    ASSERT(!probeBegan, "Probe began before all thread attach callbacks were called");
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     TraceFile << "Thread counter is updated to " << dec <<  (threadCounter+1) << endl;
     ++threadCounter;
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 }
 
 int PinReady(unsigned int numOfThreads)
 {
-    probeBegan = TRUE;
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
 	// Check that we don't have any extra thread
 	assert(threadCounter <= numOfThreads);
     if ((threadCounter == numOfThreads) && isAppStartReceived)
     {
         TraceFile.close();
-        PIN_ReleaseLock(&pinLock);
+        PIN_ReleaseLock(&lock);
         return 1;
     }
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
     return 0;
 }
 
 VOID ImageLoad(IMG img, void *v)
 {
-    ASSERT(!probeBegan, "Probe began before all image load callbacks were called");
-	RTN rtn = RTN_FindByName(img, C_MANGLE("ThreadsReady"));
+	RTN rtn = RTN_FindByName(img, "ThreadsReady");
 	if (RTN_Valid(rtn))
 	{
 		RTN_ReplaceProbed(rtn, AFUNPTR(PinReady));
 	}
-}
+}	
 
 
 /* ===================================================================== */
@@ -150,35 +125,17 @@ int main(int argc, CHAR *argv[])
         return Usage();
     }
 
-#if defined(TARGET_LINUX) && defined(TARGET_IA32)
-    int gs_reg_value = 0;
-    asm("mov $0, %%eax\n"
-            "mov %%gs, %%eax\n"
-            "mov %%eax, %0\n"
-            : "=r" (gs_reg_value));
-    ASSERTX(0 != gs_reg_value);
-#endif
-
     TraceFile.open(KnobOutputFile.Value().c_str());
     TraceFile << hex;
     TraceFile.setf(ios::showbase);
 
-#ifdef TARGET_LINUX
-    if (KnobJustQueryAuxv) {
-        QueryAuxv("AT_ENTRY", AT_ENTRY);
-        QueryAuxv("UNDEFINED_ENTRY", 0xFFFFFFF);
-        TraceFile.close();
-        PIN_ExitProcess(0);
-    }
-#endif
-
-    PIN_InitLock(&pinLock);
-
+	PIN_InitLock(&lock);
+	
     IMG_AddInstrumentFunction(ImageLoad, 0);
     PIN_AddApplicationStartFunction(AppStart, 0);
     PIN_AddThreadAttachProbedFunction(AttachedThreadStart, 0);
     PIN_StartProgramProbed();
-
+    
     return 0;
 }
 

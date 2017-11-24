@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -32,42 +32,27 @@ END_LEGAL */
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <iostream>
 
 /*
   The tool validates stopping threads API called in application thread.
 */
 
+#define MAX_NUM_THREADS 4
 // Interval in instructions between PIN_StopApplicationThreads() calls.
 #define PAUSE_INTERVAL 10000000
 
-// Instruction data counters per thread
-struct tdata
-{
-    UINT64 icount;
-    UINT64 stopPoint;
-} THREAD_DATA;
+// Instruction counters per thread
+UINT64 icount[MAX_NUM_THREADS];
+UINT64 stopPoint[MAX_NUM_THREADS];
 
-static TLS_KEY tls_key = INVALID_TLS_KEY;
-
-tdata* get_tls(THREADID threadid)
-{
-    tdata * data = static_cast<tdata*>(PIN_GetThreadData(tls_key, threadid));
-    if (!data)
-    {
-        cerr << "specified key is invalid or the given thread is not yet registered in the pin thread database" << endl;
-        PIN_ExitProcess(1);
-    }
-    return data;
-}
 
 VOID doPause(THREADID threadid)
 {
-    tdata* data = get_tls(threadid);
+    assert(threadid < MAX_NUM_THREADS);
 
-    ++data->icount;
+    ++icount[threadid];
 
-    if (data->icount == data->stopPoint)
+    if (icount[threadid] == stopPoint[threadid])
     {
         printf("Threads to be stopped by application thread %u\n", threadid);
         fflush(stdout);
@@ -90,13 +75,13 @@ VOID doPause(THREADID threadid)
             fflush(stdout);
 
             // Reset stop point, do not try to stop in this thread any more.
-            data->stopPoint = 0;
+            stopPoint[threadid] = 0;
         }
         else
         {
             // Probably collision with other thread calling PIN_StopApplicationThreads()
             // Update stop point.
-            data->stopPoint += PAUSE_INTERVAL;
+            stopPoint[threadid] += PAUSE_INTERVAL;
         }
     }
     return;
@@ -110,41 +95,16 @@ VOID insCallback(INS ins, void *v)
         IARG_END);
 }
 
-VOID ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, VOID *v)
-{
-    tdata* data = new tdata;
-    // Thread ID 0 reserved for main thread.
-    // This thread will not call PIN_StopApplicationThreads()
-    data->icount = 0;
-    data->stopPoint = PAUSE_INTERVAL * threadid;
-    if (PIN_SetThreadData(tls_key, data, threadid) == FALSE)
-    {
-        cerr << "PIN_SetThreadData failed" << endl;
-        PIN_ExitProcess(1);
-    }
-}
-
-VOID ThreadFini(THREADID threadid, const CONTEXT *ctxt, INT32 code, VOID *v)
-{
-    tdata* data = get_tls(threadid);
-    delete data;
-}
-
 int main(int argc, char **argv)
 {
     PIN_Init(argc,argv);
-
-    tls_key = PIN_CreateThreadDataKey(NULL);
-    if (tls_key == INVALID_TLS_KEY)
+    INS_AddInstrumentFunction(insCallback, 0);
+    for (int i = 0; i < MAX_NUM_THREADS; i++)
     {
-        cerr << "number of already allocated keys reached the MAX_CLIENT_TLS_KEYS limit" << endl;
-        PIN_ExitProcess(1);
+        // Thread ID 0 reserved for main thread.
+        // This thread will not call PIN_StopApplicationThreads()
+        stopPoint[i] = PAUSE_INTERVAL * i;
     }
-
-    INS_AddInstrumentFunction(insCallback, NULL);
-    PIN_AddThreadStartFunction(ThreadStart, NULL);
-    PIN_AddThreadFiniFunction(ThreadFini, NULL);
-
     PIN_StartProgram();
-    return 1;
+    return 0;
 }

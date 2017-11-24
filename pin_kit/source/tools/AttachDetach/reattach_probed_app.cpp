@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+// @ORIGINAL_AUTHOR: Elena Demikhovsky
+
 /*! @file
  *  Test detaching - reattach Pin on Linux
  *  The application creates threads in a loop. Each thread does some work and exits.
@@ -42,20 +44,21 @@ END_LEGAL */
 #include <string.h>
 #include <dlfcn.h>
 #include <sys/types.h>
+#include <linux/unistd.h>
 #include <math.h>
-#include "../Utils/threadlib.h"
+#ifdef TARGET_ANDROID
+#include <sys/syscall.h>
+#endif
 
 #define NTHREADS 20
 
-#ifdef TARGET_LINUX
-
-#define DLL_SUFFIX ".so"
-
-#elif defined(TARGET_MAC)
-
-#define DLL_SUFFIX ".dylib"
-
-#endif
+/*
+ * Get thread Id
+ */
+pid_t GetTid()
+{
+     return syscall(__NR_gettid);
+}
 
 # define TLS_GET_GS_REG() \
   ({ int __seg; __asm ("movw %%gs, %w0" : "=q" (__seg)); __seg & 0xffff; })
@@ -84,7 +87,7 @@ void * thread_dlopen_func (void *arg)
     double calculatedValue = 0;
     while (loop1)
     {
-        void *handle = dlopen("libmy_dll" DLL_SUFFIX, RTLD_LAZY);
+        void *handle = dlopen("libmy_dll.so", RTLD_LAZY);
         if (handle)
         {
             DLL_FUNC fptr = (DLL_FUNC)dlsym(handle, "my_dll_sin");
@@ -95,7 +98,7 @@ void * thread_dlopen_func (void *arg)
         }
         else 
         {
-            fprintf(stderr, "error opening my_dll" DLL_SUFFIX ", thread %ld\n", GetTid());
+            fprintf(stderr, "error opening my_dll.so, thread %d\n", GetTid());
             exit(-1);
         } 
         number += 0.01;

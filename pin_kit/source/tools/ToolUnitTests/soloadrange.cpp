@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -51,17 +51,14 @@ BOOL CheckImageContiguous(const char *name, ADDRINT low, ADDRINT high)
     FILE *fp = fopen("/proc/self/maps", "r");
     char buff[1024];
     ADDRINT glow = 0, ghigh = 0;
-    // Try to make an educated guess about the image low and high address
-    // According to file mapping created by the loader.
-    // We're also prepared for the case where the last pages of the image
-    // are anonymous file mapping.
     while(fgets(buff, 1024, fp) != NULL)
     {
         ADDRINT mapl, maph;
-        if(sscanf(buff, "%lx-%lx", (unsigned long *)&mapl, (unsigned long *)&maph) != 2)
-            continue;
-        if (ghigh == mapl || strstr(buff, name) != 0)
+        if (strstr(buff, name) != 0)
         {
+            if(sscanf(buff, "%lx-%lx", (unsigned long *)&mapl, (unsigned long *)&maph) != 2)
+                continue;
+
             if(glow == 0) glow = mapl;
             if(ghigh == 0) ghigh = maph;
             if(mapl < glow) glow = mapl;

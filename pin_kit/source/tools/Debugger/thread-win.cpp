@@ -9,7 +9,7 @@
 #include <climits>
 #include <iostream>
 #include <windows.h>
-#include "types.h"
+#include "fund.hpp"
 
 extern "C" __declspec(dllexport) void GlobalFunction();
 typedef void (*FUNPTR)();
@@ -28,7 +28,7 @@ int main(int argc, char **argv)
 
     if (PrintAddress)
     {
-        PTRINT fp = reinterpret_cast<PTRINT>(GlobalFunction);
+        FUND::PTRINT fp = reinterpret_cast<FUND::PTRINT>(GlobalFunction);
         std::cout << "0x" << std::hex << std::noshowbase << fp << "\n";
         return 0;
     }

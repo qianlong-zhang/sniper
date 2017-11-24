@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -32,6 +32,7 @@ END_LEGAL */
 #define _ALIGNCHK_H_
 #include <iostream>
 #include <iomanip>
+#include "pin_isa.H"
 
 
 #ifndef ALIGNMENT_CHECK_KNOB_DEFAULT
@@ -51,7 +52,7 @@ class ALIGN_CHECK
                    "Check alignment of data for movdqa instructions.")
     {
     }
-
+    
     bool IsActive()
     {
         return enableKnob;
@@ -66,7 +67,7 @@ class ALIGN_CHECK
 
         // Register Instruction to be called to instrument instructions
         TRACE_AddInstrumentFunction(InstrumentTrace, this);
-
+    
         return 1;
     }
   private:
@@ -78,7 +79,7 @@ class ALIGN_CHECK
     // NOTE: We are using TRACE instrumentation because it has higher
     // precedence than INS instrumentation.
 
-    static VOID
+    static VOID 
     InstrumentTrace(TRACE trace, VOID *v)
     {
         ALIGN_CHECK* xthis = reinterpret_cast<ALIGN_CHECK*>(v);
@@ -93,16 +94,16 @@ class ALIGN_CHECK
                     {
                         if (INS_IsMemoryWrite(ins))
                         {
-                            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)check_alignment,
-                                           IARG_MEMORYWRITE_EA,
+                            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)check_alignment, 
+                                           IARG_MEMORYWRITE_EA, 
                                            IARG_INST_PTR,
                                            IARG_UINT32, 0,
                                            IARG_END);
                         }
                         else if (INS_IsMemoryRead(ins))
                         {
-                            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)check_alignment,
-                                           IARG_MEMORYREAD_EA,
+                            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)check_alignment, 
+                                           IARG_MEMORYREAD_EA, 
                                            IARG_INST_PTR,
                                            IARG_UINT32, 1,
                                            IARG_END);
@@ -114,7 +115,7 @@ class ALIGN_CHECK
     }
 
     ////////////////////////////////////////////////////////////////////////////
-
+    
 
     static VOID
     check_alignment(ADDRINT memaddr, ADDRINT pc, UINT32 read)
@@ -126,12 +127,12 @@ class ALIGN_CHECK
         {
             // misaligned
             cerr << "Misaligned MOVDQA at instruction address: "
-                 << hex
+                 << hex 
                  << pc
                  << "   "
                  << (read ? "read" : "write")
-                 << " data address: "
-                 << memaddr
+                 << " data address: " 
+                 << memaddr 
                  << dec
                  << endl;
             exit(1);

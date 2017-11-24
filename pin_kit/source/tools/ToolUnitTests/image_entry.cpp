@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -28,6 +28,13 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
+
+/* ===================================================================== */
+/*
+  @ORIGINAL_AUTHOR: Nadav Chachmon
+*/
+
+/* ===================================================================== */
 /*! @file
  * Replace main's executable entry point and DLL entry point
  */
@@ -51,13 +58,6 @@ KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
 
 KNOB<BOOL> KnobVerbose(KNOB_MODE_WRITEONCE, "pintool",
     "verbose", "0", "verbosity level - 0 / 1");
-
-KNOB<BOOL> KnobPseudoFini(KNOB_MODE_WRITEONCE, "pintool",
-    "pseudofini", "0", "Enable pseudo-Fini functionality in probe mode - 0 / 1");
-
-KNOB<string> KnobDllName(KNOB_MODE_WRITEONCE, "pintool",
-    "dll_name", "win_tls_dll.dll", "specify DLL name whose entry point to probe");
-
 /* ===================================================================== */
 
 INT32 Usage()
@@ -88,7 +88,7 @@ typedef WIND::BOOLEAN  (WINAPI * DLL_ENTRY_POINT)(WIND::HINSTANCE hDllHandle,
 //output file
 ofstream traceFile;
 //lock
-PIN_LOCK pinLock;
+PIN_LOCK lock;
 //counter of number of exe entry point entrances
 UINT32 exeEntryCounter = 0;
 //counter of number of DLL entry point entrances, reason = THREAD_ATTACH
@@ -109,29 +109,20 @@ VOID CoreFini()
     traceFile.close();
 }
 
-// Pseudo-Fini flag
-bool pseudoFini;
-
-// Pseudo-Fini functionality in probe mode could be achieved
-// by using destructors of static objects.
-// Pin guarantees invocation of the destructors just before Win32 subsystem uninitialization
-// when CRT is still functional.
-// Declare class with destructor that performs Fini actions.
+// Do not use destructor of static object to write to trace file.
+// Invocation of destructors of static objects in a Pin tool DLL is (still) not guaranteed
+// in probe mode due to new Pin image loader limitations.
+/*
 class PROBE_FINI_OBJECT
 {
   public:
     ~PROBE_FINI_OBJECT()
     {
-        if (pseudoFini)
-        {
-            if (isAppStarted == 0)
-            {
-                traceFile << "AppStart() was not called" << endl;
-            }
-            CoreFini();
-        }
+        if(isAppStarted == 0) {traceFile << "AppStart() was not called" << endl;}
+        CoreFini();
     }
 };
+*/
 
 VOID Fini(INT32 code, VOID *v)
 {
@@ -149,13 +140,13 @@ VOID AppStart(VOID *v)
 //Used in JIT mode
 void BeforeExeEntry()
 {
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     exeEntryCounter++;
     if(KnobVerbose)
     {
         traceFile << "In exe entry point, threadid = " << PIN_GetTid() << endl;
     }
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 }
 
 //Used in PROBE mode
@@ -163,13 +154,13 @@ int MyExeEntry(
     CONTEXT * context,
     EXE_ENTRY_POINT orig_exeEntry )
 {
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     exeEntryCounter++;
     if(KnobVerbose)
     {
         traceFile << "In exe entry point, threadid = " << PIN_GetTid() << endl;
     }
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 
     return orig_exeEntry();  
 }
@@ -184,7 +175,7 @@ WIND::BOOLEAN WINAPI MyDllEntry(
     WIND::DWORD     nReason,    
     WIND::LPVOID    Reserved )
 {
-    PIN_GetLock(&pinLock, PIN_GetTid());
+    PIN_GetLock(&lock, PIN_GetTid());
     if(nReason == DLL_THREAD_ATTACH)
     {
         dllEntryCounterThreadAttach++;
@@ -198,13 +189,13 @@ WIND::BOOLEAN WINAPI MyDllEntry(
         traceFile << "In DLL entry point,  threadid = " << PIN_GetTid() <<
                      ", dll handle = " << hDllHandle << ", reason  = " << nReason << endl;
     }
-    PIN_ReleaseLock(&pinLock);
+    PIN_ReleaseLock(&lock);
 
     WIND::BOOLEAN ret;
     if (PIN_IsProbeMode())
     {
         ret = orig_dllEntry(hDllHandle, nReason, Reserved);
-        if (!pseudoFini && (nReason == DLL_PROCESS_DETACH))
+        if (nReason == DLL_PROCESS_DETACH)
         {
             // It is called at late exit stage when all threads but current are finished.
             CoreFini();
@@ -274,16 +265,13 @@ VOID ReplaceExeEntryPoint(IMG img)
 /* ===================================================================== */
 /* Replace DLL entry point */
 /* ===================================================================== */
-VOID ReplaceDllEntryPoint(IMG img, const string & dllName, AFUNPTR replacementFunction)
+VOID ReplaceDllEntryPoint(IMG img, const CHAR * dllName, AFUNPTR replacementFunction)
 {
     string imagePath = IMG_Name(img);
-    if (!dllName.empty())
+    string::size_type index = imagePath.find(dllName);
+    if(index == string::npos)
     {
-        string::size_type index = imagePath.find(dllName);
-        if (index == string::npos)
-        {
-            return;
-        }
+        return;
     }
 
     // This is the dll we are looking for, find it's entry point and replace it
@@ -291,7 +279,7 @@ VOID ReplaceDllEntryPoint(IMG img, const string & dllName, AFUNPTR replacementFu
     ASSERTX(RTN_Valid(rtn));
     if(KnobVerbose)
     {
-        traceFile << "Replacing " << imagePath << " entry point, Address = " << RTN_Address(rtn)\
+        traceFile << "Replacing " << dllName << " entry point, Address = " << RTN_Address(rtn)\
                   << ", Name = \"" << RTN_Name(rtn).c_str() << "\", Size = " << RTN_Size(rtn) << endl;
     }
     PROTO proto_dllEntry = PROTO_Allocate( 
@@ -334,7 +322,7 @@ VOID ReplaceDllEntryPoint(IMG img, const string & dllName, AFUNPTR replacementFu
 VOID ImageLoad(IMG img, VOID *v)
 {
     ReplaceExeEntryPoint(img);
-    ReplaceDllEntryPoint(img, KnobDllName.Value(), AFUNPTR(MyDllEntry));
+    ReplaceDllEntryPoint(img, "win_tls_dll.dll", AFUNPTR(MyDllEntry));
 }
 
 /* ===================================================================== */
@@ -349,31 +337,26 @@ int main(int argc, CHAR *argv[])
         return Usage();
     }
 
-    pseudoFini = KnobPseudoFini;
-
     traceFile.open(KnobOutputFile.Value().c_str());
     traceFile << hex;
     traceFile.setf(ios::showbase);
 
-    PIN_InitLock(&pinLock);
+    PIN_InitLock(&lock);
     
     IMG_AddInstrumentFunction(ImageLoad, 0);
     
     if (PIN_IsProbeMode()) 
     {
         PIN_AddApplicationStartFunction(AppStart, 0);
-
-        // Define static object whose destructor would provide Fini functionality
-        static PROBE_FINI_OBJECT finiObject;
-
+        // Do not define static object to use its destructor. See earlier related remark.
+        //static PROBE_FINI_OBJECT finiObject;
         PIN_StartProgramProbed();
-    }
-    else
+    } else 
     {
         PIN_AddFiniFunction(Fini, 0);
         PIN_StartProgram();
     }
-
+    
     return 0;
 }
 

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -33,7 +33,13 @@ END_LEGAL */
 
 #include <stdio.h>
 
-extern int __fastcall FastBar10( int,int,int,int,int,int,int,int,int,int );
+#if defined (TARGET_WINDOWS)
+#define EXPORT_SYM extern __declspec( dllexport ) 
+#else
+#define EXPORT_SYM extern
+#endif
+
+EXPORT_SYM int __fastcall FastBar10( int,int,int,int,int,int,int,int,int,int );
 
 int main()
 {

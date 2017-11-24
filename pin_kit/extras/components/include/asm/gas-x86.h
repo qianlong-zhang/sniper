@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -29,6 +29,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 END_LEGAL */
 /*
+** <ORIGINAL-AUTHOR>: Greg Lueck
 ** <COMPONENT>: asm
 ** <FILE-TYPE>: component public header
 */
@@ -40,24 +41,20 @@ END_LEGAL */
  * Toolchain should define ASM_WINDOWS for Windows targets, ASM_MAC for OS X* targets.
  */
 
-#define ASM_FILEBEGIN() .intel_syntax noprefix; .globl _GLOBAL_OFFSET_TABLE_
-
+#define ASM_FILEBEGIN() .intel_syntax noprefix
 #define ASM_FILEEND()
-
-#define ASM_NEWLINE ;
 
 #define ASM_FUNCBEGIN(name, rtype, args)    \
     .text;                                  \
     .align 4;                               \
     .globl ASM_NAME(name);                  \
-    .type  ASM_NAME(name), @function;       \
     ASM_NAME(name):
 
-#define ASM_FUNCEND(name) .size name, .-name
+#define ASM_FUNCEND(name)
 
 #define ASM_HEX(val)    0x##val
 
-#if defined(TARGET_WINDOWS) || defined(TARGET_MAC)
+#if defined(FUND_HOST_WINDOWS) || defined(FUND_HOST_MAC)
 #   define ASM_NAME(name)   _##name
 #else
 #   define ASM_NAME(name)   name
@@ -66,8 +63,6 @@ END_LEGAL */
 #define ASM_LABDEF(x)   .l##x##:
 #define ASM_LABF(x)     .l##x
 #define ASM_LABB(x)     .l##x
-#define ASM_GLABDEF(x)  .globl ASM_NAME(x); \
-                        ASM_NAME(x):
 
 #define ASM_BYTE()      BYTE PTR
 #define ASM_WORD()      WORD PTR
@@ -79,35 +74,10 @@ END_LEGAL */
  * there are places where the memory size is not implied by the instruction
  * mnemonic, and "QWORD PTR" is required.
  */
-#if defined(HOST_IA32)
+#if defined(FUND_HOST_IA32)
 #   define ASM_QWORD()
 #else
 #   define ASM_QWORD()     QWORD PTR
-#endif
-
-#define ASM_BYTE_TYPE()     .byte
-#define ASM_WORD_TYPE()     .word
-#define ASM_DWORD_TYPE()    .int
-#if defined(HOST_IA32)
-#   define ASM_QWORD_TYPE()
-#else
-#   define ASM_QWORD_TYPE()     .quad
-#endif
-
-#define ASM_NAMED_DATA(label, vtype, value)  \
-    .data                           ; \
-    .align ASM_##vtype##_SIZE        ; \
-    .type ASM_NAME(label), @object  ; \
-    .size ASM_NAME(label), ASM_##vtype##_SIZE        ; \
-    ASM_NAME(label):                ; \
-    ASM_##vtype##_TYPE() value
-
-#if defined(HOST_IA32)
-#   define ASM_PIC_INIT(reg)         call 1f; 1: pop reg; lea reg, [reg + _GLOBAL_OFFSET_TABLE_ + 1]
-#   define ASM_PC_REL_REF(var,reg) reg + var@GOTOFF
-#else
-#   define ASM_PIC_INIT(reg)
-#   define ASM_PC_REL_REF(var,dummy) rip + var
 #endif
 
 #endif /*file guard*/

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -32,9 +32,6 @@ END_LEGAL */
 #include "pin.H"
 
 FILE * out;
-
-KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
-    "o", "debugservice_monitor.out", "output file");
 
 /*
  * Return TRUE if baseName matches tail of imageName. Comparison is case-insensitive.
@@ -91,10 +88,12 @@ VOID Image(IMG img, VOID *v)
 
 int main(INT32 argc, CHAR **argv)
 {
+    
+
+    out = fopen("debugservice_monitor.out", "w");
+
     PIN_InitSymbols();
     PIN_Init(argc, argv);
-
-    out = fopen(KnobOutputFile.Value().c_str(), "w");
 
     IMG_AddInstrumentFunction(Image, 0);
 

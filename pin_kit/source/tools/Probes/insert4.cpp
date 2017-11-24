@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -38,7 +38,6 @@ END_LEGAL */
 #include "pin.H"
 #include <iostream>
 #include <stdlib.h>
-#include "tool_macros.h"
 
 using namespace std;
 
@@ -87,7 +86,7 @@ VOID Sanity(IMG img, RTN rtn)
 /* ===================================================================== */
 VOID ImageLoad(IMG img, VOID *v)
 {
-    RTN rtn = RTN_FindByName(img, C_MANGLE("malloc"));
+    RTN rtn = RTN_FindByName(img, "malloc");
     if (RTN_Valid(rtn))
     {
         Sanity(img, rtn);
@@ -105,7 +104,7 @@ VOID ImageLoad(IMG img, VOID *v)
             IARG_END);
     }
 
-    rtn = RTN_FindByName(img, C_MANGLE("free"));
+    rtn = RTN_FindByName(img, "free");
     if (RTN_Valid(rtn))
     {
         Sanity(img, rtn);

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -32,8 +32,6 @@ END_LEGAL */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 
 FILE* log_fd;
 
@@ -62,6 +60,8 @@ void PrintAndCompareAlternateStack(const char* prefix, const stack_t* compare_st
 }
 
 int main(int argc, char *argv[]) {
+    int err, i;
+
     if (argc != 2) {
         printf("Usage %s <log_file_name>\n", argv[0]);
         exit(1);
@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
     sigstk.ss_size = SIGSTKSZ;
     sigstk.ss_flags = 0;
 
-    sigaltstack(&sigstk, NULL);
+    int sigalt_result = sigaltstack(&sigstk, NULL);
 
     PrintAndCompareAlternateStack("Father", NULL);
 
@@ -99,7 +99,6 @@ int main(int argc, char *argv[]) {
         PrintAndCompareAlternateStack("child process printing" , &sigstk);
         fclose(log_fd);
     } else {
-        waitpid(pid, NULL, 0);
         //pid > 0 => father process (free pointer)
         if (ss_sp) free(ss_sp);
         fclose(log_fd);

@@ -1,7 +1,7 @@
 /*BEGIN_LEGAL 
 Intel Open Source License 
 
-Copyright (c) 2002-2017 Intel Corporation. All rights reserved.
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -33,24 +33,8 @@ END_LEGAL */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "tool_macros.h"
-
 using namespace std;
 
-#ifdef TARGET_MAC
-# define LIBC_NAME "libsystem_kernel.dylib"
-# ifdef TARGET_IA32
-#  define CLOSE_NOCANCEL C_MANGLE("close$NOCANCEL$UNIX2003")
-#  define CLOSE C_MANGLE("__close")
-# else
-#  define CLOSE_NOCANCEL C_MANGLE("close_nocancel")
-#  define CLOSE C_MANGLE("close")
-# endif
-#else
-# define LIBC_NAME "libc.so"
-# define CLOSE_NOCANCEL C_MANGLE("close_nocancel")
-# define CLOSE C_MANGLE("close")
-#endif
 
 typedef int (* func_ptr_t)(int);
 
@@ -73,25 +57,25 @@ VOID ImageLoad(IMG img, VOID *v)
 
 {
     const char *name = IMG_Name(img).c_str();
-    if (!strstr(name, LIBC_NAME))
+    if (!strstr(name, "libc.so"))
     {
         return;
     }
     printf ("image: %s\n", name); 
     
-    RTN close_routine = RTN_FindByName(img, CLOSE);
+    RTN close_routine = RTN_FindByName(img, "close");
     if (!RTN_Valid(close_routine))
     {
-        close_routine = RTN_FindByName(img, C_MANGLE("_close"));
+        close_routine = RTN_FindByName(img, "_close");
     }
-    RTN close_nocancel_routine = RTN_FindByName(img, CLOSE_NOCANCEL);
+    RTN close_nocancel_routine = RTN_FindByName(img, "close_nocancel");
     if (!RTN_Valid(close_nocancel_routine))
     {
-        close_nocancel_routine = RTN_FindByName(img, C_MANGLE("_close_nocancel"));
+        close_nocancel_routine = RTN_FindByName(img, "_close_nocancel");
     }
     if (!RTN_Valid(close_nocancel_routine))
     {
-        close_nocancel_routine = RTN_FindByName(img, C_MANGLE("__close_nocancel"));
+        close_nocancel_routine = RTN_FindByName(img, "__close_nocancel");
     }
             
 

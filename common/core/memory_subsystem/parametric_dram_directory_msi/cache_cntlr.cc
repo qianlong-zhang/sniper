@@ -320,7 +320,11 @@ CacheCntlr::processMemOpFromCore(
       IntPtr ca_address, UInt32 offset,
       Byte* data_buf, UInt32 data_length,
       bool modeled,
-      bool count)
+      bool count,
+      bool speculative_prefetch,
+      UInt32 prefetch_times,
+      bool HPTW,
+      UInt64 speculative_offset)
 {
    HitWhere::where_t hit_where = HitWhere::MISS;
 
@@ -435,7 +439,6 @@ MYLOG("L1 hit");
             getMemoryManager()->incrElapsedTime(latency, ShmemPerfModel::_USER_THREAD);
          }
       }
-
    } else {
       /* cache miss: either wrong coherency state or not present in the cache */
 MYLOG("L1 miss");
@@ -548,6 +551,26 @@ MYLOG("processMemOpFromCore l%d after next fill", m_mem_component);
    accessCache(mem_op_type, ca_address, offset, data_buf, data_length, hit_where == HitWhere::where_t(m_mem_component) && count);
 MYLOG("access done");
 
+	if (cache_hit)
+	{
+		if (modeled && m_master->m_prefetcher)
+		{
+			ca_address = data_buf;
+		   trainPrefetcher(ca_address, cache_hit, prefetch_hit, t_start, 
+				 speculative_prefetch,
+				 prefetch_times,
+				 HPTW,
+				 speculative_offset);
+		}
+
+		// Call Prefetch on next-level caches (but not for atomic instructions as that causes a locking mess)
+		if (lock_signal != Core::LOCK && modeled)
+		{
+		   Prefetch(t_start);
+		}
+	}
+
+
 
    SubsecondTime t_now = getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD);
    SubsecondTime total_latency = t_now - t_start;
@@ -584,17 +607,6 @@ MYLOG("access done");
          stats.loads_where[hit_where]++;
    }
 
-
-   if (modeled && m_master->m_prefetcher)
-   {
-      trainPrefetcher(ca_address, cache_hit, prefetch_hit, t_start);
-   }
-
-   // Call Prefetch on next-level caches (but not for atomic instructions as that causes a locking mess)
-   if (lock_signal != Core::LOCK && modeled)
-   {
-      Prefetch(t_start);
-   }
 
    if (Sim()->getConfig()->getCacheEfficiencyCallbacks().notify_access_func)
       Sim()->getConfig()->getCacheEfficiencyCallbacks().call_notify_access(cache_block_info->getOwner(), mem_op_type, hit_where);
@@ -659,7 +671,11 @@ MYLOG("copyDataFromNextLevel l%d", m_mem_component);
 
 
 void
-CacheCntlr::trainPrefetcher(IntPtr address, bool cache_hit, bool prefetch_hit, SubsecondTime t_issue)
+CacheCntlr::trainPrefetcher(IntPtr address, bool cache_hit, bool prefetch_hit, SubsecondTime t_issue,         
+			bool speculative_prefetch,
+         	UInt32 prefetch_times,
+         	bool HPTW,
+         	UInt64 offset)
 {
    ScopedLock sl(getLock());
 
@@ -681,6 +697,32 @@ CacheCntlr::trainPrefetcher(IntPtr address, bool cache_hit, bool prefetch_hit, S
          if (!operationPermissibleinCache(*it, Core::READ))
             m_master->m_prefetch_list.push_back(*it);
       }
+   }
+
+
+    /* if hit, can prefetch linked structure data
+   	 * currently, only one prefetcher work, if we need two preftcher work
+   	 * at same time, should consider (m_prefetch_on_prefetch_hit && prefetch_hit)
+   	 */
+   
+   else if(cache_hit)
+   {
+	  if ( speculative_prefetch == true )
+	  {	
+		  /* TODO: use the unit prefetch_list? better a different list, cause maybe prefetch simultaneously*/
+	      m_master->m_prefetch_list.clear();
+	      // Just talked to the next-level cache, prefetch right away
+	      m_master->m_prefetch_next = t_issue;
+
+	      for(std::vector<IntPtr>::iterator it = prefetchList.begin(); it != prefetchList.end(); ++it)
+	      {
+	         // Keep at most PREFETCH_MAX_QUEUE_LENGTH entries in the prefetch queue
+	         if (m_master->m_prefetch_list.size() > PREFETCH_MAX_QUEUE_LENGTH)
+	            break;
+	         if (!operationPermissibleinCache(*it, Core::READ))
+	            m_master->m_prefetch_list.push_back(*it);
+	      }
+	  }
    }
 }
 
@@ -1010,7 +1052,11 @@ CacheCntlr::processShmemReqFromPrevCache(CacheCntlr* requester, Core::mem_op_t m
 
    if (modeled && m_master->m_prefetcher)
    {
-      trainPrefetcher(address, cache_hit, prefetch_hit, t_issue);
+      trainPrefetcher(address, cache_hit, prefetch_hit, t_issue,
+	  		speculative_prefetch,
+         	prefetch_times,
+         	HPTW,
+         	offset);
    }
 
    #ifdef PRIVATE_L2_OPTIMIZATION

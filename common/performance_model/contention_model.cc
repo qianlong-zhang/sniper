@@ -247,7 +247,7 @@ SubsecondTime
 ContentionModel::getStartTime(SubsecondTime t_start)
 {
    /* Peek start time for a new request */
-
+   /* To help understand: m_time[i].first is the time mshr is finished!!! not start time*/
    if (m_num_outstanding == 0)
       return t_start;
 
@@ -270,7 +270,7 @@ ContentionModel::getStartTime(SubsecondTime t_start)
          else if (m_time[i].first < m_time[unit].first)
          {
             /* Unit i is the first one free */
-            unit = i;
+            unit = i;/* This will be freed in getCompletionTime()*/
          }
       }
 

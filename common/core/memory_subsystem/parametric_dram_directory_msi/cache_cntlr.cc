@@ -551,16 +551,20 @@ MYLOG("processMemOpFromCore l%d after next fill", m_mem_component);
    accessCache(mem_op_type, ca_address, offset, data_buf, data_length, hit_where == HitWhere::where_t(m_mem_component) && count);
 MYLOG("access done");
 
+/*==============================speculative_prefetch=================================*/
 	if (cache_hit)
 	{
 		if (modeled && m_master->m_prefetcher)
 		{
-			ca_address = data_buf;
-		   trainPrefetcher(ca_address, cache_hit, prefetch_hit, t_start, 
-				 speculative_prefetch,
-				 prefetch_times,
-				 HPTW,
-				 speculative_offset);
+		 /* data_buf is cacheline or just data? 
+          * which byte should be the base address of prefetch?
+		  */
+		   UInt64 prefetch_address = data_buf;
+		   trainPrefetcher(prefetch_address, cache_hit, prefetch_hit, t_start, 
+				 TRUE,
+				 4,
+				 TRUE,
+				 32);	 //just test linked structure data
 		}
 
 		// Call Prefetch on next-level caches (but not for atomic instructions as that causes a locking mess)
@@ -569,6 +573,7 @@ MYLOG("access done");
 		   Prefetch(t_start);
 		}
 	}
+	/*==============================speculative_prefetch=================================*/
 
 
 

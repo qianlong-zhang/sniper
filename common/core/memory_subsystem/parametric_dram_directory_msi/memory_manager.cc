@@ -431,41 +431,13 @@ MemoryManager::coreInitiateMemoryAccess(
    else if (mem_component == MemComponent::L1_DCACHE && m_dtlb)
       accessTLB(m_dtlb, address, false, modeled);
 
-
-    static UInt32 overlap_prefetch = 0;
-    bool speculative_prefetch = TRUE;  /* if we need speculative prefetch, should be decided by core */
-	UInt32 prefetch_times = 4;	  /* how many times should we speculative prefetch */
-	bool HPTW = TRUE;				  /* if this is hardware page table walk, the offset should used differently */
-	UInt64 speculative_offset = 0;			  /* if not HPTW, offset should be just added on VA to get PA */
-	  
-	/*we only prefetch dependency READ, and send one prefetch for every four load*/
-	if(mem_op_type == Core::READ && (overlap_prefetch%4==0))
-	{
-	  	speculative_prefetch = TRUE;  
-	  	prefetch_times = 4;	  
-	  	HPTW = TRUE;				
-		speculative_offset = 0;			  
-		overlap_prefetch ++;
-	}
-	else
-	{
-		speculative_prefetch = FALSE; 
-		prefetch_times = 0;		
-		HPTW = FALSE;			
-		speculative_offset =0;
-	}
-	
    return m_cache_cntlrs[mem_component]->processMemOpFromCore(
          lock_signal,
          mem_op_type,
          address, offset,
          data_buf, data_length,
          modeled == Core::MEM_MODELED_NONE || modeled == Core::MEM_MODELED_COUNT ? false : true,
-         modeled == Core::MEM_MODELED_NONE ? false : true,
-         speculative_prefetch,
-         prefetch_times,
-         HPTW,
-         speculative_offset);
+         modeled == Core::MEM_MODELED_NONE ? false : true);
 }
 
 void

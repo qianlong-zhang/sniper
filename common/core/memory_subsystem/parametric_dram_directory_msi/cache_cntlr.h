@@ -170,7 +170,6 @@ namespace ParametricDramDirectoryMSI
          UInt32 m_num_sets;
 
          std::deque<IntPtr> m_prefetch_list;
-//         std::deque<IntPtr> m_speculative_prefetch_list; /* only used in speculatvie prefetch*/
          SubsecondTime m_prefetch_next;
 
          void createSetLocks(UInt32 cache_block_size, UInt32 num_sets, UInt32 core_offset, UInt32 num_cores);
@@ -283,12 +282,7 @@ namespace ParametricDramDirectoryMSI
                IntPtr address, Core::mem_op_t mem_op_type, CacheBlockInfo **cache_block_info = NULL);
 
          void copyDataFromNextLevel(Core::mem_op_t mem_op_type, IntPtr address, bool modeled, SubsecondTime t_start);
-         void trainPrefetcher(IntPtr address, bool cache_hit, bool prefetch_hit, SubsecondTime t_issue,
-		 	bool speculative_prefetch,
-         	UInt32 prefetch_times,
-         	bool HPTW,
-         	UInt64 offset);
-		 
+         void trainPrefetcher(IntPtr address, bool cache_hit, bool prefetch_hit, SubsecondTime t_issue);
          void Prefetch(SubsecondTime t_start);
          void doPrefetch(IntPtr prefetch_address, SubsecondTime t_start);
 
@@ -382,11 +376,7 @@ namespace ParametricDramDirectoryMSI
                IntPtr ca_address, UInt32 offset,
                Byte* data_buf, UInt32 data_length,
                bool modeled,
-               bool count,
-               bool speculative_prefetch,
-	    	   UInt32 prefetch_times,
-    	  	   bool HPTW,
-			   UInt64 speculative_offset);
+               bool count);
          void updateHits(Core::mem_op_t mem_op_type, UInt64 hits);
 
          // Notify next level cache of so it can update its sharing set

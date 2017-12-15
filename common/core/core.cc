@@ -225,7 +225,7 @@ Core::logMemoryHit(bool icache, mem_op_t mem_op_type, IntPtr address, MemModeled
 }
 
 MemoryResult
-Core::readInstructionMemory(IntPtr address, UInt32 instruction_size)
+Core::readInstructionMemory(IntPtr address, UInt32 instruction_size, DynamicInstruction *dynins)
 {
    LOG_PRINT("Instruction: Address(0x%x), Size(%u), Start READ",
            address, instruction_size);
@@ -257,7 +257,7 @@ Core::readInstructionMemory(IntPtr address, UInt32 instruction_size)
 
    // Cases with multiple cache lines or when we are not sure that it will be a hit call into the caches
    return initiateMemoryAccess(MemComponent::L1_ICACHE,
-             Core::NONE, Core::READ, address & blockmask, NULL, getMemoryManager()->getCacheBlockSize(), MEM_MODELED_COUNT_TLBTIME, 0, SubsecondTime::MaxTime());
+             Core::NONE, Core::READ, address & blockmask, NULL, getMemoryManager()->getCacheBlockSize(), MEM_MODELED_COUNT_TLBTIME, 0, SubsecondTime::MaxTime(), dynins);
 }
 
 void Core::accessMemoryFast(bool icache, mem_op_t mem_op_type, IntPtr address)
@@ -279,9 +279,10 @@ Core::initiateMemoryAccess(MemComponent::component_t mem_component,
       Byte* data_buf, UInt32 data_size,
       MemModeled modeled,
       IntPtr eip,
-      SubsecondTime now)
+      SubsecondTime now,
+      DynamicInstruction *dynins)
 {
-   MYLOG("access %lx+%u %c%c modeled(%s)", address, data_size, mem_op_type == Core::WRITE ? 'W' : 'R', mem_op_type == Core::READ_EX ? 'X' : ' ', ModeledString(modeled));
+   MYLOG("access %lx+%u %c%c modeled(%s), IP:0x%lx, Virtual address is:%0x%lx", address, data_size, mem_op_type == Core::WRITE ? 'W' : 'R', mem_op_type == Core::READ_EX ? 'X' : ' ', ModeledString(modeled), eip, dynins->instruction->getAddress());
 
    if (data_size <= 0)
    {

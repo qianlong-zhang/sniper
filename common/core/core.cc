@@ -19,9 +19,9 @@
 
 #include <cstring>
 
-#if 0
+#if 1
    extern Lock iolock;
-#  define MYLOG(...) { ScopedLock l(iolock); fflush(stderr); fprintf(stderr, "[%8lu] %dcor %-25s@%03u: ", getPerformanceModel()->getCycleCount(ShmemPerfModel::_USER_THREAD), m_core_id, __FUNCTION__, __LINE__); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); fflush(stderr); }
+#  define MYLOG(...) { ScopedLock l(iolock); fflush(stderr); fprintf(stderr, "[%s] %d cor %-25s@%03u: ", itostr(getPerformanceModel()->getElapsedTime()).c_str(), m_core_id, __FUNCTION__, __LINE__); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); fflush(stderr); }
 #else
 #  define MYLOG(...) {}
 #endif
@@ -282,7 +282,7 @@ Core::initiateMemoryAccess(MemComponent::component_t mem_component,
       SubsecondTime now,
       DynamicInstruction *dynins)
 {
-   MYLOG("access %lx+%u %c%c modeled(%s), IP:0x%lx, Virtual address is:%0x%lx", address, data_size, mem_op_type == Core::WRITE ? 'W' : 'R', mem_op_type == Core::READ_EX ? 'X' : ' ', ModeledString(modeled), eip, dynins->instruction->getAddress());
+   MYLOG("access %lx+%u %c%c modeled(%s), IP:0x%lx, Virtual address is:0x%lx", address, data_size, mem_op_type == Core::WRITE ? 'W' : 'R', mem_op_type == Core::READ_EX ? 'X' : ' ', ModeledString(modeled), eip, dynins->instruction->getAddress());
 
    if (data_size <= 0)
    {
@@ -461,7 +461,7 @@ Core::initiateMemoryAccess(MemComponent::component_t mem_component,
  *   number of misses :: State the number of cache misses
  */
 MemoryResult
-Core::accessMemory(lock_signal_t lock_signal, mem_op_t mem_op_type, IntPtr d_addr, char* data_buffer, UInt32 data_size, MemModeled modeled, IntPtr eip, SubsecondTime now, bool is_fault_mask)
+Core::accessMemory(lock_signal_t lock_signal, mem_op_t mem_op_type, IntPtr d_addr, char* data_buffer, UInt32 data_size, MemModeled modeled, IntPtr eip, SubsecondTime now, bool is_fault_mask, DynamicInstruction* dynins)
 {
    // In PINTOOL mode, if the data is requested, copy it to/from real memory
    if (data_buffer && !is_fault_mask)
@@ -472,7 +472,7 @@ Core::accessMemory(lock_signal_t lock_signal, mem_op_t mem_op_type, IntPtr d_add
       }
       else if (Sim()->getConfig()->getSimulationMode() == Config::STANDALONE)
       {
-         Sim()->getTraceManager()->accessMemory(m_core_id, lock_signal, mem_op_type, d_addr, data_buffer, data_size);
+         Sim()->getTraceManager()->accessMemory(m_core_id, lock_signal, mem_op_type, d_addr, data_buffer, data_size, dynins);
       }
       data_buffer = NULL; // initiateMemoryAccess's data is not used
    }
@@ -480,7 +480,7 @@ Core::accessMemory(lock_signal_t lock_signal, mem_op_t mem_op_type, IntPtr d_add
    if (modeled == MEM_MODELED_NONE)
       return makeMemoryResult(HitWhere::UNKNOWN, SubsecondTime::Zero());
    else
-      return initiateMemoryAccess(MemComponent::L1_DCACHE, lock_signal, mem_op_type, d_addr, (Byte*) data_buffer, data_size, modeled, eip, now);
+      return initiateMemoryAccess(MemComponent::L1_DCACHE, lock_signal, mem_op_type, d_addr, (Byte*) data_buffer, data_size, modeled, eip, now, dynins);
 }
 
 

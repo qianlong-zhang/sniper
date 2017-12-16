@@ -74,7 +74,7 @@ class TraceManager
       void signalStarted();
       void signalDone(TraceThread *thread, SubsecondTime time, bool aborted);
       void endApplication(TraceThread *thread, SubsecondTime time);
-      void accessMemory(int core_id, Core::lock_signal_t lock_signal, Core::mem_op_t mem_op_type, IntPtr d_addr, char* data_buffer, UInt32 data_size);
+      void accessMemory(int core_id, Core::lock_signal_t lock_signal, Core::mem_op_t mem_op_type, IntPtr d_addr, char* data_buffer, UInt32 data_size, DynamicInstruction* dynins);
 
       UInt64 getProgressExpect();
       UInt64 getProgressValue();

@@ -309,7 +309,7 @@ UInt64 TraceManager::getProgressValue()
 }
 
 // This should only be called when already holding the thread lock to prevent migrations while we scan for a core id match
-void TraceManager::accessMemory(int core_id, Core::lock_signal_t lock_signal, Core::mem_op_t mem_op_type, IntPtr d_addr, char* data_buffer, UInt32 data_size)
+void TraceManager::accessMemory(int core_id, Core::lock_signal_t lock_signal, Core::mem_op_t mem_op_type, IntPtr d_addr, char* data_buffer, UInt32 data_size, DynamicInstruction* dynins)
 {
    for(std::vector<TraceThread *>::iterator it = m_threads.begin(); it != m_threads.end(); ++it)
    {

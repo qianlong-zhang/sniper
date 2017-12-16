@@ -454,7 +454,7 @@ void TraceThread::handleCacheOnlyFunc(uint8_t icount, Sift::CacheOnlyType type, 
 
       case Sift::CacheOnlyMemIcache:
          if (Sim()->getConfig()->getEnableICacheModeling())
-            core->readInstructionMemory(va2pa(eip), address);
+            core->readInstructionMemory(va2pa(eip), address, NULL);
          break;
    }
 }
@@ -467,7 +467,7 @@ void TraceThread::handleInstructionWarmup(Sift::Instruction &inst, Sift::Instruc
 
    if (do_icache_warmup && Sim()->getConfig()->getEnableICacheModeling())
    {
-      core->readInstructionMemory(va2pa(icache_warmup_addr), icache_warmup_size);
+      core->readInstructionMemory(va2pa(icache_warmup_addr), icache_warmup_size, NULL);
    }
 
    // Warmup branch predictor

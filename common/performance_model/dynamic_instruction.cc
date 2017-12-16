@@ -54,7 +54,10 @@ void DynamicInstruction::accessMemory(Core *core)
             NULL,
             memory_info[idx].size,
             Core::MEM_MODELED_RETURN,
-            instruction->getAddress()
+            instruction->getAddress(),
+            SubsecondTime::MaxTime(),
+            false,
+            this
          );
          memory_info[idx].latency = res.latency;
          memory_info[idx].hit_where = res.hit_where;

@@ -7,6 +7,7 @@
 #include "performance_model.h"
 #include "shmem_perf_model.h"
 #include "pr_l1_pr_l2_dram_directory_msi/shmem_msg.h"
+#include "dynamic_instruction.h"
 
 void MemoryManagerNetworkCallback(void* obj, NetPacket packet);
 
@@ -48,7 +49,8 @@ class MemoryManagerBase
             Core::mem_op_t mem_op_type,
             IntPtr address, UInt32 offset,
             Byte* data_buf, UInt32 data_length,
-            Core::MemModeled modeled) = 0;
+            Core::MemModeled modeled, DynamicInstruction* dynins) = 0;
+
       virtual SubsecondTime coreInitiateMemoryAccessFast(
             bool icache,
             Core::mem_op_t mem_op_type,
@@ -64,7 +66,7 @@ class MemoryManagerBase
                mem_op_type,
                address - (address % getCacheBlockSize()), 0,
                NULL, getCacheBlockSize(),
-               Core::MEM_MODELED_COUNT_TLBTIME);
+               Core::MEM_MODELED_COUNT_TLBTIME, NULL);
 
          // Get the final cycle time
          SubsecondTime final_time = getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD);

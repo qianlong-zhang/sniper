@@ -13,6 +13,7 @@
 #include "shmem_perf_model.h"
 #include "shared_cache_block_info.h"
 #include "subsecond_time.h"
+#include "dynamic_instruction.h"
 
 #include <map>
 
@@ -86,7 +87,8 @@ namespace ParametricDramDirectoryMSI
                Core::mem_op_t mem_op_type,
                IntPtr address, UInt32 offset,
                Byte* data_buf, UInt32 data_length,
-               Core::MemModeled modeled);
+               Core::MemModeled modeled,
+               DynamicInstruction *dynins);
 
          void handleMsgFromNetwork(NetPacket& packet);
 

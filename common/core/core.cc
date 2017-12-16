@@ -369,7 +369,8 @@ Core::initiateMemoryAccess(MemComponent::component_t mem_component,
                mem_op_type,
                curr_addr_aligned, curr_offset,
                data_buf ? curr_data_buffer_head : NULL, curr_size,
-               modeled);
+               modeled,
+               dynins);
 
       if (hit_where != (HitWhere::where_t)mem_component)
       {

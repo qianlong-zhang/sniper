@@ -320,7 +320,8 @@ CacheCntlr::processMemOpFromCore(
       IntPtr ca_address, UInt32 offset,
       Byte* data_buf, UInt32 data_length,
       bool modeled,
-      bool count)
+      bool count,
+      DynamicInstruction *dynins)
 {
    HitWhere::where_t hit_where = HitWhere::MISS;
 

@@ -1,4 +1,5 @@
 #pragma once
+#include <map>
 
 #include "core.h"
 #include "cache.h"
@@ -16,6 +17,8 @@
 #include "req_queue_list_template.h"
 #include "stats.h"
 #include "subsecond_time.h"
+#include <xed-iclass-enum.h>
+#include <xed-reg-enum.h>
 
 #include "boost/tuple/tuple.hpp"
 
@@ -92,6 +95,11 @@ namespace ParametricDramDirectoryMSI
          UInt32 shared_cores;
          String prefetcher;
          UInt32 outstanding_misses;
+
+         int32_t potential_producer_window_size;  //those param are only used to limit the size of the queue.
+         int32_t correlation_table_size;
+         int32_t prefetch_request_queue_size;
+         int32_t prefetch_buffer_size;
 
          CacheParameters()
             : data_access_time(NULL,0)
@@ -272,6 +280,19 @@ namespace ParametricDramDirectoryMSI
          UInt64 m_shmem_perf_numrequests;
 
          ShmemPerfModel* m_shmem_perf_model;
+
+         /* for linked data prefetch */
+         /* TODO: maybe for lru replacement_policy, replace with dequeue operation  is not accurate */
+         int32_t potential_producer_window_size;  //those param are only used to limit the size of the queue.
+         int32_t correlation_table_size;
+         int32_t prefetch_request_queue_size;
+
+         std::unordered_map<IntPtr, IntPtr> potential_producer_window;                              //AddressValue, Producer
+         //std::unordered_multimap<IntPtr, IntPtr, xed_iclass_enum_t, uint32_t> correlation_table;    //Producer, Consumer, Template(Opcode, offset)
+         //std::unordered_multimap<IntPtr, std::unordered_map<IntPtr, std::vector<uint32_t, uint32_t>>> correlation_table;    //Producer, Consumer, Template(Opcode, offset)
+         std::unordered_map<IntPtr, IntPtr> prefetch_request_queue;                                 //ProgramCounter, AddressValue
+         Cache* prefetch_buffer;
+
 
          // Core-interfacing stuff
          void accessCache(

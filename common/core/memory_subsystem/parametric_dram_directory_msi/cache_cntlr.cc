@@ -181,6 +181,31 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
                : NULL);
       m_master->m_prefetcher = Prefetcher::createPrefetcher(cache_params.prefetcher, cache_params.configName, m_core_id, m_shared_cores);
 
+      /* For linked prefetcher, create PPW/CT/PRQ/PB */
+      if (cache_params.prefetcher == "linked_prefetcher")
+      {
+          potential_producer_window_size =  cache_params.potential_producer_window_size;
+          correlation_table_size = cache_params.correlation_table_size;
+          prefetch_request_queue_size = cache_params.prefetch_request_queue_size;
+          prefetch_buffer = new Cache(cache_params.prefetcher,
+                        cache_params.prefetcher,
+                        m_core_id,
+                        1,/* set */
+                        cache_params.prefetch_buffer_size,/* associativity */
+                        m_cache_block_size,
+                        "lru",
+                        CacheBase::PR_L1_CACHE,
+                        CacheBase::parseAddressHash("mask"),
+                        NULL);
+      }
+      else
+      {
+          potential_producer_window_size=  -1;
+          correlation_table_size = -1;
+          prefetch_request_queue_size = -1;
+          prefetch_buffer = NULL;
+      }
+
       if (Sim()->getCfg()->getBoolDefault("perf_model/" + cache_params.configName + "/atd/enabled", false))
       {
          m_master->createATDs(name,

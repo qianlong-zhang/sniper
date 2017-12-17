@@ -23,7 +23,7 @@ GhbPrefetcher::~GhbPrefetcher()
 }
 
 std::vector<IntPtr>
-GhbPrefetcher::getNextAddress(IntPtr currentAddress, core_id_t core_id)
+GhbPrefetcher::getNextAddress(IntPtr currentAddress, core_id_t core_id, DynamicInstruction *dynins)
 {
    std::vector<IntPtr> prefetchList;
 

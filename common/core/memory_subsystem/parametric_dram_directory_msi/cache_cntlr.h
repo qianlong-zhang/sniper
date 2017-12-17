@@ -96,10 +96,6 @@ namespace ParametricDramDirectoryMSI
          String prefetcher;
          UInt32 outstanding_misses;
 
-         int32_t potential_producer_window_size;  //those param are only used to limit the size of the queue.
-         int32_t correlation_table_size;
-         int32_t prefetch_request_queue_size;
-         int32_t prefetch_buffer_size;
 
          CacheParameters()
             : data_access_time(NULL,0)
@@ -286,12 +282,9 @@ namespace ParametricDramDirectoryMSI
          int32_t potential_producer_window_size;  //those param are only used to limit the size of the queue.
          int32_t correlation_table_size;
          int32_t prefetch_request_queue_size;
+		 String prefetcher_name;
 
-         std::unordered_map<IntPtr, IntPtr> potential_producer_window;                              //AddressValue, Producer
-         //std::unordered_multimap<IntPtr, IntPtr, xed_iclass_enum_t, uint32_t> correlation_table;    //Producer, Consumer, Template(Opcode, offset)
-         //std::unordered_multimap<IntPtr, std::unordered_map<IntPtr, std::vector<uint32_t, uint32_t>>> correlation_table;    //Producer, Consumer, Template(Opcode, offset)
-         std::unordered_map<IntPtr, IntPtr> prefetch_request_queue;                                 //ProgramCounter, AddressValue
-         Cache* prefetch_buffer;
+
 
 
          // Core-interfacing stuff
@@ -303,7 +296,7 @@ namespace ParametricDramDirectoryMSI
                IntPtr address, Core::mem_op_t mem_op_type, CacheBlockInfo **cache_block_info = NULL);
 
          void copyDataFromNextLevel(Core::mem_op_t mem_op_type, IntPtr address, bool modeled, SubsecondTime t_start);
-         void trainPrefetcher(IntPtr address, bool cache_hit, bool prefetch_hit, SubsecondTime t_issue);
+         void trainPrefetcher(IntPtr address, bool cache_hit, bool prefetch_hit, SubsecondTime t_issue, DynamicInstruction *dynins);
          void Prefetch(SubsecondTime t_start);
          void doPrefetch(IntPtr prefetch_address, SubsecondTime t_start);
 
@@ -323,7 +316,7 @@ namespace ParametricDramDirectoryMSI
          void writeCacheBlock(IntPtr address, UInt32 offset, Byte* data_buf, UInt32 data_length, ShmemPerfModel::Thread_t thread_num);
 
          // Handle Request from previous level cache
-         HitWhere::where_t processShmemReqFromPrevCache(CacheCntlr* requester, Core::mem_op_t mem_op_type, IntPtr address, bool modeled, bool count, Prefetch::prefetch_type_t isPrefetch, SubsecondTime t_issue, bool have_write_lock);
+         HitWhere::where_t processShmemReqFromPrevCache(CacheCntlr* requester, Core::mem_op_t mem_op_type, IntPtr address, bool modeled, bool count, Prefetch::prefetch_type_t isPrefetch, SubsecondTime t_issue, bool have_write_lock, DynamicInstruction *dynins);
 
          // Process Request from L1 Cache
          boost::tuple<HitWhere::where_t, SubsecondTime> accessDRAM(Core::mem_op_t mem_op_type, IntPtr address, bool isPrefetch, Byte* data_buf);

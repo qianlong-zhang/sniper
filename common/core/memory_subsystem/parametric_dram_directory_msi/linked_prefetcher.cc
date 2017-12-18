@@ -51,13 +51,17 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, Dyn
 	IntPtr PR = 0;
 	uint32_t opcode = dynins->instruction;
 	IntPtr CN = dynins->eip;
+	String inst_template = dynins->instruction->getDisassembly();
 
    /* The outest vector is coreID: XXX */
    std::unordered_map<IntPtr, IntPtr>  &ppw = potential_producer_window.at(flows_per_core ? _core_id - core_id : 0);					
-   std::unordered_multimap<IntPtr, std::unordered_map<IntPtr, std::vector<uint32_t, uint32_t> > > &ct = correlation_table.at(flows_per_core ? _core_id - core_id : 0);	  
+   std::unordered_multimap<IntPtr, std::unordered_map<IntPtr, String > > &ct = correlation_table.at(flows_per_core ? _core_id - core_id : 0);	  
    std::unordered_map<IntPtr, IntPtr> &prq = prefetch_request_queue.at(flows_per_core ? _core_id - core_id : 0); 								
    Cache* &pb = prefetch_buffer.at(flows_per_core ? _core_id - core_id : 0);
 
+	//if ppw has more than one, multihit
+	assert(ppw.count(current_address)<=1);
+	//step 1 find producer in PPW
 	if( ppw.count(current_address) )
    	{
 		for (std::unordered_map<IntPtr, IntPtr>::iterator ppw_it = ppw.begin();
@@ -65,9 +69,14 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, Dyn
 				ppw_it ++)
 		{
 			if (*ppw_it.first == current_address)
-				PR = *ppw_it.second;
+				PR = *ppw_it.second;	//producer
 		}
+		//step 2 put PR/CN/TMPL into CT
+		ct.insert(pair<PR, pair<CN, inst_template> >);
+		if (ct.size >= potential_producer_window_size)
+			ct.erase(iterator last);
    	}
+	//step 3, if inst !=
 
 
 

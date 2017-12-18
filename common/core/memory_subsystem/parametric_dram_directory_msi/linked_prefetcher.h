@@ -27,7 +27,7 @@ class LinkedPrefetcher : public Prefetcher
 
 	  /* The outest vector is coreID: XXX */
 	  std::vector<std::unordered_map<IntPtr, IntPtr> > potential_producer_window;                              //AddressValue, Producer
-      std::vector<std::unordered_multimap<IntPtr, std::unordered_map<IntPtr, std::vector<uint32_t, uint32_t> > > > correlation_table;    //Producer, Consumer, Template(Opcode, offset)
+      std::vector<std::unordered_multimap<IntPtr, String > > > correlation_table;    //Producer, Consumer, Template(Opcode, offset)
 	  std::vector<std::unordered_map<IntPtr, IntPtr> > prefetch_request_queue;                                 //ProgramCounter, AddressValue
       std::vector<Cache*> prefetch_buffer;
 

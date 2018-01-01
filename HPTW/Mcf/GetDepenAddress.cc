@@ -69,7 +69,7 @@ int main(int argc, char * argv[])
     string last_line;
     bool physical_flag=false;
     int i = 0;
-    string physical_address;
+    string virtual_address;
     while(getline(in_file, line))
     {
         //cout<<line<<endl;
@@ -82,21 +82,21 @@ int main(int argc, char * argv[])
             if (line.find("addr",0) != string::npos)
             {
                 //get real physical address
-                physical_address = line.substr(line.find("addr",0)+5, line.size());
-                cout << "  physical_address = "<<physical_address<<endl;
-                //cout<<hex<<atoi(physical_address.c_str())<<endl;
+                virtual_address = line.substr(line.find("addr",0)+5, line.size());
+                cout << "  virtual_address = "<<virtual_address<<endl;
+                //cout<<hex<<atoi(virtual_address.c_str())<<endl;
             }
 
 
-            assert(ppw.count(physical_address) <= 1);
+            assert(ppw.count(virtual_address) <= 1);
             //step 1
-            if (ppw.count(physical_address))
+            if (ppw.count(virtual_address))
             {
                 for (unordered_map<string, string>::iterator ppw_it = ppw.begin();
                         ppw_it != ppw.end();
                         ppw_it ++)
                 {
-                    if (ppw_it->first.compare(physical_address) == 0)
+                    if (ppw_it->first.compare(virtual_address) == 0)
                         PR = ppw_it->second;    //producer
                 }
                 //step 2 put PR/CN/TMPL into CT
@@ -107,7 +107,7 @@ int main(int argc, char * argv[])
                     ct.erase(ct.end() );
 
                 //step3
-                ppw.insert(unordered_map<string, string>::value_type (physical_address, pc) );
+                ppw.insert(unordered_map<string, string>::value_type (virtual_address, pc) );
                 if (ppw.size() >=  PPW_SIZE )
                     ppw.erase(ppw.end() );
             }

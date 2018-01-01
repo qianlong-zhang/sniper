@@ -577,6 +577,13 @@ void TraceThread::handleInstructionDetailed(Sift::Instruction &inst, Sift::Instr
             addDetailedMemoryInfo(dynins, inst, xed_inst, mem_idx, Operand::WRITE, is_prefetch, prfmdl);
          }
       }
+
+      for(uint32_t target_idx = 0; target_idx < inst.num_target_reg; ++target_idx)
+      {
+          dyins.target_reg[target_idx] = inst.target_reg[target_idx];
+      }
+
+
    }
 
    // Push instruction

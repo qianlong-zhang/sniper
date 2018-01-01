@@ -36,6 +36,7 @@ class DynamicInstruction
          SubsecondTime latency;
          HitWhere::where_t hit_where;
       };
+
       static const UInt8 MAX_MEMORY = 2;
 
       Instruction* instruction;
@@ -43,6 +44,10 @@ class DynamicInstruction
       BranchInfo branch_info;
       UInt8 num_memory;
       MemoryInfo memory_info[MAX_MEMORY];
+
+      static const UInt8 MAX_TARGET_REG = 3;
+      UInt64 target_reg[MAX_TARGET_REG];
+
 
       static Allocator* createAllocator();
 

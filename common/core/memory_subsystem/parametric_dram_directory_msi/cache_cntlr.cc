@@ -755,7 +755,7 @@ CacheCntlr::doPrefetch(IntPtr prefetch_address, SubsecondTime t_start)
  *****************************************************************************/
 
 HitWhere::where_t
-CacheCntlr::processShmemReqFromPrevCache(CacheCntlr* requester, 
+CacheCntlr::processShmemReqFromPrevCache(CacheCntlr* requester,
 						Core::mem_op_t mem_op_type,
 						IntPtr address,
 						bool modeled,
@@ -1019,7 +1019,7 @@ CacheCntlr::processShmemReqFromPrevCache(CacheCntlr* requester,
 
    if (modeled && m_master->m_prefetcher)
    {
-		    trainPrefetcher(address, cache_hit, prefetch_hit, t_issue);
+		    trainPrefetcher(address, cache_hit, prefetch_hit, t_issue, dynins);
    }
 
    #ifdef PRIVATE_L2_OPTIMIZATION

@@ -15,6 +15,7 @@
 #include "config.hpp"
 #include "stats.h"
 #include "topology_info.h"
+#include "micro_op.h"
 #include "cheetah_manager.h"
 
 #include <cstring>
@@ -282,7 +283,12 @@ Core::initiateMemoryAccess(MemComponent::component_t mem_component,
       SubsecondTime now,
       DynamicInstruction *dynins)
 {
-   MYLOG("access %lx+%u %c%c modeled(%s), IP:0x%lx, Virtual address is:0x%lx", address, data_size, mem_op_type == Core::WRITE ? 'W' : 'R', mem_op_type == Core::READ_EX ? 'X' : ' ', ModeledString(modeled), eip, dynins->instruction->getAddress());
+    MYLOG("access %lx+%u %c%c modeled(%s), IP:0x%lx, Virtual address is:0x%lx, disass is %s", address, data_size, mem_op_type == Core::WRITE ? 'W' : 'R', mem_op_type == Core::READ_EX ? 'X' : ' ', ModeledString(modeled), eip, dynins->instruction->getAddress(),itostr( dynins->instruction->getDisassembly()).c_str());
+
+    for (std::vector<const MicroOp*>::const_iterator it =dynins->instruction->getMicroOps()->begin(); it!= dynins->instruction->getMicroOps()->end(); it++)
+    {
+        MYLOG("for instruction %s, Opcode is %d",  itostr(dynins->instruction->getDisassembly()).c_str(), (*(*it)).getInstructionOpcode());
+    }
 
    if (data_size <= 0)
    {

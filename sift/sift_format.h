@@ -47,6 +47,7 @@ namespace Sift
       struct {
          uint8_t size:4;    // 1-15
          uint8_t num_addresses:2;
+         uint8_t num_target_reg:2;
          uint8_t is_branch:1;
          uint8_t taken:1;
          uint64_t addresses[];
@@ -59,6 +60,7 @@ namespace Sift
          uint8_t type:4;   // 0
          uint8_t size:4;   // 1-15
          uint8_t num_addresses:2;
+         uint8_t num_target_reg:2;
          uint8_t is_branch:1;
          uint8_t taken:1;
          uint8_t is_predicate:1;
@@ -76,7 +78,6 @@ namespace Sift
          uint32_t size;
          uint8_t data[];
       } __attribute__ ((__packed__)) Other;
-
    } __attribute__ ((__packed__)) Record;
 
    typedef enum {

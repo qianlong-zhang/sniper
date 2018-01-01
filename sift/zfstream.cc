@@ -114,3 +114,7 @@ int izstream::peek()
 
    return peek_value;
 }
+void izstream::seekg(int off, std::ios_base::seekdir way)
+{
+    input->seekg(off,way);
+}

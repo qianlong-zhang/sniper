@@ -1,0 +1,283 @@
+/*BEGIN_LEGAL
+Intel Open Source License
+
+Copyright (c) 2002-2015 Intel Corporation. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.  Redistributions
+in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or
+other materials provided with the distribution.  Neither the name of
+the Intel Corporation nor the names of its contributors may be used to
+endorse or promote products derived from this software without
+specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE INTEL OR
+ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+END_LEGAL */
+#include <iostream>
+#include <fstream>
+#include "pin.H"
+
+ofstream OutFile;
+
+// The running count of instructions is kept here
+// make it static to help the compiler optimize docount
+static UINT64 icount = 0;
+
+// This function is called before every block
+// Use the fast linkage for calls
+VOID PIN_FAST_ANALYSIS_CALL docount(ADDRINT c) { icount += c; }
+VOID get_reg_value1(THREADID threadid, ADDRINT addr, UINT32 size, BOOL executing, ADDRINT RegVal)
+{
+    OutFile<< "dealing with address " <<hex<<addr<<endl;
+    OutFile<<"In func: "<<__func__<<endl;
+    OutFile<<"Write RegVal: 0x"<<hex<<RegVal<<endl;
+}
+VOID get_reg_value2(THREADID threadid, ADDRINT addr, UINT32 size, BOOL executing, ADDRINT RegVal0, ADDRINT RegVal1)
+{
+    OutFile<< "dealing with address " <<hex<<addr<<endl;
+    OutFile<<"In func: "<<__func__<<endl;
+    OutFile<<"Write RegVal0: 0x"<<hex<<RegVal0<<endl;
+    OutFile<<"Write RegVal1: 0x"<<hex<<RegVal1<<endl;
+}
+VOID get_reg_value3(THREADID threadid, ADDRINT addr, UINT32 size, BOOL executing, ADDRINT RegVal0, ADDRINT RegVal1, ADDRINT RegVal2)
+{
+    OutFile<< "dealing with address " <<hex<<addr<<endl;
+    OutFile<<"In func: "<<__func__<<endl;
+    OutFile<<"Write RegVal0: 0x"<<hex<<RegVal0<<endl;
+    OutFile<<"Write RegVal1: 0x"<<hex<<RegVal1<<endl;
+    OutFile<<"Write RegVal2: 0x"<<hex<<RegVal2<<endl;
+}
+// Pin calls this function every time a new basic block is encountered
+// It inserts a call to docount
+VOID Trace(TRACE trace, VOID *v)
+{
+    // Visit every basic block  in the trace
+    for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
+    {
+        // Insert a call to docount for every bbl, passing the number of instructions.
+        // IPOINT_ANYWHERE allows Pin to schedule the call anywhere in the bbl to obtain best performance.
+        // Use a fast linkage for the call.
+        BBL_InsertCall(bbl, IPOINT_ANYWHERE, AFUNPTR(docount), IARG_FAST_ANALYSIS_CALL, IARG_UINT32, BBL_NumIns(bbl), IARG_END);
+
+        for(INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins))
+        {
+
+            //OutFile<<""<<endl;
+            //OutFile << "For instruction: "<<ins<<endl;
+           // const UINT32 max_r = INS_MaxNumRRegs(ins);
+           // for( UINT32 i=0; i < max_r; i++ )
+           // {
+           //     const REG reg =  INS_RegR(ins, i );
+           //     if( REG_is_gr64(reg)||REG_is_gr32(reg) )
+           //     {
+           //         OutFile << "Read Reg: "<<i<<" = "<< reg << endl;
+           //     }
+           // }
+
+            OutFile<<"Instruction: "<<INS_Disassemble(ins).c_str()<<" address: 0x"<<hex<<INS_Address(ins)<<" is read? "<<INS_IsMemoryRead(ins)<< " is write? "<<INS_IsMemoryWrite(ins)<<endl;
+            if (INS_IsMemoryRead (ins))
+            {
+                OutFile<<"Instruction: "<<INS_Disassemble(ins).c_str()<<" address: 0x"<<hex<<INS_Address(ins)<<endl;
+                if(INS_HasFallThrough(ins))
+                {
+                   //OutFile<<endl;
+                   //OutFile<<"Instruction: "<<INS_Disassemble(ins).c_str()<<" address: 0x"<<hex<<INS_Address(ins)<<endl;
+                   //const UINT32 max_w = INS_MaxNumWRegs(ins);
+                   // OutFile<<"max_w: "<<max_w<<endl;
+                   // for( UINT32 i=0; i < max_w; i++ )
+                   // {
+                   //     const REG reg =  INS_RegW(ins, i );
+                   //     OutFile<< "reg is : "<< reg<<endl;
+                   //     OutFile<< "Reg_is_gr(reg): "<< REG_is_gr64(reg)<<REG_is_gr32(reg)<<endl;
+                   //     if( REG_is_gr64(reg)||REG_is_gr32(reg) )
+                   //     {
+                   //         OutFile << "Write Reg: "<<i<<" = "<< reg << endl;
+                   //     }
+                   // }
+
+                    switch(INS_MaxNumWRegs(ins))
+                    {
+                        case 1:
+                        {
+                            OutFile << "in max_w = 1 "<<endl;
+                            const REG reg =  INS_RegW(ins, 0 );
+                            OutFile<< "reg is : "<< reg<<endl;
+                            if( REG_is_gr64(reg)||REG_is_gr32(reg) )
+                            {
+                                OutFile << "if ok "<<endl;
+                                INS_InsertCall(ins, IPOINT_AFTER,
+                                        AFUNPTR(get_reg_value1),
+                                        IARG_THREAD_ID,
+                                        IARG_ADDRINT, INS_Address(ins),
+                                        IARG_UINT32, UINT32(INS_Size(ins)),
+                                        IARG_EXECUTING,
+                                        IARG_REG_VALUE,reg,
+                                        IARG_END);
+                            }
+                            break;
+                        }
+                        case 2:
+                        {
+                            OutFile << "in max_w =2 "<<endl;
+                            const REG reg0 =  INS_RegW(ins, 0 );
+                            const REG reg1 =  INS_RegW(ins, 1 );
+                            if( REG_is_gr(reg0)&&REG_is_gr(reg1) )
+                            {
+                                OutFile << "if 1 ok "<<endl;
+                                INS_InsertCall(ins, IPOINT_AFTER,
+                                        AFUNPTR(get_reg_value2),
+                                        IARG_THREAD_ID,
+                                        IARG_ADDRINT, INS_Address(ins),
+                                        IARG_UINT32, UINT32(INS_Size(ins)),
+                                        IARG_EXECUTING,
+                                        IARG_REG_VALUE,reg0,
+                                        IARG_REG_VALUE,reg1,
+                                        IARG_END);
+                            }
+                            else if( REG_is_gr(reg0) )
+                            {
+                                OutFile << "if 2 ok "<<endl;
+                                INS_InsertCall(ins, IPOINT_AFTER,
+                                        AFUNPTR(get_reg_value1),
+                                        IARG_THREAD_ID,
+                                        IARG_ADDRINT, INS_Address(ins),
+                                        IARG_UINT32, UINT32(INS_Size(ins)),
+                                        IARG_EXECUTING,
+                                        IARG_REG_VALUE,reg0,
+                                        IARG_END);
+                            }
+                            else if( REG_is_gr(reg1) )
+                            {
+                                OutFile << "if 3 ok "<<endl;
+                                INS_InsertCall(ins, IPOINT_AFTER,
+                                        AFUNPTR(get_reg_value1),
+                                        IARG_THREAD_ID,
+                                        IARG_ADDRINT, INS_Address(ins),
+                                        IARG_UINT32, UINT32(INS_Size(ins)),
+                                        IARG_EXECUTING,
+                                        IARG_REG_VALUE,reg1,
+                                        IARG_END);
+                            }
+                            break;
+                        }
+                        case 3:
+                        {
+                            OutFile << "in max_w = 3 "<<endl;
+                            const REG reg0 =  INS_RegW(ins, 0 );
+                            const REG reg1 =  INS_RegW(ins, 1 );
+                            const REG reg2 =  INS_RegW(ins, 2 );
+                            if( REG_is_gr(reg0) &&REG_is_gr(reg1)&&REG_is_gr(reg2))
+                            {
+                                INS_InsertCall(ins, IPOINT_AFTER,
+                                        AFUNPTR(get_reg_value3),
+                                        IARG_THREAD_ID,
+                                        IARG_ADDRINT, INS_Address(ins),
+                                        IARG_UINT32, UINT32(INS_Size(ins)),
+                                        IARG_EXECUTING,
+                                        IARG_REG_VALUE,reg0,
+                                        IARG_REG_VALUE,reg1,
+                                        IARG_REG_VALUE,reg2,
+                                        IARG_END);
+                            }
+                            else if( REG_is_gr(reg0) )
+                            {
+                                INS_InsertCall(ins, IPOINT_AFTER,
+                                        AFUNPTR(get_reg_value1),
+                                        IARG_THREAD_ID,
+                                        IARG_ADDRINT, INS_Address(ins),
+                                        IARG_UINT32, UINT32(INS_Size(ins)),
+                                        IARG_EXECUTING,
+                                        IARG_REG_VALUE,reg0,
+                                        IARG_END);
+                            }
+                            else if( REG_is_gr(reg1) )
+                            {
+                                INS_InsertCall(ins, IPOINT_AFTER,
+                                        AFUNPTR(get_reg_value1),
+                                        IARG_THREAD_ID,
+                                        IARG_ADDRINT, INS_Address(ins),
+                                        IARG_UINT32, UINT32(INS_Size(ins)),
+                                        IARG_EXECUTING,
+                                        IARG_REG_VALUE,reg1,
+                                        IARG_END);
+                            }
+                            else if( REG_is_gr(reg2) )
+                            {
+                                INS_InsertCall(ins, IPOINT_AFTER,
+                                        AFUNPTR(get_reg_value1),
+                                        IARG_THREAD_ID,
+                                        IARG_ADDRINT, INS_Address(ins),
+                                        IARG_UINT32, UINT32(INS_Size(ins)),
+                                        IARG_EXECUTING,
+                                        IARG_REG_VALUE,reg2,
+                                        IARG_END);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
+    "o", "inscount.out", "specify output file name");
+
+// This function is called when the application exits
+VOID Fini(INT32 code, VOID *v)
+{
+    // Write to a file since cout and cerr maybe closed by the application
+    OutFile.setf(ios::showbase);
+    OutFile << "Count " << icount << endl;
+    OutFile.close();
+}
+
+/* ===================================================================== */
+/* Print Help Message                                                    */
+/* ===================================================================== */
+
+INT32 Usage()
+{
+    cerr << "This tool counts the number of dynamic instructions executed" << endl;
+    cerr << endl << KNOB_BASE::StringKnobSummary() << endl;
+    return -1;
+}
+
+/* ===================================================================== */
+/* Main                                                                  */
+/* ===================================================================== */
+
+int main(int argc, char * argv[])
+{
+    // Initialize pin
+    if (PIN_Init(argc, argv)) return Usage();
+
+    OutFile.open(KnobOutputFile.Value().c_str());
+
+    // Register Instruction to be called to instrument instructions
+    TRACE_AddInstrumentFunction(Trace, 0);
+
+    // Register Fini to be called when the application exits
+    PIN_AddFiniFunction(Fini, 0);
+
+    // Start the program, never returns
+    PIN_StartProgram();
+
+    return 0;
+}

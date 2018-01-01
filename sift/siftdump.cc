@@ -90,6 +90,8 @@ int main(int argc, char* argv[])
             printf("                 -- addr");
             for(int i = 0; i < inst.num_addresses; ++i)
                printf(" %08" PRIx64, inst.addresses[i]);
+            for(int i = 0; i < inst.num_target_reg; ++i)
+               printf(" target reg[%d] is %016" PRIx64, i, inst.target_reg[i]);
             printf("\n");
          }
          if (inst.is_branch)

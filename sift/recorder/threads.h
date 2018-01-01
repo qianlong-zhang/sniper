@@ -12,6 +12,8 @@ typedef struct {
    Sift::Writer *output;
    UINT64 dyn_addresses[Sift::MAX_DYNAMIC_ADDRESSES];
    UINT32 num_dyn_addresses;
+   UINT64 target_reg[Sift::MAX_TARGET_REG];
+   UINT32 num_target_reg;
    Bbv *bbv;
    UINT64 thread_num;
    ADDRINT bbv_base;

@@ -34,12 +34,13 @@ VOID countInsns(THREADID threadid, INT32 count)
    }
 }
 
-VOID sendInstruction(THREADID threadid, ADDRINT addr, UINT32 size, UINT32 num_addresses, BOOL is_branch, BOOL taken, BOOL is_predicate, BOOL executing, BOOL isbefore, BOOL ispause)
+VOID sendInstruction(THREADID threadid, ADDRINT addr, UINT32 size, UINT32 num_addresses, BOOL is_branch, BOOL taken, BOOL is_predicate, BOOL executing, BOOL isbefore, BOOL ispause, UINT32 num_target_reg)
 {
    // We're still called for instructions in the same basic block as ROI end, ignore these
    if (!thread_data[threadid].output)
    {
       thread_data[threadid].num_dyn_addresses = 0;
+      thread_data[threadid].num_target_reg = 0;
       return;
    }
 
@@ -62,6 +63,7 @@ VOID sendInstruction(THREADID threadid, ADDRINT addr, UINT32 size, UINT32 num_ad
 
 
    sift_assert(thread_data[threadid].num_dyn_addresses == num_addresses);
+   sift_assert(thread_data[threadid].num_target_reg == num_target_reg);
    if (isbefore)
    {
       for(uint8_t i = 0; i < num_addresses; ++i)
@@ -72,8 +74,9 @@ VOID sendInstruction(THREADID threadid, ADDRINT addr, UINT32 size, UINT32 num_ad
       }
    }
 
-   thread_data[threadid].output->Instruction(addr, size, num_addresses, thread_data[threadid].dyn_addresses, is_branch, taken, is_predicate, executing);
+   thread_data[threadid].output->Instruction(addr, size, num_addresses, thread_data[threadid].dyn_addresses, is_branch, taken, is_predicate, executing,thread_data[threadid].target_reg, num_target_reg);
    thread_data[threadid].num_dyn_addresses = 0;
+   thread_data[threadid].num_target_reg = 0;
 
    if (KnobUseResponseFiles.Value() && KnobFlowControl.Value() && (thread_data[threadid].icount > thread_data[threadid].flowcontrol_target || ispause))
    {
@@ -104,6 +107,7 @@ VOID cacheOnlyUpdateInsCount(THREADID threadid, UINT32 icount)
 VOID cacheOnlyConsumeAddresses(THREADID threadid)
 {
    thread_data[threadid].num_dyn_addresses = 0;
+   thread_data[threadid].num_target_reg = 0;
 }
 
 VOID sendCacheOnly(THREADID threadid, UINT32 icount, UINT32 type, ADDRINT eip, ADDRINT arg)
@@ -147,7 +151,41 @@ VOID handleMemory(THREADID threadid, ADDRINT address)
 
    thread_data[threadid].dyn_addresses[thread_data[threadid].num_dyn_addresses++] = address;
 }
+VOID getRegValue(THREADID threadid, ADDRINT reg)
+{
+   // We're still called for instructions in the same basic block as ROI end, ignore these
+   if (!thread_data[threadid].output)
+      return;
 
+   thread_data[threadid].target_reg[thread_data[threadid].num_target_reg++] = reg;
+   printf("get the %d target, reg = %lx\n",thread_data[threadid].num_target_reg, reg );
+}
+
+UINT32 addWriteReg(INS ins)
+{
+   UINT32 num_reg = 0;
+   if (INS_IsMemoryRead (ins) && INS_HasFallThrough(ins))
+   {
+       const UINT32 max_w = INS_MaxNumWRegs(ins);
+       for( UINT32 i=0; i < max_w; i++ )
+       {
+           const REG reg =  INS_RegW(ins, i );
+           if(REG_is_gr(reg) || REG_is_gr64(reg)||REG_is_gr32(reg) )
+           {
+               INS_InsertCall(ins, IPOINT_AFTER,
+                       AFUNPTR(getRegValue),
+                       IARG_THREAD_ID,
+                       IARG_REG_VALUE,reg,
+                       IARG_END);
+              num_reg ++;
+           }
+       }
+
+   }
+
+   sift_assert(num_reg <= Sift::MAX_TARGET_REG);
+   return num_reg;
+}
 UINT32 addMemoryModeling(INS ins)
 {
    UINT32 num_addresses = 0;
@@ -169,7 +207,7 @@ UINT32 addMemoryModeling(INS ins)
    return num_addresses;
 }
 
-VOID insertCall(INS ins, IPOINT ipoint, UINT32 num_addresses, BOOL is_branch, BOOL taken)
+VOID insertCall(INS ins, IPOINT ipoint, UINT32 num_addresses, BOOL is_branch, BOOL taken, UINT32 num_target_reg)
 {
    INS_InsertCall(ins, ipoint,
       AFUNPTR(sendInstruction),
@@ -183,7 +221,9 @@ VOID insertCall(INS ins, IPOINT ipoint, UINT32 num_addresses, BOOL is_branch, BO
       IARG_EXECUTING,
       IARG_BOOL, ipoint == IPOINT_BEFORE,
       IARG_BOOL, INS_Opcode(ins) == XED_ICLASS_PAUSE,
+      IARG_UINT32, num_target_reg,
       IARG_END);
+
 }
 
 static VOID traceCallback(TRACE trace, void *v)
@@ -231,19 +271,20 @@ static VOID traceCallback(TRACE trace, void *v)
          {
             // For memory instructions, collect all addresses at IPOINT_BEFORE
             UINT32 num_addresses = addMemoryModeling(ins);
+            UINT32 num_target_reg = addWriteReg(ins);
 
             bool is_branch = INS_IsBranch(ins) && INS_HasFallThrough(ins);
 
             if (is_branch)
             {
-               insertCall(ins, IPOINT_AFTER,        num_addresses, true  /* is_branch */, false /* taken */);
-               insertCall(ins, IPOINT_TAKEN_BRANCH, num_addresses, true  /* is_branch */, true  /* taken */);
+               insertCall(ins, IPOINT_AFTER,        num_addresses, true  /* is_branch */, false /* taken */, num_target_reg);
+               insertCall(ins, IPOINT_TAKEN_BRANCH, num_addresses, true  /* is_branch */, true  /* taken */, num_target_reg);
             }
             else
             {
                // Whenever possible, use IPOINT_AFTER as this allows us to process addresses after the application has used them.
                // This ensures that their logical to physical mapping has been set up.
-               insertCall(ins, INS_HasFallThrough(ins) ? IPOINT_AFTER : IPOINT_BEFORE, num_addresses, false /* is_branch */, false /* taken */);
+               insertCall(ins, INS_HasFallThrough(ins) ? IPOINT_AFTER : IPOINT_BEFORE, num_addresses, false /* is_branch */, false /* taken */, num_target_reg);
             }
 
             if (ins == BBL_InsTail(bbl))

@@ -471,6 +471,7 @@ bool Sift::Reader::Read(Instruction &inst)
          size = rec.Instruction.size;
          addr = last_address;
          inst.num_addresses = rec.Instruction.num_addresses;
+         inst.num_target_reg = rec.Instruction.num_target_reg;
          inst.is_branch = rec.Instruction.is_branch;
          inst.taken = rec.Instruction.taken;
          inst.is_predicate = false;
@@ -488,6 +489,7 @@ bool Sift::Reader::Read(Instruction &inst)
          size = rec.InstructionExt.size;
          addr = rec.InstructionExt.addr;
          inst.num_addresses = rec.InstructionExt.num_addresses;
+         inst.num_target_reg = rec.InstructionExt.num_target_reg;
          inst.is_branch = rec.InstructionExt.is_branch;
          inst.taken = rec.InstructionExt.taken;
          inst.is_predicate = rec.InstructionExt.is_predicate;
@@ -500,6 +502,8 @@ bool Sift::Reader::Read(Instruction &inst)
 
       for(int i = 0; i < inst.num_addresses; ++i)
          input->read(reinterpret_cast<char*>(&inst.addresses[i]), sizeof(uint64_t));
+      for(int i = 0; i < inst.num_target_reg; ++i)
+         input->read(reinterpret_cast<char*>(&inst.target_reg[i]), sizeof(uint64_t));
 
       inst.sinst = getStaticInstruction(addr, size);
 

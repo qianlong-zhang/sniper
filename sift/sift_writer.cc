@@ -150,10 +150,11 @@ Sift::Writer::~Writer()
    #endif
 }
 
-void Sift::Writer::Instruction(uint64_t addr, uint8_t size, uint8_t num_addresses, uint64_t addresses[], bool is_branch, bool taken, bool is_predicate, bool executed)
+void Sift::Writer::Instruction(uint64_t addr, uint8_t size, uint8_t num_addresses, uint64_t addresses[], bool is_branch, bool taken, bool is_predicate, bool executed, uint64_t target_reg[], uint32_t num_target_reg)
 {
    sift_assert(size < 16);
    sift_assert(num_addresses <= MAX_DYNAMIC_ADDRESSES);
+   sift_assert(num_target_reg <= MAX_TARGET_REG);
 
    if (m_requires_icache_per_insn)
    {
@@ -207,7 +208,7 @@ void Sift::Writer::Instruction(uint64_t addr, uint8_t size, uint8_t num_addresse
    }
 
    #if VERBOSE > 2
-   printf("%016lx (%d) A%u %c%c %c%c\n", addr, size, num_addresses, is_branch?'B':'.', is_branch?(taken?'T':'.'):'.', is_predicate?'C':'.', is_predicate?(executed?'E':'n'):'.');
+   printf("%016lx (%d) A%u %c%c %c%c, num_target_reg = %d\n", addr, size, num_addresses, is_branch?'B':'.', is_branch?(taken?'T':'.'):'.', is_predicate?'C':'.', is_predicate?(executed?'E':'n'):'.', num_target_reg);
    #endif
 
    send_va2pa(addr);
@@ -224,6 +225,7 @@ void Sift::Writer::Instruction(uint64_t addr, uint8_t size, uint8_t num_addresse
       Record rec;
       rec.Instruction.size = size;
       rec.Instruction.num_addresses = num_addresses;
+      rec.Instruction.num_target_reg = num_target_reg;
       rec.Instruction.is_branch = is_branch;
       rec.Instruction.taken = taken;
       output->write(reinterpret_cast<char*>(&rec), sizeof(rec.Instruction));
@@ -246,6 +248,7 @@ void Sift::Writer::Instruction(uint64_t addr, uint8_t size, uint8_t num_addresse
       rec.InstructionExt.type = 0;
       rec.InstructionExt.size = size;
       rec.InstructionExt.num_addresses = num_addresses;
+      rec.InstructionExt.num_target_reg = num_target_reg;
       rec.InstructionExt.is_branch = is_branch;
       rec.InstructionExt.taken = taken;
       rec.InstructionExt.is_predicate = is_predicate;
@@ -262,8 +265,10 @@ void Sift::Writer::Instruction(uint64_t addr, uint8_t size, uint8_t num_addresse
       ninstrext++;
    }
 
-   for(int i = 0; i < num_addresses; ++i)
+   for(uint32_t i = 0; i < num_addresses; ++i)
       output->write(reinterpret_cast<char*>(&addresses[i]), sizeof(uint64_t));
+   for(uint32_t i = 0; i < num_target_reg; ++i)
+      output->write(reinterpret_cast<char*>(&target_reg[i]), sizeof(uint64_t));
 
    last_address += size;
 

@@ -15,6 +15,7 @@ extern "C" {
 namespace Sift
 {
    const uint32_t MAX_DYNAMIC_ADDRESSES = 2;
+   const uint32_t MAX_TARGET_REG = 3;
 
    typedef enum
    {

@@ -37,10 +37,13 @@ namespace Sift
       const StaticInstruction *sinst;
       uint8_t num_addresses;
       uint64_t addresses[MAX_DYNAMIC_ADDRESSES];
+      uint8_t num_target_reg;
+      uint64_t target_reg[MAX_TARGET_REG];
       bool is_branch;
       bool taken;
       bool is_predicate;
       bool executed;
+      uint64_t reg;
    } Instruction;
 
    class Reader

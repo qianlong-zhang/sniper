@@ -62,6 +62,7 @@ class vistream
       virtual ~vistream() {}
       virtual void read(char* s, std::streamsize n) = 0;
       virtual int peek() = 0;
+      virtual void seekg(int off, std::ios_base::seekdir way) = 0;
       virtual bool fail() const = 0;
 };
 
@@ -79,6 +80,9 @@ class vifstream : public vistream
          { stream->read(s, n); }
       virtual int peek()
          { return stream->peek(); }
+
+      virtual void seekg(int off, std::ios_base::seekdir way)
+        { stream->seekg(off,way); }
       virtual bool fail() const { return stream->fail(); }
 };
 
@@ -98,6 +102,7 @@ class izstream : public vistream
       virtual ~izstream();
       virtual void read(char* s, std::streamsize n);
       virtual int peek();
+      virtual void seekg(int off, std::ios_base::seekdir way);
       virtual bool eof() const { return m_eof; }
       virtual bool fail() const { return m_fail; }
 };

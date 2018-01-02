@@ -580,10 +580,9 @@ void TraceThread::handleInstructionDetailed(Sift::Instruction &inst, Sift::Instr
 
       for(uint32_t target_idx = 0; target_idx < inst.num_target_reg; ++target_idx)
       {
-          dyins.target_reg[target_idx] = inst.target_reg[target_idx];
+          dyins->target_reg[target_idx] = inst.target_reg[target_idx];
       }
-
-
+      dyins->num_target_reg = inst.num_target_reg;
    }
 
    // Push instruction

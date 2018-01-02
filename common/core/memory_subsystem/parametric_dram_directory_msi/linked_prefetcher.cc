@@ -48,35 +48,60 @@ LinkedPrefetcher::LinkedPrefetcher(String configName, core_id_t _core_id, UInt32
 std::vector<IntPtr>
 LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, DynamicInstruction *dynins)
 {
-	IntPtr PR = 0;
+    int32_t ppw_found=false;
+    bool ct_found=false;
 	uint32_t opcode = dynins->instruction;
 	IntPtr CN = dynins->eip;
+	IntPtr PR = 0;
+
 	String inst_template = dynins->instruction->getDisassembly();
 
-   /* The outest vector is coreID: XXX */
-   std::unordered_map<IntPtr, IntPtr>  &ppw = potential_producer_window.at(flows_per_core ? _core_id - core_id : 0);
-   std::unordered_multimap<IntPtr, std::unordered_map<IntPtr, String > > &ct = correlation_table.at(flows_per_core ? _core_id - core_id : 0);
-   std::unordered_map<IntPtr, IntPtr> &prq = prefetch_request_queue.at(flows_per_core ? _core_id - core_id : 0);
-   Cache* &pb = prefetch_buffer.at(flows_per_core ? _core_id - core_id : 0);
+    /* The outest vector is entry number */
+   std::unordered_map<IntPtr, IntPtr>   &ppw = potential_producer_window.at(flows_per_core ? _core_id - core_id : 0);
+   std::vector <correlation_entry>      &ct = correlation_table.at(flows_per_core ? _core_id - core_id : 0);
+   std::unordered_map<IntPtr, IntPtr>   &prq = prefetch_request_queue.at(flows_per_core ? _core_id - core_id : 0);
+   Cache*                               &pb = prefetch_buffer.at(flows_per_core ? _core_id - core_id : 0);
 
-	//if ppw has more than one, multihit
-	assert(ppw.count(current_address)<=1);
-	//step 1 find producer in PPW
-	if( ppw.count(current_address) )
+   for (std::unordered_map<IntPtr, IntPtr>::iterator it = ppw.begin(); it!=ppw.end(); it++)
+   {
+       //step 1: find producer in PPW
+       if(it->second == current_address)
+       {
+           //if ppw has more than one hit, multihit
+           assert(ppw_found==-1);
+           PR = it->first;
+           ppw_found=true;
+       }
+   }
+
+    //hit in PPW
+	if( ppw_found == true )
    	{
-		for (std::unordered_map<IntPtr, IntPtr>::iterator ppw_it = ppw.begin();
-				ppw_it ! = ppw.end;
-				ppw_it ++)
-		{
-			if (*ppw_it.first == current_address)
-				PR = *ppw_it.second;	//producer
-		}
 		//step 2 put PR/CN/TMPL into CT
-		ct.insert(pair<PR, pair<CN, inst_template> >);
-		if (ct.size >= potential_producer_window_size)
-			ct.erase(iterator last);
+        for (uint32_t j=0; j<correlation_table_size; j++)
+        {
+            //found empty one
+            if(ct.at(i).GetProducerPC())
+            {
+                ct.at(i).SetCT(PR, CN, dyins);
+                ct_found = true;
+                break;
+            }
+        }
+        if (!ct_found)
+        {
+            //delete one CT entry-the last one, and insert
+            assert(ct.at(correlation_table_size-1).GetProducerPC != 0);
+            ct.at(correlation_table_size-1).SetCT(PR, CN, dyins);
+        }
    	}
-	//step 3, if inst !=
+    //step 3, insert to ppw
+    if(ppw.size() >= potential_producer_window_size)
+    {
+        ppw.erase(ppw.end());
+    }
+    ppw.insert(dynins->eip, dynins->target_reg[dynins->num_target_reg-1]);//the most right reg is the target  reg loaded from memory
+
 
 
 

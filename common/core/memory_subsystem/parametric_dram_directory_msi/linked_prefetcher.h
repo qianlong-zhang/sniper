@@ -6,6 +6,74 @@
 #include <unordered_map>
 
 using namespace std;
+#if 0
+class ppw_entry {
+    private:
+        uint64_t PC;
+        uint64_t TargetReg;
+    public:
+        ppw_entry()
+        {
+            PC = 0;
+            TargetReg = 0;
+        }
+        ~ppw_entry()
+        {
+        }
+
+        void SetPPW(uint64_t pc, uint64_t target_reg)
+        {
+            PC = pc;
+            TargetReg = target_reg;
+        }
+        uint64_t GetPC()
+        {
+            return PC;
+        }
+        uint64_t GetTargetReg()
+        {
+            return TargetReg;
+        }
+};
+#endif
+
+class correlation_entry {
+    private:
+        uint64_t ProducerPC;
+        uint64_t ConsumerPC;
+        DynamicInstruction Dyins;
+    public:
+        correlation_entry()
+        {
+            ProducerPC = 0;
+            ConsumerPC = 0;
+            opcode = 0;
+        }
+        ~correlation_entry()
+        {
+        }
+
+        void SetCT(uint64_t Producer, uint64_t Consumer, uint64_t dyins)
+        {
+            ProducerPC = Producer;
+            ConsumerPC = Consumer;
+            Dyins = dyins;
+        }
+        uint64_t GetProducerPC()
+        {
+            return ProducerPC;
+        }
+        uint64_t GetConsumerPC()
+        {
+            return ConsumerPC;
+        }
+        DynamicInstruction GetDyins()
+        {
+            return Dyins;
+        }
+};
+
+
 class LinkedPrefetcher : public Prefetcher
 {
    public:
@@ -28,11 +96,12 @@ class LinkedPrefetcher : public Prefetcher
 	  int32_t prefetch_request_queue_size;
 	  int32_t prefetch_buffer_size;
 
-	  /* The outest vector is coreID: XXX */
-	  vector<unordered_map<IntPtr, IntPtr> > potential_producer_window;                              //AddressValue, Producer
-      vector<unordered_multimap<IntPtr, String > > correlation_table;    //Producer, Consumer, Template(Opcode, offset)
-	  vector<unordered_map<IntPtr, IntPtr> > prefetch_request_queue;                                 //ProgramCounter, AddressValue
-      vector<Cache*> prefetch_buffer;
+      /* The outest vector is coreID number, inner vector index is entry number */
+      vector< unordered_map<IntPtr, IntPtr> >potential_producer_window ;        //ProgramCounter, TargetValue
+      vector< vector < correlation_entry > > ct;                                //correlation table
+	  vector< unordered_map<IntPtr, IntPtr> > prefetch_request_queue;           //ProgramCounter, AddressValue
+      vector< Cache*> prefetch_buffer;
+
 
 
 

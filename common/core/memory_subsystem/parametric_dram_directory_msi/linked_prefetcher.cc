@@ -81,9 +81,9 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, Dyn
         for (uint32_t j=0; j<correlation_table_size; j++)
         {
             //found empty one
-            if(ct.at(i).GetProducerPC())
+            if(ct.at(j).GetProducerPC())
             {
-                ct.at(i).SetCT(PR, CN, dyins);
+                ct.at(j).SetCT(PR, CN, dynins);
                 ct_found = true;
                 break;
             }
@@ -92,7 +92,7 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, Dyn
         {
             //delete one CT entry-the last one, and insert
             assert(ct.at(correlation_table_size-1).GetProducerPC != 0);
-            ct.at(correlation_table_size-1).SetCT(PR, CN, dyins);
+            ct.at(correlation_table_size-1).SetCT(PR, CN, dynins);
         }
    	}
     //step 3, insert to ppw
@@ -100,7 +100,25 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, Dyn
     {
         ppw.erase(ppw.end());
     }
-    ppw.insert(dynins->eip, dynins->target_reg[dynins->num_target_reg-1]);//the most right reg is the target  reg loaded from memory
+    //if base address is sp, do NOT enter PPW
+    if( dynins->instruction->getDisassembly().compare("sp") != 0)
+    {
+        ppw.insert(dynins->eip, dynins->target_reg[dynins->num_target_reg-1]);//the most right reg is the target reg loaded from memory
+    }
+
+    //step 4, lookup CT to get the next prefetch address
+    //PC as producer to get potential consumer
+    std::vector<IntPtr> addresses;
+    IntPtr inst_offset = dynins->instruction->getDisassembly().split(' ')
+    for (uint32_t k=0; k<correlation_table_size; k++)
+    {
+        if (ct.at(k).GetProducerPC() == dynins->eip)
+        {
+            //get consumer PC, may be multiple
+            IntPtr prefetch_address = ct.at(k).GetConsumerPC() + inst_offset;
+        }
+    }
+
 
 
 

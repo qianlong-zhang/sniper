@@ -170,7 +170,9 @@ UINT32 addWriteReg(INS ins)
        for( UINT32 i=0; i < max_w; i++ )
        {
            const REG reg =  INS_RegW(ins, i );
-           if(REG_is_gr(reg) || REG_is_gr64(reg)||REG_is_gr32(reg) )
+           // not get 32bit register, because those regs is not the base address for another load
+           //if(REG_is_gr(reg) || REG_is_gr64(reg)||REG_is_gr32(reg) )
+           if(REG_is_gr(reg) || REG_is_gr64(reg))
            {
                INS_InsertCall(ins, IPOINT_AFTER,
                        AFUNPTR(getRegValue),

@@ -109,55 +109,36 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, Dyn
     //step 4, lookup CT to get the next prefetch address
     //PC as producer to get potential consumer
     std::vector<IntPtr> addresses;
-    IntPtr inst_offset = dynins->instruction->getDisassembly().split(' ')
+
+
+    int index1 = dynins->instruction->getDisassembly().find_first_of("(", 0);
+    int inst_offset=0;
+    if (index1 !=string::npos )
+    {
+        string sub_str1 = dynins->instruction->getDisassembly().substr(0, index1);
+        cout<<sub_str1<<endl;
+        int index2 = sub_str1.find_last_of(" ");
+        cout<<index2<<endl;
+        if (index2 !=string::npos )
+        {
+            string sub_str2 = sub_str1.substr(index2+1, index1-1);
+            cout<<sub_str2<<endl;
+            stringstream offset(sub_str2);
+            offset>>hex>>inst_offset;
+            cout<<offset_int<<endl;                                                                                                                                                                                 }
+    }
+
     for (uint32_t k=0; k<correlation_table_size; k++)
     {
         if (ct.at(k).GetProducerPC() == dynins->eip)
         {
             //get consumer PC, may be multiple
             IntPtr prefetch_address = ct.at(k).GetConsumerPC() + inst_offset;
+            // But stay within the page if requested
+            if (!stop_at_page || ((prefetch_address & PAGE_MASK) == (current_address & PAGE_MASK)))
+                addresses.push_back(prefetch_address);
         }
     }
-
-
-
-
-
-   std::vector<IntPtr> &prev_address = m_prev_address.at(flows_per_core ? _core_id - core_id : 0);
-
-   UInt32 n_flow = n_flow_next;
-   IntPtr min_dist = PAGE_SIZE;
-   n_flow_next = (n_flow_next + 1) % n_flows; // Round robin replacement
-
-   // Find the nearest address in our list of previous addresses
-   for(UInt32 i = 0; i < n_flows; ++i)
-   {
-      IntPtr dist = abs(current_address - prev_address[i]);
-      if (dist < min_dist)
-      {
-         n_flow = i;
-         min_dist = dist;
-      }
-   }
-
-   // Now, n_flow points to the previous address of the best matching flow
-   // (Or, if none matched, the round-robin determined one to replace)
-
-   // linked linear stride prefetcher
-   IntPtr stride = current_address - prev_address[n_flow];
-   prev_address[n_flow] = current_address;
-
-   std::vector<IntPtr> addresses;
-   if (stride != 0)
-   {
-      for(unsigned int i = 0; i < num_prefetches; ++i)
-      {
-         IntPtr prefetch_address = current_address + i * stride;
-         // But stay within the page if requested
-         if (!stop_at_page || ((prefetch_address & PAGE_MASK) == (current_address & PAGE_MASK)))
-            addresses.push_back(prefetch_address);
-      }
-   }
 
    return addresses;
 }

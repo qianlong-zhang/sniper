@@ -19,3 +19,5 @@ Prefetcher* Prefetcher::createPrefetcher(String type, String configName, core_id
 
    LOG_PRINT_ERROR("Invalid prefetcher type %s", type.c_str());
 }
+
+

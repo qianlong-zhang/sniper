@@ -41,19 +41,19 @@ class correlation_entry {
     private:
         uint64_t ProducerPC;
         uint64_t ConsumerPC;
-        DynamicInstruction Dyins;
+        DynamicInstruction *Dyins;
     public:
         correlation_entry()
         {
             ProducerPC = 0;
             ConsumerPC = 0;
-            Dyins = 0;
+            Dyins = NULL;
         }
         ~correlation_entry()
         {
         }
 
-        void SetCT(uint64_t Producer, uint64_t Consumer, uint64_t dyins)
+        void SetCT(uint64_t Producer, uint64_t Consumer, DynamicInstruction *dyins)
         {
             ProducerPC = Producer;
             ConsumerPC = Consumer;
@@ -67,7 +67,7 @@ class correlation_entry {
         {
             return ConsumerPC;
         }
-        DynamicInstruction GetDyins()
+        DynamicInstruction* GetDyins()
         {
             return Dyins;
         }
@@ -77,7 +77,7 @@ class correlation_entry {
 class LinkedPrefetcher : public Prefetcher
 {
    public:
-      LinkedPrefetcher(String configName, core_id_t core_id, UInt32 shared_cores, DynamicInstruction *dynins);
+      LinkedPrefetcher(String configName, core_id_t core_id, UInt32 shared_cores);
       virtual std::vector<IntPtr> getNextAddress(IntPtr current_address, core_id_t core_id, DynamicInstruction *dynins);
 
    private:
@@ -91,13 +91,13 @@ class LinkedPrefetcher : public Prefetcher
       vector<vector<IntPtr> > m_prev_address;
 
 
-	  int32_t potential_producer_window_size;  //those param are only used to limit the size of the queue.
-	  int32_t correlation_table_size;
-	  int32_t prefetch_request_queue_size;
-	  int32_t prefetch_buffer_size;
+	 uint32_t potential_producer_window_size;  //those param are only used to limit the size of the queue.
+	 uint32_t correlation_table_size;
+	 uint32_t prefetch_request_queue_size;
+	 uint32_t prefetch_buffer_size;
 
       /* The outest vector is coreID number, inner vector index is entry number */
-      vector< unordered_map<IntPtr, IntPtr> > potential_producer_window ;        //ProgramCounter, TargetValue
+      vector< unordered_map<IntPtr, uint64_t> > potential_producer_window ;        //ProgramCounter, TargetValue
       vector< vector < correlation_entry > > correlation_table;                                //correlation table
 	  vector< unordered_map<IntPtr, IntPtr> > prefetch_request_queue;           //ProgramCounter, AddressValue
       vector< Cache*> prefetch_buffer;

@@ -1,25 +1,27 @@
 #include "linked_prefetcher.h"
 #include "simulator.h"
 #include "config.hpp"
+#include "instruction.h"
+#include <string>
 
 #include <cstdlib>
 
 const IntPtr PAGE_SIZE = 4096;
 const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
 
-LinkedPrefetcher::LinkedPrefetcher(String configName, core_id_t _core_id, UInt32 _shared_cores, DynamicInstruction *dynins)
+LinkedPrefetcher::LinkedPrefetcher(String configName, core_id_t _core_id, UInt32 _shared_cores)
    : core_id(_core_id)
    , shared_cores(_shared_cores)
-   , n_flows(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/flows", core_id))
-   , flows_per_core(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/linked/flows_per_core", core_id))
-   , num_prefetches(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/num_prefetches", core_id))
-   , stop_at_page(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/linked/stop_at_page_boundary", core_id))
+   , n_flows(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked_prefetcher/flows", core_id))
+   , flows_per_core(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/linked_prefetcher/flows_per_core", core_id))
+   , num_prefetches(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked_prefetcher/num_prefetches", core_id))
+   , stop_at_page(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/linked_prefetcher/stop_at_page_boundary", core_id))
    , n_flow_next(0)
    , m_prev_address(flows_per_core ? shared_cores : 1)
-   , potential_producer_window_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/potential_producer_window_size", core_id))  /*those param are only used to limit the size of the queue.*/
-   , correlation_table_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/correlation_table_size", core_id))
-   , prefetch_request_queue_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/prefetch_request_queue_size", core_id))
-   , prefetch_buffer_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/prefetch_buffer_size", core_id))
+   , potential_producer_window_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked_prefetcher/potential_producer_window_size", core_id))  /*those param are only used to limit the size of the queue.*/
+   , correlation_table_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked_prefetcher/correlation_table_size", core_id))
+   , prefetch_request_queue_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked_prefetcher/prefetch_request_queue_size", core_id))
+   , prefetch_buffer_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked_prefetcher/prefetch_buffer_size", core_id))
 {
    for(UInt32 idx = 0; idx < (flows_per_core ? shared_cores : 1); ++idx)
    	{
@@ -28,7 +30,7 @@ LinkedPrefetcher::LinkedPrefetcher(String configName, core_id_t _core_id, UInt32
 	  correlation_table.at(idx).resize(correlation_table_size);
 	  //prefetch_request_queue.at(idx).resize(prefetch_request_queue_size);
 	  //prefetch_buffer.at(idx).resize(prefetch_buffer_size);
-   	
+
 #if 0
     /* For linked prefetcher, create PPW/CT/PRQ/PB */
       prefetch_buffer.at(_core_id) = new Cache(configName,
@@ -51,7 +53,7 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, Dyn
 {
     int32_t ppw_found=false;
     bool ct_found=false;
-	uint32_t opcode = dynins->instruction;
+	//uint32_t opcode = dynins->instruction;
 	IntPtr CN = dynins->eip;
 	IntPtr PR = 0;
 
@@ -60,8 +62,8 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, Dyn
     /* The outest vector is entry number */
    std::unordered_map<IntPtr, IntPtr>   &ppw = potential_producer_window.at(flows_per_core ? _core_id - core_id : 0);
    std::vector <correlation_entry>      &ct = correlation_table.at(flows_per_core ? _core_id - core_id : 0);
-   std::unordered_map<IntPtr, IntPtr>   &prq = prefetch_request_queue.at(flows_per_core ? _core_id - core_id : 0);
-   Cache*                               &pb = prefetch_buffer.at(flows_per_core ? _core_id - core_id : 0);
+   //std::unordered_map<IntPtr, IntPtr>   &prq = prefetch_request_queue.at(flows_per_core ? _core_id - core_id : 0);
+   //Cache*                               &pb = prefetch_buffer.at(flows_per_core ? _core_id - core_id : 0);
 
 
 
@@ -95,7 +97,7 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, Dyn
         if (!ct_found)
         {
             //delete one CT entry-the last one, and insert
-            assert(ct.at(correlation_table_size-1).GetProducerPC != 0);
+            assert(ct.at(correlation_table_size-1).GetProducerPC() != 0);
             ct.at(correlation_table_size-1).SetCT(PR, CN, dynins);
         }
    	}
@@ -108,7 +110,7 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, Dyn
     if( dynins->instruction->getDisassembly().find("sp") != string::npos)
     {
 	    //the most right reg is the target reg loaded from memory
-        ppw.insert(dynins->eip, dynins->target_reg[dynins->num_target_reg-1]);
+        ppw.insert(std::make_pair(dynins->eip, dynins->target_reg[dynins->num_target_reg-1]));
     }
 
     //step 4, lookup CT to get the next prefetch address
@@ -120,23 +122,23 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, Dyn
         if (ct.at(k).GetProducerPC() == dynins->eip)
         {
 			 // compute the offset of load instruction to compute the next prefetch address
-			int index1 = ct.at(k).GetDyins()->instruction->getDisassembly().find_first_of("(", 0);
-			int inst_offset=0;
-			if (index1 !=string::npos )
+            String::size_type index1 = ct.at(k).GetDyins()->instruction->getDisassembly().find_first_of("(", 0);
+			String::size_type inst_offset=0;
+			if (index1 !=String::npos )
 			{
-				string sub_str1 = ct.at(k).GetDyins()->instruction->getDisassembly().substr(0, index1);
+                std::string sub_str1 = ct.at(k).GetDyins()->instruction->getDisassembly().substr(0, index1).c_str();
 				cout<<sub_str1<<endl;
-				int index2 = sub_str1.find_last_of(" ");
+				String::size_type index2 = sub_str1.find_last_of(" ");
 				cout<<index2<<endl;
 				if (index2 !=string::npos )
 				{
-					string sub_str2 = sub_str1.substr(index2+1, index1-1);
+					std::string sub_str2 = sub_str1.substr(index2+1, index1-1);
 					cout<<sub_str2<<endl;
 					stringstream offset(sub_str2);
 					offset>>hex>>inst_offset;
 					cout<<inst_offset<<endl; 																																												}
 			}
-	
+
             //get consumer PC, may be multiple
             IntPtr prefetch_address = ct.at(k).GetConsumerPC() + inst_offset;
             // But stay within the page if requested

@@ -47,7 +47,7 @@ class correlation_entry {
         {
             ProducerPC = 0;
             ConsumerPC = 0;
-            opcode = 0;
+            Dyins = 0;
         }
         ~correlation_entry()
         {
@@ -88,7 +88,7 @@ class LinkedPrefetcher : public Prefetcher
       const UInt32 num_prefetches;
       const bool stop_at_page;
       UInt32 n_flow_next;
-      std::vector<std::vector<IntPtr> > m_prev_address;
+      vector<vector<IntPtr> > m_prev_address;
 
 
 	  int32_t potential_producer_window_size;  //those param are only used to limit the size of the queue.
@@ -97,8 +97,8 @@ class LinkedPrefetcher : public Prefetcher
 	  int32_t prefetch_buffer_size;
 
       /* The outest vector is coreID number, inner vector index is entry number */
-      vector< unordered_map<IntPtr, IntPtr> >potential_producer_window ;        //ProgramCounter, TargetValue
-      vector< vector < correlation_entry > > ct;                                //correlation table
+      vector< unordered_map<IntPtr, IntPtr> > potential_producer_window ;        //ProgramCounter, TargetValue
+      vector< vector < correlation_entry > > correlation_table;                                //correlation table
 	  vector< unordered_map<IntPtr, IntPtr> > prefetch_request_queue;           //ProgramCounter, AddressValue
       vector< Cache*> prefetch_buffer;
 

@@ -14,7 +14,7 @@ Prefetcher* Prefetcher::createPrefetcher(String type, String configName, core_id
       return new SimplePrefetcher(configName, core_id, shared_cores);
    else if (type == "ghb")
       return new GhbPrefetcher(configName, core_id);
-   else if (type == "linked_prefetcher")
+   else if (type == "linked")
       return new LinkedPrefetcher(configName, core_id, shared_cores);
 
    LOG_PRINT_ERROR("Invalid prefetcher type %s", type.c_str());

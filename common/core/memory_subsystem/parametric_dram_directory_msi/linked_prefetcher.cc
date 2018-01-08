@@ -12,22 +12,25 @@ const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
 LinkedPrefetcher::LinkedPrefetcher(String configName, core_id_t _core_id, UInt32 _shared_cores)
    : core_id(_core_id)
    , shared_cores(_shared_cores)
-   , n_flows(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked_prefetcher/flows", core_id))
-   , flows_per_core(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/linked_prefetcher/flows_per_core", core_id))
-   , num_prefetches(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked_prefetcher/num_prefetches", core_id))
-   , stop_at_page(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/linked_prefetcher/stop_at_page_boundary", core_id))
+   , n_flows(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/flows", core_id))
+   , flows_per_core(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/linked/flows_per_core", core_id))
+   , num_prefetches(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/num_prefetches", core_id))
+   , stop_at_page(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/linked/stop_at_page_boundary", core_id))
    , n_flow_next(0)
    , m_prev_address(flows_per_core ? shared_cores : 1)
-   , potential_producer_window_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked_prefetcher/potential_producer_window_size", core_id))  /*those param are only used to limit the size of the queue.*/
-   , correlation_table_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked_prefetcher/correlation_table_size", core_id))
-   , prefetch_request_queue_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked_prefetcher/prefetch_request_queue_size", core_id))
-   , prefetch_buffer_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked_prefetcher/prefetch_buffer_size", core_id))
+   , potential_producer_window_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/potential_producer_window_size", core_id))  /*those param are only used to limit the size of the queue.*/
+   , correlation_table_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/correlation_table_size", core_id))
+   , prefetch_request_queue_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/prefetch_request_queue_size", core_id))
+   , prefetch_buffer_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/prefetch_buffer_size", core_id))
 {
    for(UInt32 idx = 0; idx < (flows_per_core ? shared_cores : 1); ++idx)
    	{
       m_prev_address.at(idx).resize(n_flows);
-	  //potential_producer_window.at(idx).resize(potential_producer_window_size);
-	  correlation_table.at(idx).resize(correlation_table_size);
+      for (UInt32 i = 0; i<potential_producer_window_size; i++)
+      {
+          potential_producer_window.at(idx)[i] =
+      }
+	  //correlation_table.at(idx).resize(correlation_table_size);
 	  //prefetch_request_queue.at(idx).resize(prefetch_request_queue_size);
 	  //prefetch_buffer.at(idx).resize(prefetch_buffer_size);
 
@@ -60,7 +63,7 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, Dyn
 	String inst_template = dynins->instruction->getDisassembly();
 
     /* The outest vector is entry number */
-   std::unordered_map<IntPtr, IntPtr>   &ppw = potential_producer_window.at(flows_per_core ? _core_id - core_id : 0);
+   std::unordered_map<IntPtr, uint64_t>   &ppw = potential_producer_window.at(flows_per_core ? _core_id - core_id : 0);
    std::vector <correlation_entry>      &ct = correlation_table.at(flows_per_core ? _core_id - core_id : 0);
    //std::unordered_map<IntPtr, IntPtr>   &prq = prefetch_request_queue.at(flows_per_core ? _core_id - core_id : 0);
    //Cache*                               &pb = prefetch_buffer.at(flows_per_core ? _core_id - core_id : 0);

@@ -43,11 +43,11 @@ class correlation_entry {
         uint64_t ConsumerPC;
         DynamicInstruction *Dyins;
     public:
-        correlation_entry()
+        correlation_entry(uint64_t pr, uint64_t cn, DynamicInstruction * dyins)
         {
-            ProducerPC = 0;
-            ConsumerPC = 0;
-            Dyins = NULL;
+            ProducerPC = pr;
+            ConsumerPC = cn;
+            Dyins = dyins;
         }
         ~correlation_entry()
         {

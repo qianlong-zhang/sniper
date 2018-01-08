@@ -26,9 +26,26 @@ LinkedPrefetcher::LinkedPrefetcher(String configName, core_id_t _core_id, UInt32
    for(UInt32 idx = 0; idx < (flows_per_core ? shared_cores : 1); ++idx)
    	{
       m_prev_address.at(idx).resize(n_flows);
+      potential_producer_window.resize(n_flows);
+#if 0
+      potential_producer_window.resize(1);
+      test.resize(1);
+      test.at(0).resize(10);
+      correlation_table.resize(1);
+      correlation_table.at(0).resize(correlation_table_size, {0,0,NULL});
+      potential_producer_window.at(0).insert(std::pair<uint64_t, uint64_t>(0,0));      correlation_entry temp_ct(0,0,NULL);
+
+#endif
+
+
       for (UInt32 i = 0; i<potential_producer_window_size; i++)
       {
-          potential_producer_window.at(idx)[i] =
+          potential_producer_window.at(idx).insert(std::pair<IntPtr,uint64_t>(0,0));
+      }
+      for (UInt32 j = 0; j<correlation_table_size; j++)
+      {
+          correlation_entry temp_ct(0,0,NULL);
+          correlation_table.at(idx).push_back(temp_ct);
       }
 	  //correlation_table.at(idx).resize(correlation_table_size);
 	  //prefetch_request_queue.at(idx).resize(prefetch_request_queue_size);

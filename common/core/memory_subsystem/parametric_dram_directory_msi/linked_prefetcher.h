@@ -41,23 +41,23 @@ class correlation_entry {
     private:
         uint64_t ProducerPC;
         uint64_t ConsumerPC;
-        DynamicInstruction *Dyins;
+        DynamicInstruction *Dynins;
     public:
-        correlation_entry(uint64_t pr, uint64_t cn, DynamicInstruction * dyins)
+        correlation_entry(uint64_t pr, uint64_t cn, DynamicInstruction * dynins)
         {
             ProducerPC = pr;
             ConsumerPC = cn;
-            Dyins = dyins;
+            Dynins = dynins;
         }
         ~correlation_entry()
         {
         }
 
-        void SetCT(uint64_t Producer, uint64_t Consumer, DynamicInstruction *dyins)
+        void SetCT(uint64_t Producer, uint64_t Consumer, DynamicInstruction *dynins)
         {
             ProducerPC = Producer;
             ConsumerPC = Consumer;
-            Dyins = dyins;
+            Dynins = dynins;
         }
         uint64_t GetProducerPC()
         {
@@ -67,9 +67,9 @@ class correlation_entry {
         {
             return ConsumerPC;
         }
-        DynamicInstruction* GetDyins()
+        DynamicInstruction* GetDynins()
         {
-            return Dyins;
+            return Dynins;
         }
 };
 
@@ -91,10 +91,6 @@ class LinkedPrefetcher : public Prefetcher
       vector<vector<IntPtr> > m_prev_address;
 
 
-	 uint32_t potential_producer_window_size;  //those param are only used to limit the size of the queue.
-	 uint32_t correlation_table_size;
-	 uint32_t prefetch_request_queue_size;
-	 uint32_t prefetch_buffer_size;
 
       /* The outest vector is coreID number, inner vector index is entry number */
       vector< unordered_map<IntPtr, uint64_t> > potential_producer_window ;        //ProgramCounter, TargetValue
@@ -102,6 +98,10 @@ class LinkedPrefetcher : public Prefetcher
 	  vector< unordered_map<IntPtr, IntPtr> > prefetch_request_queue;           //ProgramCounter, AddressValue
       vector< Cache*> prefetch_buffer;
 
+	 uint32_t potential_producer_window_size;  //those param are only used to limit the size of the queue.
+	 uint32_t correlation_table_size;
+	 uint32_t prefetch_request_queue_size;
+	 uint32_t prefetch_buffer_size;
 
 
 

@@ -27,7 +27,7 @@
 #  define MYLOG(...) {}
 #endif
 
-#define VERBOSE 0
+#define VERBOSE 1
 
 const char * ModeledString(Core::MemModeled modeled) {
    switch(modeled)

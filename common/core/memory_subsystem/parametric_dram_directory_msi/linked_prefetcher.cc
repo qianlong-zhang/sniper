@@ -18,6 +18,10 @@ LinkedPrefetcher::LinkedPrefetcher(String configName, core_id_t _core_id, UInt32
    , stop_at_page(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/linked/stop_at_page_boundary", core_id))
    , n_flow_next(0)
    , m_prev_address(flows_per_core ? shared_cores : 1)
+   , potential_producer_window(flows_per_core ? shared_cores : 1)
+   , correlation_table(flows_per_core ? shared_cores : 1)
+   , prefetch_request_queue(flows_per_core ? shared_cores : 1)
+   , prefetch_buffer(flows_per_core ? shared_cores : 1)
    , potential_producer_window_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/potential_producer_window_size", core_id))  /*those param are only used to limit the size of the queue.*/
    , correlation_table_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/correlation_table_size", core_id))
    , prefetch_request_queue_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/prefetch_request_queue_size", core_id))
@@ -26,27 +30,19 @@ LinkedPrefetcher::LinkedPrefetcher(String configName, core_id_t _core_id, UInt32
    for(UInt32 idx = 0; idx < (flows_per_core ? shared_cores : 1); ++idx)
    	{
       m_prev_address.at(idx).resize(n_flows);
-      potential_producer_window.resize(n_flows);
-#if 0
-      potential_producer_window.resize(1);
-      test.resize(1);
-      test.at(0).resize(10);
-      correlation_table.resize(1);
-      correlation_table.at(0).resize(correlation_table_size, {0,0,NULL});
-      potential_producer_window.at(0).insert(std::pair<uint64_t, uint64_t>(0,0));      correlation_entry temp_ct(0,0,NULL);
+      potential_producer_window.at(idx).insert(std::pair<IntPtr, uint64_t>(0,0));
+      correlation_table.at(idx).resize(correlation_table_size, {0,0,NULL});
+      prefetch_request_queue.at(idx).insert(std::pair<IntPtr, IntPtr>(0,0));
 
-#endif
-
-
-      for (UInt32 i = 0; i<potential_producer_window_size; i++)
-      {
-          potential_producer_window.at(idx).insert(std::pair<IntPtr,uint64_t>(0,0));
-      }
-      for (UInt32 j = 0; j<correlation_table_size; j++)
-      {
-          correlation_entry temp_ct(0,0,NULL);
-          correlation_table.at(idx).push_back(temp_ct);
-      }
+      //for (UInt32 i = 0; i<potential_producer_window_size; i++)
+      //{
+      //    potential_producer_window.at(idx).insert(std::pair<IntPtr,uint64_t>(0,0));
+      //}
+      //for (UInt32 j = 0; j<correlation_table_size; j++)
+      //{
+      //    correlation_entry temp_ct(0,0,NULL);
+      //    correlation_table.at(idx).push_back(temp_ct);
+      //}
 	  //correlation_table.at(idx).resize(correlation_table_size);
 	  //prefetch_request_queue.at(idx).resize(prefetch_request_queue_size);
 	  //prefetch_buffer.at(idx).resize(prefetch_buffer_size);
@@ -73,7 +69,6 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, Dyn
 {
     int32_t ppw_found=false;
     bool ct_found=false;
-	//uint32_t opcode = dynins->instruction;
 	IntPtr CN = dynins->eip;
 	IntPtr PR = 0;
 
@@ -132,6 +127,13 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, Dyn
 	    //the most right reg is the target reg loaded from memory
         ppw.insert(std::make_pair(dynins->eip, dynins->target_reg[dynins->num_target_reg-1]));
     }
+    cout<<"After insert in ppw:"<<endl;
+	//print ppw
+	 for (std::unordered_map<IntPtr, IntPtr>::iterator it = ppw.begin(); it!=ppw.end(); it++)
+	 {
+         if (it->first != 0)
+             cout<<"In PPW PC is: 0x"<<hex<<it->first<<" TargetValue is "<<it->second<<endl;
+	 }
 
     //step 4, lookup CT to get the next prefetch address
     //PC as producer to get potential consumer
@@ -142,11 +144,11 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, Dyn
         if (ct.at(k).GetProducerPC() == dynins->eip)
         {
 			 // compute the offset of load instruction to compute the next prefetch address
-            String::size_type index1 = ct.at(k).GetDyins()->instruction->getDisassembly().find_first_of("(", 0);
+            String::size_type index1 = ct.at(k).GetDynins()->instruction->getDisassembly().find_first_of("(", 0);
 			String::size_type inst_offset=0;
 			if (index1 !=String::npos )
 			{
-                std::string sub_str1 = ct.at(k).GetDyins()->instruction->getDisassembly().substr(0, index1).c_str();
+                std::string sub_str1 = ct.at(k).GetDynins()->instruction->getDisassembly().substr(0, index1).c_str();
 				cout<<sub_str1<<endl;
 				String::size_type index2 = sub_str1.find_last_of(" ");
 				cout<<index2<<endl;
@@ -167,15 +169,11 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, Dyn
         }
     }
 
-	//print ppw
-	 for (std::unordered_map<IntPtr, IntPtr>::iterator it = ppw.begin(); it!=ppw.end(); it++)
-	 {
-	 	cout<<"In PPW PC is: "<<it->first<<" TargetValue is"<<it->second<<endl;
-	 }
 	//print ct
 	 for (uint32_t j=0; j<correlation_table_size; j++)
 	 {
-	 	cout<<"In CT Producer is: "<<ct.at(j).GetProducerPC()<<" ConsumerPC is "<<ct.at(j).GetConsumerPC()<<endl;
+         if(ct.at(j).GetProducerPC()!=0)
+             cout<<"In CT Producer is: "<<ct.at(j).GetProducerPC()<<" ConsumerPC is "<<ct.at(j).GetConsumerPC()<<endl;
 	 }
 
    return addresses;

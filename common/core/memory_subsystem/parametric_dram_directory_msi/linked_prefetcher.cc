@@ -80,6 +80,7 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, core_id_t _core_id, Dyn
    //std::unordered_map<IntPtr, IntPtr>   &prq = prefetch_request_queue.at(flows_per_core ? _core_id - core_id : 0);
    //Cache*                               &pb = prefetch_buffer.at(flows_per_core ? _core_id - core_id : 0);
 
+   cout<<"In function: "<<__func__<<" current_address is  "<<hex<<current_address<<endl;
 
 
 

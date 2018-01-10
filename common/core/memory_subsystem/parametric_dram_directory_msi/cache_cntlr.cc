@@ -472,7 +472,7 @@ MYLOG("L1 miss");
       }
 
 MYLOG("processMemOpFromCore l%d before next", m_mem_component);
-      hit_where = m_next_cache_cntlr->processShmemReqFromPrevCache(this, mem_op_type, ca_address, modeled, count, Prefetch::NONE, t_start, false, dynins);
+      hit_where = m_next_cache_cntlr->processShmemReqFromPrevCache(this, mem_op_type, ca_address, offset, modeled, count, Prefetch::NONE, t_start, false, dynins);
       bool next_cache_hit = hit_where != HitWhere::MISS;
 MYLOG("processMemOpFromCore l%d next hit = %d", m_mem_component, next_cache_hit);
 
@@ -499,7 +499,7 @@ MYLOG("processMemOpFromCore l%d got message reply", m_mem_component);
 
          /* have the next cache levels fill themselves with the new data */
 MYLOG("processMemOpFromCore l%d before next fill", m_mem_component);
-         hit_where = m_next_cache_cntlr->processShmemReqFromPrevCache(this, mem_op_type, ca_address, false, false, Prefetch::NONE, t_start, true, dynins);
+         hit_where = m_next_cache_cntlr->processShmemReqFromPrevCache(this, mem_op_type, ca_address, offset, false, false, Prefetch::NONE, t_start, true, dynins);
 MYLOG("processMemOpFromCore l%d after next fill", m_mem_component);
          LOG_ASSERT_ERROR(hit_where != HitWhere::MISS,
             "Tried to read in next-level cache, but data is already gone");
@@ -588,7 +588,7 @@ MYLOG("access done");
 
    if (modeled && m_master->m_prefetcher)
    {
-      trainPrefetcher(ca_address, cache_hit, prefetch_hit, t_start, dynins);
+      trainPrefetcher(ca_address, offset, cache_hit, prefetch_hit, t_start, dynins);
    }
 
    // Call Prefetch on next-level caches (but not for atomic instructions as that causes a locking mess)
@@ -660,12 +660,12 @@ MYLOG("copyDataFromNextLevel l%d", m_mem_component);
 
 
 void
-CacheCntlr::trainPrefetcher(IntPtr address, bool cache_hit, bool prefetch_hit, SubsecondTime t_issue, DynamicInstruction *dynins)
+CacheCntlr::trainPrefetcher(IntPtr address,UInt32 offset, bool cache_hit, bool prefetch_hit, SubsecondTime t_issue, DynamicInstruction *dynins)
 {
    ScopedLock sl(getLock());
 
    // Always train the prefetcher
-   std::vector<IntPtr> prefetchList = m_master->m_prefetcher->getNextAddress(address, m_core_id, dynins);
+   std::vector<IntPtr> prefetchList = m_master->m_prefetcher->getNextAddress(address,offset, m_core_id, dynins);
 
    // Only do prefetches on misses, or on hits to lines previously brought in by the prefetcher (if enabled)
    if (!cache_hit || (m_prefetch_on_prefetch_hit && prefetch_hit))
@@ -730,7 +730,7 @@ CacheCntlr::doPrefetch(IntPtr prefetch_address, SubsecondTime t_start)
    MYLOG("prefetching %lx", prefetch_address);
    SubsecondTime t_before = getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD);
    getShmemPerfModel()->setElapsedTime(ShmemPerfModel::_USER_THREAD, t_start); // Start the prefetch at the same time as the original miss
-   HitWhere::where_t hit_where = processShmemReqFromPrevCache(this, Core::READ, prefetch_address, true, true, Prefetch::OWN, t_start, false, NULL);
+   HitWhere::where_t hit_where = processShmemReqFromPrevCache(this, Core::READ, prefetch_address, 0, true, true, Prefetch::OWN, t_start, false, NULL);
 
    if (hit_where == HitWhere::MISS)
    {
@@ -740,7 +740,7 @@ CacheCntlr::doPrefetch(IntPtr prefetch_address, SubsecondTime t_start)
       waitForNetworkThread();
       wakeUpNetworkThread();
 
-      hit_where = processShmemReqFromPrevCache(this, Core::READ, prefetch_address, false, false, Prefetch::OWN, t_start, false, NULL);
+      hit_where = processShmemReqFromPrevCache(this, Core::READ, prefetch_address, 0 ,false, false, Prefetch::OWN, t_start, false, NULL);
 
       LOG_ASSERT_ERROR(hit_where != HitWhere::MISS, "Line was not there after prefetch");
    }
@@ -758,6 +758,7 @@ HitWhere::where_t
 CacheCntlr::processShmemReqFromPrevCache(CacheCntlr* requester,
 						Core::mem_op_t mem_op_type,
 						IntPtr address,
+                        UInt32 offset,
 						bool modeled,
 						bool count,
 						Prefetch::prefetch_type_t isPrefetch,
@@ -935,7 +936,7 @@ CacheCntlr::processShmemReqFromPrevCache(CacheCntlr* requester,
             invalidateCacheBlock(address);
 
          // let the next cache level handle it.
-         hit_where = m_next_cache_cntlr->processShmemReqFromPrevCache(this, mem_op_type, address, modeled, count, isPrefetch == Prefetch::NONE ? Prefetch::NONE : Prefetch::OTHER, t_issue, have_write_lock_internal, dynins);
+         hit_where = m_next_cache_cntlr->processShmemReqFromPrevCache(this, mem_op_type, address, offset, modeled, count, isPrefetch == Prefetch::NONE ? Prefetch::NONE : Prefetch::OTHER, t_issue, have_write_lock_internal, dynins);
          if (hit_where != HitWhere::MISS)
          {
             cache_hit = true;
@@ -1019,7 +1020,7 @@ CacheCntlr::processShmemReqFromPrevCache(CacheCntlr* requester,
 
    if (modeled && m_master->m_prefetcher)
    {
-		    trainPrefetcher(address, cache_hit, prefetch_hit, t_issue, dynins);
+       trainPrefetcher(address, offset, cache_hit, prefetch_hit, t_issue, dynins);
    }
 
    #ifdef PRIVATE_L2_OPTIMIZATION

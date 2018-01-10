@@ -296,7 +296,7 @@ namespace ParametricDramDirectoryMSI
                IntPtr address, Core::mem_op_t mem_op_type, CacheBlockInfo **cache_block_info = NULL);
 
          void copyDataFromNextLevel(Core::mem_op_t mem_op_type, IntPtr address, bool modeled, SubsecondTime t_start);
-         void trainPrefetcher(IntPtr address, bool cache_hit, bool prefetch_hit, SubsecondTime t_issue, DynamicInstruction *dynins);
+         void trainPrefetcher(IntPtr address, UInt32 offset, bool cache_hit, bool prefetch_hit, SubsecondTime t_issue, DynamicInstruction *dynins);
          void Prefetch(SubsecondTime t_start);
          void doPrefetch(IntPtr prefetch_address, SubsecondTime t_start);
 
@@ -316,7 +316,7 @@ namespace ParametricDramDirectoryMSI
          void writeCacheBlock(IntPtr address, UInt32 offset, Byte* data_buf, UInt32 data_length, ShmemPerfModel::Thread_t thread_num);
 
          // Handle Request from previous level cache
-         HitWhere::where_t processShmemReqFromPrevCache(CacheCntlr* requester, Core::mem_op_t mem_op_type, IntPtr address, bool modeled, bool count, Prefetch::prefetch_type_t isPrefetch, SubsecondTime t_issue, bool have_write_lock, DynamicInstruction *dynins);
+         HitWhere::where_t processShmemReqFromPrevCache(CacheCntlr* requester, Core::mem_op_t mem_op_type, IntPtr address, UInt32 offset, bool modeled, bool count, Prefetch::prefetch_type_t isPrefetch, SubsecondTime t_issue, bool have_write_lock, DynamicInstruction *dynins);
 
          // Process Request from L1 Cache
          boost::tuple<HitWhere::where_t, SubsecondTime> accessDRAM(Core::mem_op_t mem_op_type, IntPtr address, bool isPrefetch, Byte* data_buf);

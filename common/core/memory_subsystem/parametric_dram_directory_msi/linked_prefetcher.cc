@@ -84,16 +84,55 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
         //std::unordered_map<IntPtr, IntPtr>   &prq = prefetch_request_queue.at(flows_per_core ? _core_id - core_id : 0);
         //Cache*                               &pb = prefetch_buffer.at(flows_per_core ? _core_id - core_id : 0);
 
+        cout<<endl;
+        cout<<endl;
         cout<<"In function: "<<__func__<<" current_address is  "<<hex<<current_address;
         cout<<" After add offset: "<<" current_address is  "<<hex<<current_address+offset<<endl;
         cout<<" diss is: "<<itostr( dynins->instruction->getDisassembly()).c_str()<<" eip is: "<<hex<<dynins->eip<<endl;
 
 
 
+
+        std::string inst_temp = dynins->instruction->getDisassembly().c_str();
+
+        // compute the offset of load instruction to compute the next prefetch address
+        string::size_type index1 = inst_temp.find_first_of("]", 0);
+        string::size_type index2 = inst_temp.find_first_of("+");
+        string::size_type index3 = inst_temp.find_first_of("-");
+        string::size_type temp_index;
+
+        //cout<<"index1 is: "<<dec<<index1<<endl;
+        //cout<<"index2 is: "<<dec<<index2<<endl;
+        //cout<<"index3 is: "<<dec<<index3<<endl;
+        int32_t inst_offset=0;
+        if (index1 !=string::npos )
+        {
+            if(!((index2==string::npos) && (index3==string::npos)))
+            {
+                if (index2 != string::npos)
+                    temp_index=index2;
+                else
+                    temp_index=index3;
+
+                //cout<<temp_index<<endl;
+                std::string sub_str = inst_temp.substr(temp_index+1, index1 - temp_index-1);
+                //cout<<sub_str<<endl;
+                stringstream offset(sub_str);
+                offset>>hex>>inst_offset;
+                //cout<<dec<<inst_offset<<endl;
+
+                if(index3!=string::npos)
+                    inst_offset=-inst_offset;
+
+                //cout<<dec<<inst_offset<<endl;
+            }
+        }
+
+        cout<<"The real base reg is: "<<hex<<current_address+offset-inst_offset<<endl;
         for (std::unordered_map<IntPtr, IntPtr>::iterator it = ppw.begin(); it!=ppw.end(); it++)
         {
-            //step 1: find producer in PPW
-            if(it->second == current_address)
+            //step 1: find producer in PPW, the base address is the whole address(current_address+offset) - inst_offset
+            if(it->second == current_address+offset-inst_offset)
             {
                 //if ppw has more than one hit, multihit
                 assert(ppw_found==false);
@@ -130,9 +169,12 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
             ppw.erase(ppw.end());
         }
         //if base address is sp, do NOT enter PPW
-        if( dynins->instruction->getDisassembly().find("sp") == string::npos)
+        //cout<<dynins->instruction->getDisassembly().find("push") <<endl;
+        //cout<<dynins->instruction->getDisassembly().find("pop") <<endl;
+        if( dynins->instruction->getDisassembly().find("push") == string::npos &&
+             dynins->instruction->getDisassembly().find("pop") == string::npos)
         {
-            cout<<"In line"<<dec<<__LINE__<<endl;
+            //cout<<"In line"<<dec<<__LINE__<<endl;
             //the most right reg is the target reg loaded from memory
             ppw.insert(std::make_pair(dynins->eip, dynins->target_reg[dynins->num_target_reg-1]));
         }
@@ -152,23 +194,6 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
         {
             if (ct.at(k).GetProducerPC() == dynins->eip)
             {
-                // compute the offset of load instruction to compute the next prefetch address
-                String::size_type index1 = ct.at(k).GetDynins()->instruction->getDisassembly().find_first_of("(", 0);
-                String::size_type inst_offset=0;
-                if (index1 !=String::npos )
-                {
-                    std::string sub_str1 = ct.at(k).GetDynins()->instruction->getDisassembly().substr(0, index1).c_str();
-                    cout<<sub_str1<<endl;
-                    String::size_type index2 = sub_str1.find_last_of(" ");
-                    cout<<index2<<endl;
-                    if (index2 !=string::npos )
-                    {
-                        std::string sub_str2 = sub_str1.substr(index2+1, index1-1);
-                        cout<<sub_str2<<endl;
-                        stringstream offset(sub_str2);
-                        offset>>hex>>inst_offset;
-                        cout<<inst_offset<<endl; 																																												}
-                }
 
                 //get consumer PC, may be multiple
                 IntPtr prefetch_address = ct.at(k).GetConsumerPC() + inst_offset;

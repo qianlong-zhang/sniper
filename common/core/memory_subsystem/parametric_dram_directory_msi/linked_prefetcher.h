@@ -4,6 +4,7 @@
 #include "prefetcher.h"
 #include "cache.h"
 #include <unordered_map>
+#include <map>
 
 using namespace std;
 #if 0
@@ -93,7 +94,7 @@ class LinkedPrefetcher : public Prefetcher
 
 
       /* The outest vector is coreID number, inner vector index is entry number */
-      vector< unordered_map<IntPtr, uint64_t> > potential_producer_window ;        //ProgramCounter, TargetValue
+      vector< map<IntPtr, uint64_t> > potential_producer_window ;        //ProgramCounter, TargetValue
       vector< vector < correlation_entry > > correlation_table;                                //correlation table
 	  vector< unordered_map<IntPtr, IntPtr> > prefetch_request_queue;           //ProgramCounter, AddressValue
       vector< Cache*> prefetch_buffer;

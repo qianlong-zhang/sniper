@@ -79,7 +79,7 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
         String inst_template = dynins->instruction->getDisassembly();
 
         /* The outest vector is entry number */
-        std::unordered_map<IntPtr, uint64_t>   &ppw = potential_producer_window.at(flows_per_core ? _core_id - core_id : 0);
+        std::map<IntPtr, uint64_t>   &ppw = potential_producer_window.at(flows_per_core ? _core_id - core_id : 0);
         std::vector <correlation_entry>      &ct = correlation_table.at(flows_per_core ? _core_id - core_id : 0);
         //std::unordered_map<IntPtr, IntPtr>   &prq = prefetch_request_queue.at(flows_per_core ? _core_id - core_id : 0);
         //Cache*                               &pb = prefetch_buffer.at(flows_per_core ? _core_id - core_id : 0);
@@ -129,15 +129,17 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
         }
 
         cout<<"The real base reg is: "<<hex<<current_address+offset-inst_offset<<endl;
-        for (std::unordered_map<IntPtr, IntPtr>::iterator it = ppw.begin(); it!=ppw.end(); it++)
+        for (std::map<IntPtr, IntPtr>::iterator it = ppw.begin(); it!=ppw.end(); it++)
         {
             //step 1: find producer in PPW, the base address is the whole address(current_address+offset) - inst_offset
             if(it->second == current_address+offset-inst_offset)
             {
                 //if ppw has more than one hit, multihit
-                assert(ppw_found==false);
+                //assert(ppw_found==false);
                 PR = it->first;
                 ppw_found=true;
+                cout<<"For inst: "<<dynins->eip<<" Producer is: "<<hex<<PR<<" TargetValue and base address is:"<<it->second<<endl;
+                break;
             }
         }
 
@@ -162,11 +164,20 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
                 ct.at(correlation_table_size-1).SetCT(PR, CN, dynins);
             }
 
+
+            cout<<"After insert in ct:"<<endl;
+            //print ct
+            for (uint32_t j=0; j<correlation_table_size; j++)
+            {
+                if(ct.at(j).GetProducerPC()!=0)
+                    cout<<"In CT Producer is: "<<ct.at(j).GetProducerPC()<<" ConsumerPC is "<<ct.at(j).GetConsumerPC()<<" template is: "<<itostr( dynins->instruction->getDisassembly()).c_str()<<endl;
+            }
         }
         //step 3, insert to ppw
         if(ppw.size() >= potential_producer_window_size)
         {
-            ppw.erase(ppw.end());
+            cout<<"PPW is full, erasing: "<<ppw.begin()->first<<endl;;
+            ppw.erase(ppw.begin());
         }
         //if base address is sp, do NOT enter PPW
         //cout<<dynins->instruction->getDisassembly().find("push") <<endl;
@@ -174,16 +185,17 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
         if( dynins->instruction->getDisassembly().find("push") == string::npos &&
              dynins->instruction->getDisassembly().find("pop") == string::npos)
         {
-            //cout<<"In line"<<dec<<__LINE__<<endl;
+            cout<<"In line"<<dec<<__LINE__<<" Inserting inst in ppw "<<endl;
             //the most right reg is the target reg loaded from memory
+            cout<<"Inserting "<<hex<<dynins->eip<<" target reg is "<<hex<<dynins->target_reg[dynins->num_target_reg-1] <<endl;
             ppw.insert(std::make_pair(dynins->eip, dynins->target_reg[dynins->num_target_reg-1]));
         }
         cout<<"After insert in ppw:"<<endl;
         //print ppw
-        for (std::unordered_map<IntPtr, IntPtr>::iterator it = ppw.begin(); it!=ppw.end(); it++)
+        for (std::map<IntPtr, uint64_t>::iterator it = ppw.begin(); it!=ppw.end(); it++)
         {
             //if (it->first != 0)
-                cout<<"In PPW PC is: 0x"<<hex<<it->first<<" TargetValue is "<<it->second<<endl;
+                cout<<"In PPW PC is: "<<hex<<it->first<<" TargetValue is "<<it->second<<endl;
         }
 
         //step 4, lookup CT to get the next prefetch address
@@ -192,23 +204,48 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
 
         for (uint32_t k=0; k<correlation_table_size; k++)
         {
+            //To get the offset for every comsumer inst, used to compute the prefetch address
             if (ct.at(k).GetProducerPC() == dynins->eip)
             {
+                std::string inst_temp1 = ct.at(k).GetDynins()->instruction->getDisassembly().c_str();
+                // compute the offset of load instruction to compute the next prefetch address
+                string::size_type index4 = inst_temp1.find_first_of("]", 0);
+                string::size_type index5 = inst_temp1.find_first_of("+");
+                string::size_type index6 = inst_temp1.find_first_of("-");
+                string::size_type temp_index1;
+
+                int32_t inst_offset_cn=0;
+                if (index4 !=string::npos )
+                {
+                    if(!((index5==string::npos) && (index6==string::npos)))
+                    {
+                        if (index5 != string::npos)
+                            temp_index1=index5;
+                        else
+                            temp_index1=index6;
+
+                        std::string sub_str = inst_temp1.substr(temp_index1+1, index4 - temp_index1-1);
+                        //cout<<sub_str<<endl;
+                        stringstream offset(sub_str);
+                        offset>>hex>>inst_offset_cn;
+                        //cout<<dec<<inst_offset<<endl;
+
+                        if(index6!=string::npos)
+                            inst_offset_cn=-inst_offset_cn;
+
+                        cout<<" inst_offset_cn "<<dec<<inst_offset_cn<<endl;
+                    }
+                }
 
                 //get consumer PC, may be multiple
-                IntPtr prefetch_address = ct.at(k).GetConsumerPC() + inst_offset;
+                IntPtr prefetch_address = dynins->target_reg[dynins->num_target_reg-1] + inst_offset_cn;
+                cout<<"Prefetch address for "<<dynins->eip<<" is "<<hex<<prefetch_address<<endl;
                 // But stay within the page if requested
                 if ((!stop_at_page || ((prefetch_address & PAGE_MASK) == (current_address & PAGE_MASK))) && addresses.size() < num_prefetches)
                     addresses.push_back(prefetch_address);
             }
         }
 
-        //print ct
-        for (uint32_t j=0; j<correlation_table_size; j++)
-        {
-            if(ct.at(j).GetProducerPC()!=0)
-                cout<<"In CT Producer is: "<<ct.at(j).GetProducerPC()<<" ConsumerPC is "<<ct.at(j).GetConsumerPC()<<endl;
-        }
 
         return addresses;
     }

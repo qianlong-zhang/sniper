@@ -158,7 +158,7 @@ VOID getRegValue(THREADID threadid, ADDRINT reg)
       return;
 
    thread_data[threadid].target_reg[thread_data[threadid].num_target_reg++] = reg;
-   printf("get the %d target, reg = %lx\n",thread_data[threadid].num_target_reg, reg );
+   //printf("get the %d target, reg = %lx\n",thread_data[threadid].num_target_reg, reg );
 }
 
 UINT32 addWriteReg(INS ins)

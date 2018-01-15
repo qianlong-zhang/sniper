@@ -668,7 +668,8 @@ CacheCntlr::trainPrefetcher(IntPtr address,UInt32 offset, bool cache_hit, bool p
    std::vector<IntPtr> prefetchList = m_master->m_prefetcher->getNextAddress(address,offset, m_core_id, dynins);
 
    // Only do prefetches on misses, or on hits to lines previously brought in by the prefetcher (if enabled)
-   if (!cache_hit || (m_prefetch_on_prefetch_hit && prefetch_hit))
+   //if (!cache_hit || (m_prefetch_on_prefetch_hit && prefetch_hit))
+   if ((m_prefetch_on_prefetch_hit && prefetch_hit))
    {
       m_master->m_prefetch_list.clear();
       // Just talked to the next-level cache, wait a bit before we start to prefetch

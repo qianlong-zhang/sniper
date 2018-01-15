@@ -42,23 +42,23 @@ class correlation_entry {
     private:
         uint64_t ProducerPC;
         uint64_t ConsumerPC;
-        DynamicInstruction *Dynins;
+        string disass;
     public:
-        correlation_entry(uint64_t pr, uint64_t cn, DynamicInstruction * dynins)
+        correlation_entry(uint64_t pr, uint64_t cn, string dis)
         {
             ProducerPC = pr;
             ConsumerPC = cn;
-            Dynins = dynins;
+            disass = dis;
         }
         ~correlation_entry()
         {
         }
 
-        void SetCT(uint64_t Producer, uint64_t Consumer, DynamicInstruction *dynins)
+        void SetCT(uint64_t Producer, uint64_t Consumer, string dis)
         {
             ProducerPC = Producer;
             ConsumerPC = Consumer;
-            Dynins = dynins;
+            disass = dis;
         }
         uint64_t GetProducerPC()
         {
@@ -68,9 +68,9 @@ class correlation_entry {
         {
             return ConsumerPC;
         }
-        DynamicInstruction* GetDynins()
+        string GetDisass()
         {
-            return Dynins;
+            return disass;
         }
 };
 

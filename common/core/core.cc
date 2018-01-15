@@ -20,7 +20,7 @@
 
 #include <cstring>
 
-#if 1
+#if 0
    extern Lock iolock;
 #  define MYLOG(...) { ScopedLock l(iolock); fflush(stderr); fprintf(stderr, "[%s] %d cor %-25s@%03u: ", itostr(getPerformanceModel()->getElapsedTime()).c_str(), m_core_id, __FUNCTION__, __LINE__); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); fflush(stderr); }
 #else

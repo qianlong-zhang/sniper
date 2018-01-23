@@ -88,6 +88,7 @@ class LinkedPrefetcher : public Prefetcher
       const bool flows_per_core;
       const UInt32 num_prefetches;
       const bool stop_at_page;
+      UInt32 cache_block_size;
       UInt32 n_flow_next;
       vector<vector<IntPtr> > m_prev_address;
 

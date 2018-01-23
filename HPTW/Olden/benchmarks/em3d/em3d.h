@@ -12,7 +12,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "mem-ref.h"
+//#include "mem-ref.h"
 extern int n_nodes; /* number of nodes (E and H) */
 extern int d_nodes; /* degree of nodes */
 extern int local_p; /* percentage of local edges */

@@ -19,7 +19,17 @@
    extern Lock iolock;
 #  include "core_manager.h"
 #  include "simulator.h"
-#  define MYLOG(...) { ScopedLock l(iolock); fflush(stderr); fprintf(stderr, "[%s] %d%cmm %-25s@%03u: ", itostr(getShmemPerfModel()->getElapsedTime()).c_str(), getCore()->getId(), Sim()->getCoreManager()->amiUserThread() ? '^' : '_', __FUNCTION__, __LINE__); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); fflush(stderr); }
+#  define LOCKED(...) { ScopedLock sl(iolock); fflush(stderr); __VA_ARGS__; fflush(stderr); }
+#  define LOGID() fprintf(stderr, "[%s] %2u%c  %-25s@%3u: ", \
+                     itostr(getShmemPerfModel()->getElapsedTime(Sim()->getCoreManager()->amiUserThread() ? ShmemPerfModel::_USER_THREAD : ShmemPerfModel::_SIM_THREAD)).c_str(), \
+                    Sim()->getCoreManager()->getCurrentCoreID(), \
+                    Sim()->getCoreManager()->amiUserThread() ? '^' : '_', \
+                     __FUNCTION__, __LINE__ \
+                  );
+#  define MYLOG(...) LOCKED(LOGID(); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n");)
+#  define DUMPDATA(data_buf, data_length) { for(UInt32 i = 0; i < data_length; ++i) fprintf(stderr, "%02x ", data_buf[i]); }
+
+//#  define MYLOG(...) { ScopedLock l(iolock); fflush(stderr); fprintf(stderr, "[%s] %d%cmm %-25s@%03u: ", itostr(getShmemPerfModel()->getElapsedTime()).c_str(), getCore()->getId(), Sim()->getCoreManager()->amiUserThread() ? '^' : '_', __FUNCTION__, __LINE__); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); fflush(stderr); }
 #else
 #  define MYLOG(...) {}
 #endif
@@ -620,7 +630,7 @@ MemoryManager::getCost(MemComponent::component_t mem_component, CachePerfModel::
 void
 MemoryManager::incrElapsedTime(SubsecondTime latency, ShmemPerfModel::Thread_t thread_num)
 {
-   MYLOG("cycles += %s", itostr(latency).c_str());
+   MYLOG("cycles += %s for thread:%d", itostr(latency).c_str(), thread_num);
    getShmemPerfModel()->incrElapsedTime(latency, thread_num);
 }
 

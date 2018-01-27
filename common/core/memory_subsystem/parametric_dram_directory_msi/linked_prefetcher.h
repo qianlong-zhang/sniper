@@ -2,8 +2,8 @@
 #define __LINKED_PREFETCHER_H
 
 #include "prefetcher.h"
-#include "cache.h"
 #include <unordered_map>
+#include "cache_cntlr.h"
 #include <map>
 
 using namespace std;
@@ -79,7 +79,7 @@ class LinkedPrefetcher : public Prefetcher
 {
    public:
       LinkedPrefetcher(String configName, core_id_t core_id, UInt32 shared_cores);
-      virtual std::vector<IntPtr> getNextAddress(IntPtr current_address, UInt32 offset, core_id_t core_id, DynamicInstruction *dynins);
+      virtual std::vector<IntPtr> getNextAddress(IntPtr current_address, UInt32 offset, core_id_t core_id, DynamicInstruction *dynins, UInt64 *pointer_loads);
 
    private:
       const core_id_t core_id;
@@ -89,6 +89,7 @@ class LinkedPrefetcher : public Prefetcher
       const UInt32 num_prefetches;
       const bool stop_at_page;
       UInt32 cache_block_size;
+      const bool only_count_lds;
       UInt32 n_flow_next;
       vector<vector<IntPtr> > m_prev_address;
 

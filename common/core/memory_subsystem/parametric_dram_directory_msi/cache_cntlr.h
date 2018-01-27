@@ -221,6 +221,7 @@ namespace ParametricDramDirectoryMSI
          struct {
            UInt64 loads, stores;
            UInt64 load_misses, store_misses;
+           UInt64 pointer_loads, pointer_load_misses;
            UInt64 load_overlapping_misses, store_overlapping_misses;
            UInt64 loads_state[CacheState::NUM_CSTATE_STATES], stores_state[CacheState::NUM_CSTATE_STATES];
            UInt64 loads_where[HitWhere::NUM_HITWHERES], stores_where[HitWhere::NUM_HITWHERES];

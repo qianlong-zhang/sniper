@@ -7,7 +7,7 @@
 //using namespace std;
 
 const IntPtr PAGE_SIZE = 4096;
-//const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
+const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
 //#define DEBUG
 
 SimplePrefetcher::SimplePrefetcher(String configName, core_id_t _core_id, UInt32 _shared_cores)
@@ -25,7 +25,7 @@ SimplePrefetcher::SimplePrefetcher(String configName, core_id_t _core_id, UInt32
 }
 
 std::vector<IntPtr>
-SimplePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_t _core_id, DynamicInstruction *dynins)
+SimplePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_t _core_id, DynamicInstruction *dynins, UInt64 *pointer_loads)
 {
    std::vector<IntPtr> &prev_address = m_prev_address.at(flows_per_core ? _core_id - core_id : 0);
 
@@ -35,7 +35,7 @@ SimplePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
 
 
    printf("\n\n");
-   printf("current_address is 0x%lx, offset is 0x%lx\n", current_address, offset);
+   printf("current_address is 0x%lx, offset is 0x%d\n", current_address, offset);
 #ifdef DEBUG
    printf("\n\n");
    printf("n_flow is: %d\n", n_flow);
@@ -63,8 +63,8 @@ SimplePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
    // (Or, if none matched, the round-robin determined one to replace)
 
    // Simple linear stride prefetcher
-   //IntPtr stride = current_address - prev_address[n_flow];
-   IntPtr stride = min_dist;
+   IntPtr stride = current_address - prev_address[n_flow];
+   //IntPtr stride = min_dist;
 #ifdef DEBUG
    printf("stride is: 0x%lx\n", stride);
 #endif
@@ -80,8 +80,8 @@ SimplePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
           printf("Prefetch address before push is 0x%lx\n",  prefetch_address);
 #endif
           // But stay within the page if requested
-          //if (!stop_at_page || ((prefetch_address & PAGE_MASK) != (current_address & PAGE_MASK)))
-          if (!stop_at_page || ((prefetch_address /PAGE_SIZE ) == (current_address / PAGE_SIZE)))
+          if (!stop_at_page || ((prefetch_address & PAGE_MASK) == (current_address & PAGE_MASK)))
+          //if (!stop_at_page || ((prefetch_address /PAGE_SIZE ) == (current_address / PAGE_SIZE)))
           {
               addresses.push_back(prefetch_address);
 //#ifdef DEBUG

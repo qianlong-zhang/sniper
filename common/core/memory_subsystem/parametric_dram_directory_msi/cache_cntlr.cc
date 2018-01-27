@@ -19,7 +19,7 @@ using namespace std;
 //#define PRIVATE_L2_OPTIMIZATION
 
 Lock iolock;
-#if 0
+#if 1
 #  define LOCKED(...) { ScopedLock sl(iolock); fflush(stderr); __VA_ARGS__; fflush(stderr); }
 #  define LOGID() fprintf(stderr, "[%s] %2u%c [ %2d(%2d)-L%u%c ] %-25s@%3u: ", \
                      itostr(getShmemPerfModel()->getElapsedTime(Sim()->getCoreManager()->amiUserThread() ? ShmemPerfModel::_USER_THREAD : ShmemPerfModel::_SIM_THREAD)).c_str(), Sim()->getCoreManager()->getCurrentCoreID(), \
@@ -182,6 +182,7 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
                ? Sim()->getFaultinjectionManager()->getFaultInjector(m_core_id_master, mem_component)
                : NULL);
       m_master->m_prefetcher = Prefetcher::createPrefetcher(cache_params.prefetcher, cache_params.configName, m_core_id, m_shared_cores);
+      //MYLOG("For %s creating prefetcher: %s", itostr(cache_params.configName).c_str(), itostr(cache_params.prefetcher).c_str());
 
       if (Sim()->getCfg()->getBoolDefault("perf_model/" + cache_params.configName + "/atd/enabled", false))
       {
@@ -229,6 +230,8 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
    registerStatsMetric(name, core_id, "qbs-query-latency", &stats.qbs_query_latency);
    registerStatsMetric(name, core_id, "mshr-latency", &stats.mshr_latency);
    registerStatsMetric(name, core_id, "prefetches", &stats.prefetches);
+   registerStatsMetric(name, core_id, "pointer-loads", &stats.pointer_loads);
+   registerStatsMetric(name, core_id, "pointer-load-misses", &stats.pointer_load_misses);
    for(CacheState::cstate_t state = CacheState::CSTATE_FIRST; state < CacheState::NUM_CSTATE_STATES; state = CacheState::cstate_t(int(state)+1)) {
       registerStatsMetric(name, core_id, String("loads-")+CStateString(state), &stats.loads_state[state]);
       registerStatsMetric(name, core_id, String("stores-")+CStateString(state), &stats.stores_state[state]);
@@ -333,7 +336,7 @@ CacheCntlr::processMemOpFromCore(
    LOG_PRINT("processMemOpFromCore(), lock_signal(%u), mem_op_type(%u), ca_address(0x%x)",
              lock_signal, mem_op_type, ca_address);
 MYLOG("----------------------------------------------");
-MYLOG("%c%c %lx+%u..+%u", mem_op_type == Core::WRITE ? 'W' : 'R', mem_op_type == Core::READ_EX ? 'X' : ' ', ca_address, offset, data_length);
+MYLOG("Starting IP:%lx, %c%c address: %lx+%u=%lx..+%u", dynins->eip, mem_op_type == Core::WRITE ? 'W' : 'R', mem_op_type == Core::READ_EX ? 'X' : ' ', ca_address, offset, ca_address + offset, data_length);
 LOG_ASSERT_ERROR((ca_address & (getCacheBlockSize() - 1)) == 0, "address at cache line + %x", ca_address & (getCacheBlockSize() - 1));
 LOG_ASSERT_ERROR(offset + data_length <= getCacheBlockSize(), "access until %u > %u", offset + data_length, getCacheBlockSize());
 
@@ -602,7 +605,7 @@ MYLOG("access done");
    if (Sim()->getConfig()->getCacheEfficiencyCallbacks().notify_access_func)
       Sim()->getConfig()->getCacheEfficiencyCallbacks().call_notify_access(cache_block_info->getOwner(), mem_op_type, hit_where);
 
-   MYLOG("returning %s, latency %lu ns", HitWhereString(hit_where), total_latency.getNS());
+   MYLOG("Ending IP:%lx, %c%c for address:%lx, returning %s, latency %lu ns", dynins->eip, mem_op_type == Core::WRITE ? 'W' : 'R', mem_op_type == Core::READ_EX ? 'X' : ' ', ca_address+offset, HitWhereString(hit_where), total_latency.getNS());
    return hit_where;
 }
 
@@ -666,24 +669,50 @@ CacheCntlr::trainPrefetcher(IntPtr address,UInt32 offset, bool cache_hit, bool p
 {
    ScopedLock sl(getLock());
 
+   UInt64 pointer_loads_count = stats.pointer_loads;
    // Always train the prefetcher
-   std::vector<IntPtr> prefetchList = m_master->m_prefetcher->getNextAddress(address,offset, m_core_id, dynins);
-
-   // Only do prefetches on misses, or on hits to lines previously brought in by the prefetcher (if enabled)
-   if (!cache_hit || (m_prefetch_on_prefetch_hit && prefetch_hit))
+   std::vector<IntPtr> prefetchList = m_master->m_prefetcher->getNextAddress(address,offset, m_core_id, dynins, &stats.pointer_loads);
+   // if not equal, then the stats.pointer_loads is added in the getNextAddress() function
+   //  which means that address is pointer_loads, combile with cache_hit in the para,
+   //  then we can infer if this address hit/miss/pointer_loads/not_pointer_loads
+   if (pointer_loads_count != stats.pointer_loads)
    {
-      m_master->m_prefetch_list.clear();
+       if(!cache_hit)
+       {
+           stats.pointer_load_misses++;
+           MYLOG("pointer load miss address: 0x%lx, IP: 0x%lx", address+offset, dynins->eip);
+       }
+   }
+
+   for(std::vector<IntPtr>::iterator it = prefetchList.begin(); it != prefetchList.end(); ++it)
+   {
+       MYLOG("prefetchList is: %lx", *it);
+   }
+   // Only do prefetches on misses, or on hits to lines previously brought in by the prefetcher (if enabled)
+   //if (!cache_hit || (m_prefetch_on_prefetch_hit && prefetch_hit))
+   {
+      //m_master->m_prefetch_list.clear();
+      //MYLOG("m_prefetch_list cleared");
       // Just talked to the next-level cache, wait a bit before we start to prefetch
-      m_master->m_prefetch_next = t_issue + PREFETCH_INTERVAL;
+      //m_master->m_prefetch_next = t_issue + PREFETCH_INTERVAL;
+      m_master->m_prefetch_next = t_issue;
 
       for(std::vector<IntPtr>::iterator it = prefetchList.begin(); it != prefetchList.end(); ++it)
       {
+         //MYLOG("prefetchList is: %lx", *it);
          // Keep at most PREFETCH_MAX_QUEUE_LENGTH entries in the prefetch queue
-         if (m_master->m_prefetch_list.size() > PREFETCH_MAX_QUEUE_LENGTH)
-            break;
+         //if (m_master->m_prefetch_list.size() > PREFETCH_MAX_QUEUE_LENGTH)
+         //   break;
          if (!operationPermissibleinCache(*it, Core::READ))
+         {
             m_master->m_prefetch_list.push_back(*it);
+            MYLOG("Entering m_prefetch_list for %lx", *it);
+         }
+         if (m_master->m_prefetch_list.size() > PREFETCH_MAX_QUEUE_LENGTH)
+            m_master->m_prefetch_list.pop_front();
+
       }
+      MYLOG("before push m_master->m_prefetch_list.size() = %ld", m_master->m_prefetch_list.size());
    }
 }
 
@@ -695,17 +724,22 @@ CacheCntlr::Prefetch(SubsecondTime t_now)
    {
       ScopedLock sl(getLock());
 
+      MYLOG("In Prefetch, m_prefetch_next is %s, t_now is %s",itostr(m_master->m_prefetch_next).c_str(), itostr(t_now).c_str());
       if (m_master->m_prefetch_next <= t_now)
       {
          while(!m_master->m_prefetch_list.empty())
          {
+             MYLOG("m_master->m_prefetch_list.size() = %ld", m_master->m_prefetch_list.size());
             IntPtr address = m_master->m_prefetch_list.front();
             m_master->m_prefetch_list.pop_front();
+            MYLOG("m_master->m_prefetch_list.size() = %ld", m_master->m_prefetch_list.size());
 
+            MYLOG("address_to_prefetch before check is  %lx", address);
             // Check address again, maybe some other core already brought it into the cache
             if (!operationPermissibleinCache(address, Core::READ))
             {
                address_to_prefetch = address;
+               MYLOG("address_to_prefetch after check is  %lx", address_to_prefetch);
                // Do at most one prefetch now, save the rest for a future call
                break;
             }
@@ -1020,7 +1054,10 @@ CacheCntlr::processShmemReqFromPrevCache(CacheCntlr* requester,
       }
    }
 
-   if (modeled && m_master->m_prefetcher)
+   //if (modeled && m_master->m_prefetcher)
+   // isPrefetch == Prefetch::NONE is used to get rid of the situation,
+   //  where L1D maybe train itself by calling this function
+   if (modeled && m_master->m_prefetcher && (isPrefetch == Prefetch::NONE))
    {
        trainPrefetcher(address, offset, cache_hit, prefetch_hit, t_issue, dynins);
    }

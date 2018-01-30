@@ -8,9 +8,9 @@
 
 const IntPtr PAGE_SIZE = 4096;
 const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
-#define DEBUG
-#define INFINITE_CT
-#define INFINITE_PPW
+//#define DEBUG
+//#define INFINITE_CT
+//#define INFINITE_PPW
 
 LinkedPrefetcher::LinkedPrefetcher(String configName, core_id_t _core_id, UInt32 _shared_cores)
    : core_id(_core_id)
@@ -301,7 +301,9 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
             //To get the offset for every comsumer inst, used to compute the prefetch address
             if (iter->GetProducerPC() == dynins->eip)
             {
+#ifdef DEBUG
                 cout<<"Found prefetch address for 0x"<<hex<<dynins->eip<<endl;
+#endif
                 std::string inst_temp1 = iter->GetDisass();
                 // compute the offset of load instruction to compute the next prefetch address
                 string::size_type index4 = inst_temp1.find_first_of("]", 0);
@@ -343,9 +345,9 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
                 {
                     if (prefetch_address > 0xfffff && !only_count_lds)
                     {
-                        //#ifdef DEBUG
+                        #ifdef DEBUG
                         cout<<"For PC "<<hex<<dynins->eip<<" current access address is "<<current_address + offset<<" Prefetch address  is "<<hex<<prefetch_address<<endl;
-                        //#endif
+                        #endif
                         if (prefetch_address % cache_block_size)
                             prefetch_address = prefetch_address-(prefetch_address % cache_block_size);
                         if (prefetch_address!=current_address)

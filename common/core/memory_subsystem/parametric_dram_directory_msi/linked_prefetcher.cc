@@ -219,7 +219,9 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
             if (!already_in_ct &&
                     dynins->instruction->getDisassembly().find("push") == string::npos &&
                     dynins->instruction->getDisassembly().find("pop") == string::npos)
+            {
                 ct.push_back(temp_ct);
+            }
 #ifdef DEBUG
             cout<<"After insert in ct:"<<endl;
             //print ct
@@ -258,9 +260,10 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
                 ppw.erase(it_delete);
             }
 #endif
-            if( dynins->instruction->getDisassembly().find("push") == string::npos &&
-                    dynins->instruction->getDisassembly().find("pop") == string::npos &&
-                    dynins->target_reg[dynins->num_target_reg-1] > 0xfffff) /* if target reg is small than 0xfffff, not an base address for others, throw it*/
+            //if( dynins->instruction->getDisassembly().find("push") == string::npos &&
+            //        dynins->instruction->getDisassembly().find("pop") == string::npos &&
+            //        dynins->target_reg[dynins->num_target_reg-1] > 0xfffff) /* if target reg is small than 0xfffff, not an base address for others, throw it*/
+            if(dynins->target_reg[dynins->num_target_reg-1] > 0xfffff) /* if target reg is small than 0xfffff, not an base address for others, throw it*/
             {
                 //the most right reg is the target reg loaded from memory
 #ifdef DEBUG

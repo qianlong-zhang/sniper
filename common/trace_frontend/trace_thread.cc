@@ -20,6 +20,8 @@
 
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <iostream>
+using namespace std;
 
 #if PIN_REV >= 67254
 extern "C" {
@@ -349,6 +351,7 @@ Instruction* TraceThread::decode(Sift::Instruction &inst)
    else
       instruction = new GenericInstruction(list);
 
+   //cout<<hex<<"In Func: "<<__func__<<" Va:"<<inst.sinst->addr<<" Pa: "<<va2pa(inst.sinst->addr)<<endl;
    instruction->setAddress(va2pa(inst.sinst->addr));
    instruction->setSize(inst.sinst->size);
    instruction->setAtomic(xed_operand_values_get_atomic(xed_decoded_inst_operands_const(&xed_inst)));

@@ -144,6 +144,7 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
    m_coherent(cache_params.coherent),
    m_prefetch_on_prefetch_hit(false),
    m_l1_mshr(cache_params.outstanding_misses > 0),
+   temp_total_latency(SubsecondTime::Zero()),
    m_core_id(core_id),
    m_cache_block_size(cache_block_size),
    m_cache_writethrough(cache_params.writethrough),
@@ -229,6 +230,7 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
    registerStatsMetric(name, core_id, "snoop-latency", &stats.snoop_latency);
    registerStatsMetric(name, core_id, "qbs-query-latency", &stats.qbs_query_latency);
    registerStatsMetric(name, core_id, "mshr-latency", &stats.mshr_latency);
+   registerStatsMetric(name, core_id, "pointer-loads-latency", &stats.pointer_loads_latency);
    registerStatsMetric(name, core_id, "prefetches", &stats.prefetches);
    registerStatsMetric(name, core_id, "pointer-loads", &stats.pointer_loads);
    registerStatsMetric(name, core_id, "pointer-load-misses", &stats.pointer_load_misses);
@@ -564,6 +566,7 @@ MYLOG("access done");
 
       if (! cache_hit && count) {
          stats.total_latency += total_latency;
+         temp_total_latency = total_latency;
       }
 
       #ifdef TRACK_LATENCY_BY_HITWHERE
@@ -681,6 +684,8 @@ CacheCntlr::trainPrefetcher(IntPtr address,UInt32 offset, bool cache_hit, bool p
        {
            stats.pointer_load_misses++;
            MYLOG("pointer load miss address: 0x%lx, IP: 0x%lx", address+offset, dynins->eip);
+           stats.pointer_loads_latency += temp_total_latency;
+           temp_total_latency = SubsecondTime::Zero();
        }
    }
 

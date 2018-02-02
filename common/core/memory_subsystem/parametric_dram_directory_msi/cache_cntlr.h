@@ -217,6 +217,9 @@ namespace ParametricDramDirectoryMSI
          bool m_coherent;
          bool m_prefetch_on_prefetch_hit;
          bool m_l1_mshr;
+         SubsecondTime temp_total_latency; /* just used to record current access's total_latency,
+                                            * and pass to trainPrefetcher to update
+                                            * pointer_loads_latency*/
 
          struct {
            UInt64 loads, stores;
@@ -241,6 +244,7 @@ namespace ParametricDramDirectoryMSI
            SubsecondTime snoop_latency;
            SubsecondTime qbs_query_latency;
            SubsecondTime mshr_latency;
+           SubsecondTime pointer_loads_latency;
            UInt64 prefetches;
            UInt64 coherency_downgrades, coherency_upgrades, coherency_invalidates, coherency_writebacks;
            #ifdef ENABLE_TRANSITIONS

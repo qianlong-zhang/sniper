@@ -343,6 +343,7 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
 #endif
                 //get consumer PC, may be multiple
                 IntPtr prefetch_address = dynins->target_reg[dynins->num_target_reg-1] + inst_offset_cn;
+                bool address_found = false;
                 // But stay within the page if requested
                 if ((!stop_at_page || ((prefetch_address & PAGE_MASK) == (current_address & PAGE_MASK))) && addresses.size() < num_prefetches)
                 {
@@ -351,13 +352,28 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
                         #ifdef DEBUG
                         cout<<"For PC "<<hex<<dynins->eip<<" current access address is "<<current_address + offset<<" Prefetch address  is "<<hex<<prefetch_address<<endl;
                         #endif
-                        if (prefetch_address % cache_block_size)
-                            prefetch_address = prefetch_address-(prefetch_address % cache_block_size);
+                        // when to use my idea, we must send the actual offset of the cache block to cache,
+                        // not only the cache block address, cause we need the actual data to determine the next address
+                        //if (prefetch_address % cache_block_size)
+                        //    prefetch_address = prefetch_address-(prefetch_address % cache_block_size);
                         if (prefetch_address!=current_address)
                         {
-                            addresses.push_back(prefetch_address);
+                            for(std::vector<IntPtr>::iterator it = addresses.begin(); it != addresses.end(); ++it)
+                            {
+                                //check if this address already have been inserted
+                                //if (prefetch_address == *it)
+                                if ((prefetch_address-(prefetch_address % cache_block_size)) == (*it-(*it % cache_block_size)) )
+                                    address_found=true;
+                            }
+                            if (!address_found)
+                            {
+                                addresses.push_back(prefetch_address);
 #ifdef DEBUG
-                            cout<<"After align to cache block size,current address is "<<hex<<current_address + offset<<" real Prefetch address  is "<<prefetch_address<<endl;
+                                cout<<"address push_back is "<<hex<<prefetch_address<<" After align: "<<prefetch_address-(prefetch_address % cache_block_size)<<endl;
+#endif
+                            }
+#ifdef DEBUG
+                            //cout<<"After align to cache block size,current address is "<<hex<<current_address + offset<<" real Prefetch address  is "<<prefetch_address<<endl;
 #endif
                         }
                     }

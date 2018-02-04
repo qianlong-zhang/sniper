@@ -144,6 +144,7 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
    m_coherent(cache_params.coherent),
    m_prefetch_on_prefetch_hit(false),
    m_l1_mshr(cache_params.outstanding_misses > 0),
+   last_access_time(SubsecondTime::Zero()),
    temp_total_latency(SubsecondTime::Zero()),
    m_core_id(core_id),
    m_cache_block_size(cache_block_size),
@@ -232,6 +233,8 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
    registerStatsMetric(name, core_id, "mshr-latency", &stats.mshr_latency);
    registerStatsMetric(name, core_id, "pointer-loads-latency", &stats.pointer_loads_latency);
    registerStatsMetric(name, core_id, "prefetches", &stats.prefetches);
+   registerStatsMetric(name, core_id, "try-to-prefetches", &stats.try_to_prefetches);   //try-to-prefetches = prefetches + try_to_prefetches_already_in_cache
+   registerStatsMetric(name, core_id, "try-to-prefetches-already-in-cache", &stats.try_to_prefetches_already_in_cache);
    registerStatsMetric(name, core_id, "pointer-loads", &stats.pointer_loads);
    registerStatsMetric(name, core_id, "pointer-load-misses", &stats.pointer_load_misses);
    for(CacheState::cstate_t state = CacheState::CSTATE_FIRST; state < CacheState::NUM_CSTATE_STATES; state = CacheState::cstate_t(int(state)+1)) {
@@ -609,6 +612,8 @@ MYLOG("access done");
       Sim()->getConfig()->getCacheEfficiencyCallbacks().call_notify_access(cache_block_info->getOwner(), mem_op_type, hit_where);
 
    MYLOG("Ending IP:%lx, %c%c for address:%lx, returning %s, latency %lu ns", dynins->eip, mem_op_type == Core::WRITE ? 'W' : 'R', mem_op_type == Core::READ_EX ? 'X' : ' ', ca_address+offset, HitWhereString(hit_where), total_latency.getNS());
+
+   last_access_time = t_start;
    return hit_where;
 }
 
@@ -693,6 +698,7 @@ CacheCntlr::trainPrefetcher(IntPtr address,UInt32 offset, bool cache_hit, bool p
    {
        MYLOG("prefetchList is: %lx", *it);
    }
+
    // Only do prefetches on misses, or on hits to lines previously brought in by the prefetcher (if enabled)
    //if (!cache_hit || (m_prefetch_on_prefetch_hit && prefetch_hit))
    {
@@ -700,7 +706,11 @@ CacheCntlr::trainPrefetcher(IntPtr address,UInt32 offset, bool cache_hit, bool p
       //MYLOG("m_prefetch_list cleared");
       // Just talked to the next-level cache, wait a bit before we start to prefetch
       //m_master->m_prefetch_next = t_issue + PREFETCH_INTERVAL;
-      m_master->m_prefetch_next = t_issue;
+      MYLOG("last_access_time is : %s",itostr(last_access_time).c_str());
+      if (m_master->m_prefetch_next < last_access_time)
+      {
+          m_master->m_prefetch_next = last_access_time;
+      }
 
       for(std::vector<IntPtr>::iterator it = prefetchList.begin(); it != prefetchList.end(); ++it)
       {
@@ -724,38 +734,42 @@ CacheCntlr::trainPrefetcher(IntPtr address,UInt32 offset, bool cache_hit, bool p
 void
 CacheCntlr::Prefetch(SubsecondTime t_now)
 {
-   IntPtr address_to_prefetch = INVALID_ADDRESS;
+   std::vector<IntPtr> address_to_prefetch;
 
    {
       ScopedLock sl(getLock());
 
       MYLOG("In Prefetch, m_prefetch_next is %s, t_now is %s",itostr(m_master->m_prefetch_next).c_str(), itostr(t_now).c_str());
-      if (m_master->m_prefetch_next <= t_now)
+      while(!m_master->m_prefetch_list.empty())
       {
-         while(!m_master->m_prefetch_list.empty())
-         {
-             MYLOG("m_master->m_prefetch_list.size() = %ld", m_master->m_prefetch_list.size());
-            IntPtr address = m_master->m_prefetch_list.front();
-            m_master->m_prefetch_list.pop_front();
-            MYLOG("m_master->m_prefetch_list.size() = %ld", m_master->m_prefetch_list.size());
+          MYLOG("m_master->m_prefetch_list.size() = %ld", m_master->m_prefetch_list.size());
+          IntPtr address = m_master->m_prefetch_list.front();
+          m_master->m_prefetch_list.pop_front();
 
-            MYLOG("address_to_prefetch before check is  %lx", address);
-            // Check address again, maybe some other core already brought it into the cache
-            if (!operationPermissibleinCache(address, Core::READ))
-            {
-               address_to_prefetch = address;
-               MYLOG("address_to_prefetch after check is  %lx", address_to_prefetch);
-               // Do at most one prefetch now, save the rest for a future call
-               break;
-            }
-         }
+          MYLOG("m_master->m_prefetch_list.size() = %ld", m_master->m_prefetch_list.size());
+          MYLOG("address_to_prefetch before check is  %lx", address);
+
+          stats.try_to_prefetches++;
+          // Check address again, maybe some other core already brought it into the cache
+          if (!operationPermissibleinCache(address, Core::READ))
+          {
+              address_to_prefetch.push_back(address);
+              MYLOG("address_to_prefetch after check is  %lx", address);
+              // Do at most one prefetch now, save the rest for a future call
+              //break;
+          }
+          else
+          {
+              stats.try_to_prefetches_already_in_cache++;
+          }
       }
    }
-
-   if (address_to_prefetch != INVALID_ADDRESS)
+   std::vector<IntPtr>::iterator k = address_to_prefetch.begin();
+   while ( k!= address_to_prefetch.end() && (m_master->m_prefetch_next <= t_now))
    {
-      doPrefetch(address_to_prefetch, m_master->m_prefetch_next);
-      atomic_add_subsecondtime(m_master->m_prefetch_next, PREFETCH_INTERVAL);
+       doPrefetch(*k, m_master->m_prefetch_next);
+       atomic_add_subsecondtime(m_master->m_prefetch_next, PREFETCH_INTERVAL);
+       k=address_to_prefetch.erase(k);
    }
 
    // In case the next-level cache has a prefetcher, run it
@@ -771,7 +785,11 @@ CacheCntlr::doPrefetch(IntPtr prefetch_address, SubsecondTime t_start)
    MYLOG("prefetching %lx", prefetch_address);
    SubsecondTime t_before = getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD);
    getShmemPerfModel()->setElapsedTime(ShmemPerfModel::_USER_THREAD, t_start); // Start the prefetch at the same time as the original miss
-   HitWhere::where_t hit_where = processShmemReqFromPrevCache(this, Core::READ, prefetch_address, 0, true, true, Prefetch::OWN, t_start, false, NULL);
+
+   IntPtr prefetch_offset = (prefetch_address % m_cache_block_size);
+   if (prefetch_address % m_cache_block_size)
+       prefetch_address = prefetch_address-prefetch_offset;
+   HitWhere::where_t hit_where = processShmemReqFromPrevCache(this, Core::READ, prefetch_address, prefetch_offset, true, true, Prefetch::OWN, t_start, false, NULL);
 
    if (hit_where == HitWhere::MISS)
    {
@@ -781,7 +799,7 @@ CacheCntlr::doPrefetch(IntPtr prefetch_address, SubsecondTime t_start)
       waitForNetworkThread();
       wakeUpNetworkThread();
 
-      hit_where = processShmemReqFromPrevCache(this, Core::READ, prefetch_address, 0 ,false, false, Prefetch::OWN, t_start, false, NULL);
+      hit_where = processShmemReqFromPrevCache(this, Core::READ, prefetch_address, prefetch_offset ,false, false, Prefetch::OWN, t_start, false, NULL);
 
       LOG_ASSERT_ERROR(hit_where != HitWhere::MISS, "Line was not there after prefetch");
    }

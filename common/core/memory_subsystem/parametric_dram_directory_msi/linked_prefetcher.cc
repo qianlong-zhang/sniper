@@ -8,7 +8,7 @@
 
 const IntPtr PAGE_SIZE = 4096;
 const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
-//#define DEBUG
+#define DEBUG
 //#define INFINITE_CT
 //#define INFINITE_PPW
 
@@ -350,7 +350,7 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
                     if (prefetch_address > 0xfffff && !only_count_lds)
                     {
                         #ifdef DEBUG
-                        cout<<"For PC "<<hex<<dynins->eip<<" current access address is "<<current_address + offset<<" Prefetch address  is "<<hex<<prefetch_address<<endl;
+                        //cout<<"For PC "<<hex<<dynins->eip<<" current access address is "<<current_address + offset<<" Prefetch address  is "<<hex<<prefetch_address<<endl;
                         #endif
                         // when to use my idea, we must send the actual offset of the cache block to cache,
                         // not only the cache block address, cause we need the actual data to determine the next address
@@ -369,7 +369,7 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
                             {
                                 addresses.push_back(prefetch_address);
 #ifdef DEBUG
-                                cout<<"address push_back is "<<hex<<prefetch_address<<" After align: "<<prefetch_address-(prefetch_address % cache_block_size)<<endl;
+                                cout<<"for address: "<<current_address + offset<<" address push_back is "<<hex<<prefetch_address<<" After align: "<<prefetch_address-(prefetch_address % cache_block_size)<<endl;
 #endif
                             }
 #ifdef DEBUG

@@ -714,6 +714,7 @@ CacheCntlr::trainPrefetcher(IntPtr address,UInt32 offset, bool cache_hit, bool p
 
       for(std::vector<IntPtr>::iterator it = prefetchList.begin(); it != prefetchList.end(); ++it)
       {
+          stats.try_to_prefetches++;
          //MYLOG("prefetchList is: %lx", *it);
          // Keep at most PREFETCH_MAX_QUEUE_LENGTH entries in the prefetch queue
          //if (m_master->m_prefetch_list.size() > PREFETCH_MAX_QUEUE_LENGTH)
@@ -722,6 +723,10 @@ CacheCntlr::trainPrefetcher(IntPtr address,UInt32 offset, bool cache_hit, bool p
          {
             m_master->m_prefetch_list.push_back(*it);
             MYLOG("Entering m_prefetch_list for %lx", *it);
+         }
+         else
+         {
+             stats.try_to_prefetches_already_in_cache++;
          }
          if (m_master->m_prefetch_list.size() > PREFETCH_MAX_QUEUE_LENGTH)
             m_master->m_prefetch_list.pop_front();
@@ -749,7 +754,6 @@ CacheCntlr::Prefetch(SubsecondTime t_now)
           MYLOG("m_master->m_prefetch_list.size() = %ld", m_master->m_prefetch_list.size());
           MYLOG("address_to_prefetch before check is  %lx", address);
 
-          stats.try_to_prefetches++;
           // Check address again, maybe some other core already brought it into the cache
           if (!operationPermissibleinCache(address, Core::READ))
           {
@@ -757,10 +761,6 @@ CacheCntlr::Prefetch(SubsecondTime t_now)
               MYLOG("address_to_prefetch after check is  %lx", address);
               // Do at most one prefetch now, save the rest for a future call
               //break;
-          }
-          else
-          {
-              stats.try_to_prefetches_already_in_cache++;
           }
       }
    }

@@ -74,16 +74,22 @@ TLBFreePrefetcher::lookup_ct_get_consumer(IntPtr current_ip, std::vector <correl
                 found_recurrent = true;
                 the_recurrent_consumer = iter->GetConsumerPC();
             }
-            the_first_consumer = iter->GetProducerPC();
+            the_first_consumer = iter->GetConsumerPC();
         }
     }
 
     if(!found_recurrent)
     {
+#ifdef DEBUG
+        cout<<"the_first_consumer pc is: "<<hex<<the_first_consumer<<endl;
+#endif
         return the_first_consumer;
     }
     else
     {
+#ifdef DEBUG
+        cout<<"recurrent pc is: "<<hex<<the_recurrent_consumer<<endl;
+#endif
         return the_recurrent_consumer;
     }
 }
@@ -443,6 +449,12 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
 #endif
             if(inst_offset_cn != 0xffffffffffffffff)
                 addresses.push_back(inst_offset_cn);
+        }
+        for(std::vector<IntPtr>::iterator it = addresses.begin(); it != addresses.end(); ++it)
+        {
+#ifdef DEBUG
+            cout<<"at last addresses are: "<<hex<<*it<<endl;
+#endif
         }
         return addresses;
     }

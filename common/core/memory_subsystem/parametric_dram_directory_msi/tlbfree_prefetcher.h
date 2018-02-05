@@ -1,5 +1,5 @@
-#ifndef __LINKED_PREFETCHER_H
-#define __LINKED_PREFETCHER_H
+#ifndef __TLBFREE_PREFETCHER_H
+#define __TLBFREE_PREFETCHER_H
 
 #include "prefetcher.h"
 #include <unordered_map>
@@ -38,13 +38,56 @@ class ppw_entry {
 };
 #endif
 
+#if 0
+class correlation_entry {
+    private:
+        uint64_t ProducerPC;
+        uint64_t ConsumerPC;
+        string disass;
+    public:
+        correlation_entry(uint64_t pr, uint64_t cn, string dis)
+        {
+            ProducerPC = pr;
+            ConsumerPC = cn;
+            disass = dis;
+        }
+        ~correlation_entry()
+        {
+        }
+
+        void SetCT(uint64_t Producer, uint64_t Consumer, string dis)
+        {
+            ProducerPC = Producer;
+            ConsumerPC = Consumer;
+            disass = dis;
+        }
+        uint64_t GetProducerPC()
+        {
+            return ProducerPC;
+        }
+        uint64_t GetConsumerPC()
+        {
+            return ConsumerPC;
+        }
+        string GetDisass()
+        {
+            return disass;
+        }
+};
+#endif
 
 
-class LinkedPrefetcher : public Prefetcher
+class TLBFreePrefetcher : public Prefetcher
 {
    public:
-      LinkedPrefetcher(String configName, core_id_t core_id, UInt32 shared_cores);
+      TLBFreePrefetcher(String configName, core_id_t core_id, UInt32 shared_cores);
+      /* The first IntPtr is access address, second is offset of next access address
+       * which should be added to the data of the access address on the left
+       * to get the next address
+       */
       virtual std::vector<IntPtr> getNextAddress(IntPtr current_address, UInt32 offset, core_id_t core_id, DynamicInstruction *dynins, UInt64 *pointer_loads);
+      IntPtr lookup_ct_get_offset(IntPtr producer, IntPtr consumer, std::vector <correlation_entry>  ct);
+      IntPtr lookup_ct_get_consumer(IntPtr producer, std::vector <correlation_entry> ct);
 
    private:
       const core_id_t core_id;
@@ -75,4 +118,4 @@ class LinkedPrefetcher : public Prefetcher
 
 };
 
-#endif // __LINKED_PREFETCHER_H
+#endif //__TLBFREE_PREFETCHER_H

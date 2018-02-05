@@ -8,7 +8,7 @@
 
 const IntPtr PAGE_SIZE = 4096;
 const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
-//#define DEBUG
+#define DEBUG
 //#define INFINITE_CT
 //#define INFINITE_PPW
 

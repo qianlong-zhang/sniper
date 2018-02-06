@@ -144,7 +144,7 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
    m_coherent(cache_params.coherent),
    m_prefetch_on_prefetch_hit(false),
    m_l1_mshr(cache_params.outstanding_misses > 0),
-   last_access_time(SubsecondTime::Zero()),
+   prefetch_start_time(SubsecondTime::Zero()),
    temp_total_latency(SubsecondTime::Zero()),
    m_core_id(core_id),
    m_cache_block_size(cache_block_size),
@@ -184,6 +184,7 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
                ? Sim()->getFaultinjectionManager()->getFaultInjector(m_core_id_master, mem_component)
                : NULL);
       m_master->m_prefetcher = Prefetcher::createPrefetcher(cache_params.prefetcher, cache_params.configName, m_core_id, m_shared_cores);
+      prefetcher_name = cache_params.prefetcher;
       //MYLOG("For %s creating prefetcher: %s", itostr(cache_params.configName).c_str(), itostr(cache_params.prefetcher).c_str());
 
       if (Sim()->getCfg()->getBoolDefault("perf_model/" + cache_params.configName + "/atd/enabled", false))
@@ -597,15 +598,24 @@ MYLOG("access done");
    }
 
 
+   if(prefetcher_name == "linked")
+   {
+       prefetch_start_time = t_now;
+   }
+   else if(prefetcher_name == "tlbfree")
+   {
+       prefetch_start_time = t_start;
+   }
+
    if (modeled && m_master->m_prefetcher)
    {
-      trainPrefetcher(ca_address, offset, cache_hit, prefetch_hit, t_start, dynins);
+      trainPrefetcher(ca_address, offset, cache_hit, prefetch_hit, prefetch_start_time, dynins);
    }
 
    // Call Prefetch on next-level caches (but not for atomic instructions as that causes a locking mess)
    if (lock_signal != Core::LOCK && modeled)
    {
-      Prefetch(t_start);
+      Prefetch(prefetch_start_time);
    }
 
    if (Sim()->getConfig()->getCacheEfficiencyCallbacks().notify_access_func)
@@ -613,7 +623,6 @@ MYLOG("access done");
 
    MYLOG("Ending IP:%lx, %c%c for address:%lx, returning %s, latency %lu ns", dynins->eip, mem_op_type == Core::WRITE ? 'W' : 'R', mem_op_type == Core::READ_EX ? 'X' : ' ', ca_address+offset, HitWhereString(hit_where), total_latency.getNS());
 
-   last_access_time = t_start;
    return hit_where;
 }
 
@@ -706,10 +715,10 @@ CacheCntlr::trainPrefetcher(IntPtr address,UInt32 offset, bool cache_hit, bool p
       //MYLOG("m_prefetch_list cleared");
       // Just talked to the next-level cache, wait a bit before we start to prefetch
       //m_master->m_prefetch_next = t_issue + PREFETCH_INTERVAL;
-      MYLOG("last_access_time is : %s",itostr(last_access_time).c_str());
-      if (m_master->m_prefetch_next < last_access_time)
+      MYLOG("prefetch_start_time is : %s",itostr(prefetch_start_time).c_str());
+      if (m_master->m_prefetch_next < prefetch_start_time)
       {
-          m_master->m_prefetch_next = last_access_time;
+          m_master->m_prefetch_next = prefetch_start_time;
       }
 
       for(std::vector<IntPtr>::iterator it = prefetchList.begin(); it != prefetchList.end(); ++it)
@@ -764,8 +773,9 @@ CacheCntlr::Prefetch(SubsecondTime t_now)
           }
       }
    }
+   atomic_add_subsecondtime(m_master->m_prefetch_next, PREFETCH_INTERVAL);
    std::vector<IntPtr>::iterator k = address_to_prefetch.begin();
-   while ( k!= address_to_prefetch.end() && (m_master->m_prefetch_next <= t_now))
+   while ( k!= address_to_prefetch.end() )
    {
        doPrefetch(*k, m_master->m_prefetch_next);
        atomic_add_subsecondtime(m_master->m_prefetch_next, PREFETCH_INTERVAL);

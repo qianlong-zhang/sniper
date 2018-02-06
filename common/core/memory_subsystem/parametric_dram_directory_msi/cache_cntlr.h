@@ -217,8 +217,7 @@ namespace ParametricDramDirectoryMSI
          bool m_coherent;
          bool m_prefetch_on_prefetch_hit;
          bool m_l1_mshr;
-         SubsecondTime last_access_time;   /* To record the last cache access time,
-                                            * between last and t_now, the prefetch can be send */
+         SubsecondTime prefetch_start_time;
          SubsecondTime temp_total_latency; /* just used to record current access's total_latency,
                                             * and pass to trainPrefetcher to update
                                             * pointer_loads_latency*/

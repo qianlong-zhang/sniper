@@ -36,7 +36,6 @@ class ppw_entry {
             return TargetReg;
         }
 };
-#endif
 
 class correlation_entry {
     private:
@@ -73,7 +72,7 @@ class correlation_entry {
             return disass;
         }
 };
-
+#endif
 
 class LinkedPrefetcher : public Prefetcher
 {

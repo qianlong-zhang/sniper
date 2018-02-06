@@ -1,4 +1,4 @@
-#include "linked_prefetcher.h"
+#include "tlbfree_prefetcher.h"
 #include "simulator.h"
 #include "config.hpp"
 #include "instruction.h"
@@ -12,32 +12,32 @@ const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
 //#define INFINITE_CT
 //#define INFINITE_PPW
 
-LinkedPrefetcher::LinkedPrefetcher(String configName, core_id_t _core_id, UInt32 _shared_cores)
+TLBFreePrefetcher::TLBFreePrefetcher(String configName, core_id_t _core_id, UInt32 _shared_cores)
    : core_id(_core_id)
    , shared_cores(_shared_cores)
-   , n_flows(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/flows", core_id))
-   , flows_per_core(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/linked/flows_per_core", core_id))
-   , num_prefetches(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/num_prefetches", core_id))
-   , stop_at_page(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/linked/stop_at_page_boundary", core_id))
+   , n_flows(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfree/flows", core_id))
+   , flows_per_core(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/tlbfree/flows_per_core", core_id))
+   , num_prefetches(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfree/num_prefetches", core_id))
+   , stop_at_page(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/tlbfree/stop_at_page_boundary", core_id))
    , cache_block_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/cache_block_size", core_id))
-   , only_count_lds(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/linked/only_count_lds", core_id))
+   , only_count_lds(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/tlbfree/only_count_lds", core_id))
    , n_flow_next(0)
    , m_prev_address(flows_per_core ? shared_cores : 1)
    , potential_producer_window(flows_per_core ? shared_cores : 1)
    , correlation_table(flows_per_core ? shared_cores : 1)
    , prefetch_request_queue(flows_per_core ? shared_cores : 1)
    , prefetch_buffer(flows_per_core ? shared_cores : 1)
-   , potential_producer_window_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/potential_producer_window_size", core_id))  /*those param are only used to limit the size of the queue.*/
-   , correlation_table_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/correlation_table_size", core_id))
-   , prefetch_request_queue_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/prefetch_request_queue_size", core_id))
-   , prefetch_buffer_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/linked/prefetch_buffer_size", core_id))
+   , potential_producer_window_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfree/potential_producer_window_size", core_id))  /*those param are only used to limit the size of the queue.*/
+   , correlation_table_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfree/correlation_table_size", core_id))
+   , prefetch_request_queue_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfree/prefetch_request_queue_size", core_id))
+   , prefetch_buffer_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfree/prefetch_buffer_size", core_id))
 {
    for(UInt32 idx = 0; idx < (flows_per_core ? shared_cores : 1); ++idx)
    	{
       m_prev_address.at(idx).resize(n_flows);
 
 #if 0
-    /* For linked prefetcher, create PPW/CT/PRQ/PB */
+    /* For tlbfree prefetcher, create PPW/CT/PRQ/PB */
       prefetch_buffer.at(_core_id) = new Cache(configName,
                     configName,
                     _core_id,
@@ -54,7 +54,7 @@ LinkedPrefetcher::LinkedPrefetcher(String configName, core_id_t _core_id, UInt32
 }
 
 std::vector<IntPtr>
-LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_t _core_id, DynamicInstruction *dynins, UInt64 *pointer_loads)
+TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_t _core_id, DynamicInstruction *dynins, UInt64 *pointer_loads)
 {
     int32_t ppw_found=false;
     //bool ct_found=false;
@@ -369,7 +369,7 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
                             {
                                 addresses.push_back(prefetch_address);
 #ifdef DEBUG
-                                cout<<"producer is:"<<hex<<dynins->eip<<" consumer is: "<<iter->GetConsumerPC()<<" for address: "<<current_address + offset<<" address push_back is "<<hex<<prefetch_address<<" After align: "<<prefetch_address-(prefetch_address % cache_block_size)<<endl;
+                                cout<<"for address: "<<current_address + offset<<" address push_back is "<<hex<<prefetch_address<<" After align: "<<prefetch_address-(prefetch_address % cache_block_size)<<endl;
 #endif
                             }
 #ifdef DEBUG

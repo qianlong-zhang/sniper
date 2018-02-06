@@ -5,6 +5,42 @@
 #include "dynamic_instruction.h"
 
 #include <vector>
+class correlation_entry {
+    private:
+        uint64_t ProducerPC;
+        uint64_t ConsumerPC;
+        std::string disass;
+    public:
+        correlation_entry(uint64_t pr, uint64_t cn, std::string dis)
+        {
+            ProducerPC = pr;
+            ConsumerPC = cn;
+            disass = dis;
+        }
+        ~correlation_entry()
+        {
+        }
+
+        void SetCT(uint64_t Producer, uint64_t Consumer, std::string dis)
+        {
+            ProducerPC = Producer;
+            ConsumerPC = Consumer;
+            disass = dis;
+        }
+        uint64_t GetProducerPC()
+        {
+            return ProducerPC;
+        }
+        uint64_t GetConsumerPC()
+        {
+            return ConsumerPC;
+        }
+        std::string GetDisass()
+        {
+            return disass;
+        }
+};
+
 
 class Prefetcher
 {

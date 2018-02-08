@@ -13,7 +13,8 @@
 #include <cstring>
 #include <iostream>
 using namespace std;
-
+const IntPtr PAGE_SIZE = 4096;
+const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
 // Define to allow private L2 caches not to take the stack lock.
 // Works in most cases, but seems to have some more bugs or race conditions, preventing it from being ready for prime time.
 //#define PRIVATE_L2_OPTIMIZATION
@@ -144,6 +145,7 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
    m_coherent(cache_params.coherent),
    m_prefetch_on_prefetch_hit(false),
    m_l1_mshr(cache_params.outstanding_misses > 0),
+   current_access_address(0),
    prefetch_start_time(SubsecondTime::Zero()),
    temp_total_latency(SubsecondTime::Zero()),
    m_core_id(core_id),
@@ -237,6 +239,7 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
    registerStatsMetric(name, core_id, "try-to-prefetches", &stats.try_to_prefetches);   //try-to-prefetches = prefetches + try_to_prefetches_already_in_cache
    registerStatsMetric(name, core_id, "try-to-prefetches-already-in-cache", &stats.try_to_prefetches_already_in_cache);
    registerStatsMetric(name, core_id, "pointer-loads", &stats.pointer_loads);
+   registerStatsMetric(name, core_id, "prefetch-in-same-page", &stats.prefetch_in_same_page);
    registerStatsMetric(name, core_id, "pointer-load-misses", &stats.pointer_load_misses);
    for(CacheState::cstate_t state = CacheState::CSTATE_FIRST; state < CacheState::NUM_CSTATE_STATES; state = CacheState::cstate_t(int(state)+1)) {
       registerStatsMetric(name, core_id, String("loads-")+CStateString(state), &stats.loads_state[state]);
@@ -368,6 +371,7 @@ LOG_ASSERT_ERROR(offset + data_length <= getCacheBlockSize(), "access until %u >
 
    SubsecondTime t_start = getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD);
 
+   current_access_address = ca_address + offset;
    CacheBlockInfo *cache_block_info;
    bool cache_hit = operationPermissibleinCache(ca_address, mem_op_type, &cache_block_info), prefetch_hit = false;
 
@@ -600,7 +604,8 @@ MYLOG("access done");
 
    if(prefetcher_name == "linked")
    {
-       prefetch_start_time = t_now;
+       //prefetch_start_time = t_now + PREFETCH_INTERVAL + TLB_delay + CT_delay + EXE2COMMIT_delay;
+       prefetch_start_time = t_now + PREFETCH_INTERVAL + SubsecondTime::NS(4);
    }
    else if(prefetcher_name == "tlbfree")
    {
@@ -773,11 +778,15 @@ CacheCntlr::Prefetch(SubsecondTime t_now)
           }
       }
    }
-   atomic_add_subsecondtime(m_master->m_prefetch_next, PREFETCH_INTERVAL);
+   //atomic_add_subsecondtime(m_master->m_prefetch_next, PREFETCH_INTERVAL);
    std::vector<IntPtr>::iterator k = address_to_prefetch.begin();
    while ( k!= address_to_prefetch.end() )
    {
        doPrefetch(*k, m_master->m_prefetch_next);
+       if((*k & PAGE_MASK) == (current_access_address & PAGE_MASK))
+       {
+           ++stats.prefetch_in_same_page;
+       }
        atomic_add_subsecondtime(m_master->m_prefetch_next, PREFETCH_INTERVAL);
        k=address_to_prefetch.erase(k);
    }
@@ -798,7 +807,9 @@ CacheCntlr::doPrefetch(IntPtr prefetch_address, SubsecondTime t_start)
 
    IntPtr prefetch_offset = (prefetch_address % m_cache_block_size);
    if (prefetch_address % m_cache_block_size)
+   {
        prefetch_address = prefetch_address-prefetch_offset;
+   }
    HitWhere::where_t hit_where = processShmemReqFromPrevCache(this, Core::READ, prefetch_address, prefetch_offset, true, true, Prefetch::OWN, t_start, false, NULL);
 
    if (hit_where == HitWhere::MISS)
@@ -2187,7 +2198,7 @@ void
 CacheCntlr::cleanupMshr()
 {
    /* Keep only last 8 MSHR entries */
-   while(m_master->mshr.size() > 8) {
+   while(m_master->mshr.size() > 32) {
       IntPtr address_min = 0;
       SubsecondTime time_min = SubsecondTime::MaxTime();
       for(Mshr::iterator it = m_master->mshr.begin(); it != m_master->mshr.end(); ++it) {

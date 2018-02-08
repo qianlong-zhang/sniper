@@ -217,6 +217,7 @@ namespace ParametricDramDirectoryMSI
          bool m_coherent;
          bool m_prefetch_on_prefetch_hit;
          bool m_l1_mshr;
+         IntPtr current_access_address;       //just used to count
          SubsecondTime prefetch_start_time;
          SubsecondTime temp_total_latency; /* just used to record current access's total_latency,
                                             * and pass to trainPrefetcher to update
@@ -226,7 +227,7 @@ namespace ParametricDramDirectoryMSI
            UInt64 loads, stores;
            UInt64 load_misses, store_misses;
            UInt64 pointer_loads, pointer_load_misses;
-           UInt64 try_to_prefetches, try_to_prefetches_already_in_cache;
+           UInt64 try_to_prefetches, try_to_prefetches_already_in_cache, prefetch_in_same_page;
            UInt64 load_overlapping_misses, store_overlapping_misses;
            UInt64 loads_state[CacheState::NUM_CSTATE_STATES], stores_state[CacheState::NUM_CSTATE_STATES];
            UInt64 loads_where[HitWhere::NUM_HITWHERES], stores_where[HitWhere::NUM_HITWHERES];

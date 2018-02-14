@@ -8,9 +8,24 @@
 
 const IntPtr PAGE_SIZE = 4096;
 const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
-//#define DEBUG
 //#define INFINITE_CT
 //#define INFINITE_PPW
+#if 0
+   extern Lock iolock;
+#  include "core_manager.h"
+#  include "simulator.h"
+#  define LOCKED(...) { ScopedLock sl(iolock); fflush(stderr); __VA_ARGS__; fflush(stderr); }
+#  define LOGID() fprintf(stderr, "[    ] %2u%c  %-25s@%3u: ", \
+                    Sim()->getCoreManager()->getCurrentCoreID(), \
+                    Sim()->getCoreManager()->amiUserThread() ? '^' : '_', \
+                     __FUNCTION__, __LINE__ \
+                  );
+#  define MYLOG(...) LOCKED(LOGID(); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n");)
+#  define DUMPDATA(data_buf, data_length) { for(UInt32 i = 0; i < data_length; ++i) fprintf(stderr, "%02x ", data_buf[i]); }
+
+#else
+#  define MYLOG(...) {}
+#endif
 
 TLBFreePrefetcher::TLBFreePrefetcher(String configName, core_id_t _core_id, UInt32 _shared_cores)
    : core_id(_core_id)
@@ -66,9 +81,6 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
     if (dynins!=0 && dynins->num_target_reg != 0)
     {
         IntPtr CN = dynins->eip;
-#ifdef DEBUG
-        //cout<<"In func: "<<__func__<<" line "<<dec<<__LINE__<<" dynins = "<<hex<<dynins<<"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"<<endl;
-#endif
         //only deal with memory read, whose target reg is not empty
 
         //String inst_template = dynins->instruction->getDisassembly();
@@ -81,13 +93,11 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
         //std::unordered_map<IntPtr, IntPtr>   &prq = prefetch_request_queue.at(flows_per_core ? _core_id - core_id : 0);
         //Cache*                               &pb = prefetch_buffer.at(flows_per_core ? _core_id - core_id : 0);
 
-#ifdef DEBUG
-        cout<<endl;
-        cout<<endl;
-        cout<<"In function: "<<__func__<<" current_address is  "<<hex<<current_address;
-        cout<<" After add offset: "<<" current_address is  "<<hex<<current_address+offset<<endl;
-        cout<<" diss is: "<<itostr( dynins->instruction->getDisassembly()).c_str()<<" eip is: "<<hex<<dynins->eip<<endl;
-#endif
+        MYLOG(" ");
+        MYLOG(" ");
+        MYLOG("In function: %s,  current_address is: 0x%lx" ,__func__, current_address);
+        MYLOG("After add offset: current_address is: 0x%lx", current_address+offset);
+        MYLOG("diss is: %s, eip is: 0x%lx", itostr( dynins->instruction->getDisassembly()).c_str(), dynins->eip);
 
         std::string inst_temp = dynins->instruction->getDisassembly().c_str();
 
@@ -114,19 +124,13 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
 
                 if(index3!=string::npos)
                     inst_offset=-inst_offset;
-#ifdef DEBUG
-                //cout<<temp_index<<endl;
-                cout<<sub_str<<endl;
-                cout<<dec<<inst_offset<<endl;
-#endif
-
+                MYLOG("sub_str: %s", itostr(sub_str).c_str());
+                MYLOG("inst_offset: %d", inst_offset);
             }
         }
 
-#ifdef DEBUG
-        cout<<"The real base reg is: "<<hex<<current_address+offset-inst_offset<<endl;
-        cout<<"STEP 1:  find producer in PPW";
-#endif
+        MYLOG("The real base reg is: 0x%lx", current_address+offset-inst_offset);
+        MYLOG("STEP 1:  find producer in PPW");
         //step 1: find producer in PPW, the base address is the whole address(current_address+offset) - inst_offset
         for (std::map<IntPtr, uint64_t>::iterator it = ppw.begin(); it!=ppw.end(); it++)
         {
@@ -136,43 +140,31 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
                 //assert(ppw_found==false);
                 ppw_found=true;
                 //record in temp_ppw to get the current inst's producer, which is the nearest one smaller then current one
-#ifdef DEBUG
-                cout<<" Found in PPW"<<endl;
-                //cout<<"Inserting temp_ppw PC is: "<<it->first<<" TargetValue is:"<<it->second<<endl;
-#endif
+                MYLOG(" Found in PPW");
                 temp_ppw.insert(std::make_pair(it->first, it->second));
             }
         }
 
         //step 2 put PR/CN/TMPL into CT, hit in PPW
-#ifdef DEBUG
-        cout<<"STEP 2:  if hit in PPW, update CT"<<endl;
-#endif
+        MYLOG("STEP 2:  if hit in PPW, update CT");
         if( ppw_found == true )
         {
             if (pointer_loads)
                 (*pointer_loads)++;
-#ifdef DEBUG
-            cout<<"temp_ppw size is "<<temp_ppw.size()<<endl;
+            MYLOG("temp_ppw size is %ld", temp_ppw.size());
             for (std::map<IntPtr, uint64_t>::iterator it = temp_ppw.begin(); it!=temp_ppw.end(); it++)
             {
-                cout<<"In temp_ppw PC is: "<<it->first<<" TargetValue is:"<<it->second<<endl;
+                MYLOG("In temp_ppw PC is: 0x%lx,  TargetValue is: 0x%lx", it->first, it->second);
             }
-#endif
 
             // find the nearest one as the PR, and the PR should smaller than current inst
             // the smaller one has higher priority, find the first smaller one from the end
             for (std::map<IntPtr, uint64_t>::reverse_iterator rit = temp_ppw.rbegin(); rit!=temp_ppw.rend(); rit++)
             {
-#ifdef DEBUG
-                cout<<"In temp_ppw PC is: "<<hex<<rit->first<<" rit->second is "<<rit->second<<endl;
-#endif
                 if (rit->first <= dynins->eip)
                 {
                     PR = rit->first;
-#ifdef DEBUG
-                    cout<<"For inst: "<<dynins->eip<<" Producer is: "<<hex<<PR<<" TargetValue is:"<<rit->second<<endl;
-#endif
+                    MYLOG("For inst: 0x%lx  Producer is: 0x%lx TargetValue is: 0x%lx", dynins->eip, PR, rit->second);
                     break;
                 }
             }
@@ -181,15 +173,11 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
             {
                 for (std::map<IntPtr, uint64_t>::iterator it = temp_ppw.begin(); it!=temp_ppw.end(); it++)
                 {
-#ifdef DEBUG
-                    cout<<"In temp_ppw PC is: "<<hex<<it->first<<" it->second is "<<it->second<<endl;
-#endif
+                    MYLOG("In temp_ppw PC is:0x%lx  it->second is:0x%lx ", it->first, it->second);
                     if (it->first > dynins->eip)
                     {
                         PR = it->first;
-#ifdef DEBUG
-                        cout<<"For inst: "<<dynins->eip<<" Producer is: "<<hex<<PR<<" TargetValue is:"<<it->second<<endl;
-#endif
+                        MYLOG("For inst: 0x%lx,  Producer is: 0x%lx, TargetValue is: 0x%lx", dynins->eip, PR, it->second);
                         break;
                     }
                 }
@@ -198,22 +186,20 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
 
             temp_ct.SetCT(PR, CN, inst_temp);
 #ifndef INFINITE_CT
-           if (ct.size()>=correlation_table_size)
-           {
-               ct.pop_back();
-           }
+           while (ct.size()>=correlation_table_size)
+            {
+               vector<correlation_entry>::iterator k=ct.begin();
+               ct.erase(k);
+            }
 #endif
 
 
             for (std::vector<correlation_entry>::iterator iter1=ct.begin(); iter1!=ct.end(); iter1++)
             {
-                //cout<<"Before insert In CT Producer is: "<<hex<<iter1->GetProducerPC()<<" ConsumerPC is "<<iter1->GetConsumerPC()<<" template is: "<<iter1->GetDisass()<<endl;
                 if((iter1->GetProducerPC() == PR)&&(iter1->GetConsumerPC() == CN))
                 {
                     already_in_ct = true;
-#ifdef DEBUG
-                    cout<<"In ct already have one PR is: "<<hex<<PR<<" CN is "<<hex<< CN <<endl;
-#endif
+                    MYLOG("In ct already have one PR is: 0x%lx, CN is 0x%lx", PR, CN);
                 }
             }
             if (!already_in_ct &&
@@ -222,28 +208,22 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
             {
                 ct.push_back(temp_ct);
             }
-#ifdef DEBUG
-            cout<<"After insert in ct:"<<endl;
+            MYLOG("After insert in ct:");
             //print ct
             for (std::vector<correlation_entry>::iterator iter=ct.begin(); iter!=ct.end(); iter++)
             {
-                cout<<"In CT Producer is: "<<hex<<iter->GetProducerPC()<<" ConsumerPC is "<<iter->GetConsumerPC()<<" template is: "<<iter->GetDisass()<<endl;
+                MYLOG("In CT Producer is:0x%lx ConsumerPC is: 0x%lx  template is:0x%s", iter->GetProducerPC(), iter->GetConsumerPC(), itostr(iter->GetDisass()).c_str());
             }
-#endif
         }
 
         //step 3, insert to ppw
-#ifdef DEBUG
-        cout<<"STEP 3:  update PPW"<<endl;
-#endif
+        MYLOG("STEP 3:  update PPW");
         for (std::map<IntPtr, uint64_t>::iterator it_ppw = ppw.begin(); it_ppw!=ppw.end(); it_ppw++)
         {
             if (( it_ppw->first == dynins->eip) && (it_ppw->second == dynins->target_reg[dynins->num_target_reg-1]))
             {
                 already_in_ppw = true;
-#ifdef DEBUG
-                cout<<"In ppw already have one "<<hex<<dynins->eip<<" target reg is "<<hex<<dynins->target_reg[dynins->num_target_reg-1] <<endl;
-#endif
+                MYLOG("In ppw already have one eip: 0x%lx  target reg is:0x%lx ", dynins->eip, dynins->target_reg[dynins->num_target_reg-1] );
             }
         }
         if (!already_in_ppw)
@@ -254,9 +234,7 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
                 std::map<IntPtr, uint64_t>::iterator it_delete = ppw.end();
                 it_delete--;
                 //TODO: ppw replacement algorithm should be updated
-#ifdef DEBUG
-                cout<<"PPW is full, erasing: "<<it_delete->first<<endl;;
-#endif
+                MYLOG("PPW is full, erasing: 0x%lx", it_delete->first);;
                 ppw.erase(it_delete);
             }
 #endif
@@ -266,9 +244,7 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
             if(dynins->target_reg[dynins->num_target_reg-1] > 0xfffff) /* if target reg is small than 0xfffff, not an base address for others, throw it*/
             {
                 //the most right reg is the target reg loaded from memory
-#ifdef DEBUG
-                cout<<"Inserting to ppw: "<<hex<<dynins->eip<<" target reg is "<<hex<<dynins->target_reg[dynins->num_target_reg-1] <<endl;
-#endif
+                MYLOG("Inserting to ppw eip: 0x%lx,   target reg is 0x%lx", dynins->eip,dynins->target_reg[dynins->num_target_reg-1] );
                 pair<std::map<IntPtr, uint64_t>::iterator, bool> ppw_return=ppw.insert(std::make_pair(dynins->eip, dynins->target_reg[dynins->num_target_reg-1]));
                 //if current ip already in the PPW, ppw_return = false and update it.
                 if(ppw_return.second == false)
@@ -276,26 +252,16 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
                     ppw.erase(dynins->eip);
                     ppw.insert(std::make_pair(dynins->eip, dynins->target_reg[dynins->num_target_reg-1]));
                 }
-#ifdef DEBUG
                 for (std::map<IntPtr, uint64_t>::iterator it_ppw = ppw.begin(); it_ppw!=ppw.end(); it_ppw++)
                 {
-                    cout<<"After insert in ppw, PC: "<<hex<<it_ppw->first<<" target reg is "<<hex<<it_ppw->second<<endl;
+                    MYLOG("After insert in ppw, PC: 0x%lx target reg is 0x%lx", it_ppw->first,it_ppw->second);
                 }
-#endif
             }
         }
 
         //step 4, lookup CT to get the next prefetch address
         //PC as producer to get potential consumer
-#ifdef DEBUG
-        cout<<"STEP 4:  get the prefetch address from CT"<<endl;
-        //cout<<"Current CT is: "<<endl;
-        ////print ct
-        //for (std::vector<correlation_entry>::iterator iter=ct.begin(); iter!=ct.end(); iter++)
-        //{
-        //    cout<<"In CT Producer is: "<<hex<<iter->GetProducerPC()<<" ConsumerPC is "<<iter->GetConsumerPC()<<" template is: "<<iter->GetDisass()<<endl;
-        //}
-#endif
+        MYLOG("STEP 4:  get the prefetch address from CT");
         std::vector<IntPtr> addresses;
 
         //for (uint32_t k=0; k<correlation_table_size; k++)
@@ -304,9 +270,7 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
             //To get the offset for every comsumer inst, used to compute the prefetch address
             if (iter->GetProducerPC() == dynins->eip)
             {
-#ifdef DEBUG
-                cout<<"Found prefetch address for 0x"<<hex<<dynins->eip<<endl;
-#endif
+                MYLOG("Found prefetch address for 0x%lx", dynins->eip);
                 std::string inst_temp1 = iter->GetDisass();
                 // compute the offset of load instruction to compute the next prefetch address
                 string::size_type index4 = inst_temp1.find_first_of("]", 0);
@@ -327,10 +291,8 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
                         std::string sub_str = inst_temp1.substr(temp_index1+1, index4 - temp_index1-1);
                         stringstream offset(sub_str);
                         offset>>hex>>inst_offset_cn;
-#ifdef DEBUG
-                        cout<<sub_str<<endl;
-                        cout<<dec<<inst_offset<<endl;
-#endif
+                        MYLOG("sub_str: %s", itostr(sub_str).c_str());
+                        MYLOG("inst_offset: %d", inst_offset);
 
                         if(index6!=string::npos)
                             inst_offset_cn=-inst_offset_cn;
@@ -338,9 +300,7 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
                     }
                 }
 
-#ifdef DEBUG
-                cout<<" inst_offset_cn 0x"<<hex<<inst_offset_cn<<endl;
-#endif
+                MYLOG(" inst_offset_cn 0x%x", inst_offset_cn);
                 //get consumer PC, may be multiple
                 IntPtr prefetch_address = dynins->target_reg[dynins->num_target_reg-1] + inst_offset_cn;
                 bool address_found = false;
@@ -349,9 +309,6 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
                 {
                     if (prefetch_address > 0xfffff && !only_count_lds)
                     {
-                        #ifdef DEBUG
-                        //cout<<"For PC "<<hex<<dynins->eip<<" current access address is "<<current_address + offset<<" Prefetch address  is "<<hex<<prefetch_address<<endl;
-                        #endif
                         // when to use my idea, we must send the actual offset of the cache block to cache,
                         // not only the cache block address, cause we need the actual data to determine the next address
                         //if (prefetch_address % cache_block_size)
@@ -368,13 +325,13 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
                             if (!address_found)
                             {
                                 addresses.push_back(prefetch_address);
-#ifdef DEBUG
-                                cout<<"for address: "<<current_address + offset<<" address push_back is "<<hex<<prefetch_address<<" After align: "<<prefetch_address-(prefetch_address % cache_block_size)<<endl;
-#endif
+                                MYLOG("producer is: 0x%lx,  consumer is: 0x%lx ,for eip:0x%lx address push_back is 0x%lx After align:0x%lx ",
+                                        dynins->eip,
+                                        iter->GetConsumerPC(),
+                                        current_address + offset,
+                                        prefetch_address, prefetch_address-(prefetch_address % cache_block_size));
                             }
-#ifdef DEBUG
-                            cout<<"After align to cache block size,current address is "<<hex<<current_address + offset<<" real Prefetch address  is "<<prefetch_address<<endl;
-#endif
+                            MYLOG("After align to cache block size,current address is 0x%lx real Prefetch address  is 0x%lx", current_address + offset, prefetch_address);
                         }
                     }
                 }

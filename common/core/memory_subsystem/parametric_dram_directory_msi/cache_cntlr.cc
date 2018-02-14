@@ -20,7 +20,7 @@ const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
 //#define PRIVATE_L2_OPTIMIZATION
 
 Lock iolock;
-#if 0
+#if 1
 #  define LOCKED(...) { ScopedLock sl(iolock); fflush(stderr); __VA_ARGS__; fflush(stderr); }
 #  define LOGID() fprintf(stderr, "[%s] %2u%c [ %2d(%2d)-L%u%c ] %-25s@%3u: ", \
                      itostr(getShmemPerfModel()->getElapsedTime(Sim()->getCoreManager()->amiUserThread() ? ShmemPerfModel::_USER_THREAD : ShmemPerfModel::_SIM_THREAD)).c_str(), Sim()->getCoreManager()->getCurrentCoreID(), \
@@ -563,6 +563,17 @@ MYLOG("processMemOpFromCore l%d after next fill", m_mem_component);
 
    accessCache(mem_op_type, ca_address, offset, data_buf, data_length, hit_where == HitWhere::where_t(m_mem_component) && count);
 MYLOG("access done");
+if(MemComponent::L1_DCACHE==m_mem_component && (ca_address+offset))
+{
+    MYLOG("Dumping data for address 0x%lx: ", (ca_address+offset));
+    DUMPDATA(reinterpret_cast<Byte *>(ca_address+offset), data_length);
+    IntPtr next_address = 0;
+    for(int32_t j = data_length-1; j >= 0; --j)
+    {
+        next_address = (next_address << 8) | reinterpret_cast<Byte *>(ca_address+offset)[j];
+    }
+    MYLOG("next_address is :0x%lx", next_address);
+}
 
 
    SubsecondTime t_now = getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD);

@@ -78,7 +78,7 @@ class LinkedPrefetcher : public Prefetcher
 {
    public:
       LinkedPrefetcher(String configName, core_id_t core_id, UInt32 shared_cores);
-      virtual std::vector<IntPtr> getNextAddress(IntPtr current_address, UInt32 offset, core_id_t core_id, DynamicInstruction *dynins, UInt64 *pointer_loads);
+      virtual std::vector<IntPtr> getNextAddress(IntPtr current_address, UInt32 offset, core_id_t core_id, DynamicInstruction *dynins, UInt64 *pointer_loads, IntPtr target_reg);
 
    private:
       const core_id_t core_id;

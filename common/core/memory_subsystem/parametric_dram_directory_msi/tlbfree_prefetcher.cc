@@ -69,7 +69,7 @@ TLBFreePrefetcher::TLBFreePrefetcher(String configName, core_id_t _core_id, UInt
 }
 
 std::vector<IntPtr>
-TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_t _core_id, DynamicInstruction *dynins, UInt64 *pointer_loads)
+TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_t _core_id, DynamicInstruction *dynins, UInt64 *pointer_loads,IntPtr target_reg)
 {
     int32_t ppw_found=false;
     //bool ct_found=false;
@@ -78,7 +78,7 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
     bool already_in_ct = false;
 
     //if dynins = 0, that means, this memory access is send by doPrefetch(), so we not prefetch for them again
-    if (dynins!=0 && dynins->num_target_reg != 0)
+    if (dynins!=0 && target_reg != 0)
     {
         IntPtr CN = dynins->eip;
         //only deal with memory read, whose target reg is not empty
@@ -220,10 +220,10 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
         MYLOG("STEP 3:  update PPW");
         for (std::map<IntPtr, uint64_t>::iterator it_ppw = ppw.begin(); it_ppw!=ppw.end(); it_ppw++)
         {
-            if (( it_ppw->first == dynins->eip) && (it_ppw->second == dynins->target_reg[dynins->num_target_reg-1]))
+            if (( it_ppw->first == dynins->eip) && (it_ppw->second == target_reg))
             {
                 already_in_ppw = true;
-                MYLOG("In ppw already have one eip: 0x%lx  target reg is:0x%lx ", dynins->eip, dynins->target_reg[dynins->num_target_reg-1] );
+                MYLOG("In ppw already have one eip: 0x%lx  target reg is:0x%lx ", dynins->eip, target_reg );
             }
         }
         if (!already_in_ppw)
@@ -241,16 +241,16 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
             //if( dynins->instruction->getDisassembly().find("push") == string::npos &&
             //        dynins->instruction->getDisassembly().find("pop") == string::npos &&
             //        dynins->target_reg[dynins->num_target_reg-1] > 0xfffff) /* if target reg is small than 0xfffff, not an base address for others, throw it*/
-            if(dynins->target_reg[dynins->num_target_reg-1] > 0xfffff) /* if target reg is small than 0xfffff, not an base address for others, throw it*/
+            if(target_reg> 0xfffff) /* if target reg is small than 0xfffff, not an base address for others, throw it*/
             {
                 //the most right reg is the target reg loaded from memory
-                MYLOG("Inserting to ppw eip: 0x%lx,   target reg is 0x%lx", dynins->eip,dynins->target_reg[dynins->num_target_reg-1] );
-                pair<std::map<IntPtr, uint64_t>::iterator, bool> ppw_return=ppw.insert(std::make_pair(dynins->eip, dynins->target_reg[dynins->num_target_reg-1]));
+                MYLOG("Inserting to ppw eip: 0x%lx,   target reg is 0x%lx", dynins->eip,target_reg);
+                pair<std::map<IntPtr, uint64_t>::iterator, bool> ppw_return=ppw.insert(std::make_pair(dynins->eip, target_reg));
                 //if current ip already in the PPW, ppw_return = false and update it.
                 if(ppw_return.second == false)
                 {
                     ppw.erase(dynins->eip);
-                    ppw.insert(std::make_pair(dynins->eip, dynins->target_reg[dynins->num_target_reg-1]));
+                    ppw.insert(std::make_pair(dynins->eip, target_reg));
                 }
                 for (std::map<IntPtr, uint64_t>::iterator it_ppw = ppw.begin(); it_ppw!=ppw.end(); it_ppw++)
                 {
@@ -302,7 +302,7 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
 
                 MYLOG(" inst_offset_cn 0x%x", inst_offset_cn);
                 //get consumer PC, may be multiple
-                IntPtr prefetch_address = dynins->target_reg[dynins->num_target_reg-1] + inst_offset_cn;
+                IntPtr prefetch_address = target_reg + inst_offset_cn;
                 bool address_found = false;
                 // But stay within the page if requested
                 if ((!stop_at_page || ((prefetch_address & PAGE_MASK) == (current_address & PAGE_MASK))) && addresses.size() < num_prefetches)

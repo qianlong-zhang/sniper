@@ -304,7 +304,7 @@ namespace ParametricDramDirectoryMSI
                IntPtr address, Core::mem_op_t mem_op_type, CacheBlockInfo **cache_block_info = NULL);
 
          void copyDataFromNextLevel(Core::mem_op_t mem_op_type, IntPtr address, bool modeled, SubsecondTime t_start);
-         void trainPrefetcher(IntPtr address, UInt32 offset, bool cache_hit, bool prefetch_hit, SubsecondTime t_issue, DynamicInstruction *dynins);
+         void trainPrefetcher(IntPtr address, UInt32 offset, bool cache_hit, bool prefetch_hit, SubsecondTime t_issue, DynamicInstruction *dynins, IntPtr target_reg);
          void Prefetch(SubsecondTime t_start);
          void doPrefetch(IntPtr prefetch_address, SubsecondTime t_start);
 

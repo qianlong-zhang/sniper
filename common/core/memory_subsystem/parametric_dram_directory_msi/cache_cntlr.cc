@@ -372,6 +372,7 @@ LOG_ASSERT_ERROR(offset + data_length <= getCacheBlockSize(), "access until %u >
    SubsecondTime t_start = getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD);
 
    current_access_address = ca_address + offset;
+   IntPtr target_reg = 0;
    CacheBlockInfo *cache_block_info;
    bool cache_hit = operationPermissibleinCache(ca_address, mem_op_type, &cache_block_info), prefetch_hit = false;
 
@@ -563,16 +564,16 @@ MYLOG("processMemOpFromCore l%d after next fill", m_mem_component);
 
    accessCache(mem_op_type, ca_address, offset, data_buf, data_length, hit_where == HitWhere::where_t(m_mem_component) && count);
 MYLOG("access done");
+
 if(MemComponent::L1_DCACHE==m_mem_component && (ca_address+offset))
 {
     MYLOG("Dumping data for address 0x%lx: ", (ca_address+offset));
     DUMPDATA(reinterpret_cast<Byte *>(ca_address+offset), data_length);
-    IntPtr next_address = 0;
     for(int32_t j = data_length-1; j >= 0; --j)
     {
-        next_address = (next_address << 8) | reinterpret_cast<Byte *>(ca_address+offset)[j];
+        target_reg = (target_reg << 8) | reinterpret_cast<Byte *>(ca_address+offset)[j];
     }
-    MYLOG("next_address is :0x%lx", next_address);
+    MYLOG("target_reg is :0x%lx", target_reg);
 }
 
 
@@ -625,7 +626,7 @@ if(MemComponent::L1_DCACHE==m_mem_component && (ca_address+offset))
 
    if (modeled && m_master->m_prefetcher)
    {
-      trainPrefetcher(ca_address, offset, cache_hit, prefetch_hit, prefetch_start_time, dynins);
+      trainPrefetcher(ca_address, offset, cache_hit, prefetch_hit, prefetch_start_time, dynins, target_reg);
    }
 
    // Call Prefetch on next-level caches (but not for atomic instructions as that causes a locking mess)
@@ -698,13 +699,13 @@ MYLOG("copyDataFromNextLevel l%d", m_mem_component);
 
 
 void
-CacheCntlr::trainPrefetcher(IntPtr address,UInt32 offset, bool cache_hit, bool prefetch_hit, SubsecondTime t_issue, DynamicInstruction *dynins)
+CacheCntlr::trainPrefetcher(IntPtr address,UInt32 offset, bool cache_hit, bool prefetch_hit, SubsecondTime t_issue, DynamicInstruction *dynins, IntPtr target_reg)
 {
    ScopedLock sl(getLock());
 
    UInt64 pointer_loads_count = stats.pointer_loads;
    // Always train the prefetcher
-   std::vector<IntPtr> prefetchList = m_master->m_prefetcher->getNextAddress(address,offset, m_core_id, dynins, &stats.pointer_loads);
+   std::vector<IntPtr> prefetchList = m_master->m_prefetcher->getNextAddress(address,offset, m_core_id, dynins, &stats.pointer_loads, target_reg);
    // if not equal, then the stats.pointer_loads is added in the getNextAddress() function
    //  which means that address is pointer_loads, combile with cache_hit in the para,
    //  then we can infer if this address hit/miss/pointer_loads/not_pointer_loads
@@ -870,6 +871,7 @@ CacheCntlr::processShmemReqFromPrevCache(CacheCntlr* requester,
 
    bool cache_hit = operationPermissibleinCache(address, mem_op_type), sibling_hit = false, prefetch_hit = false;
    bool first_hit = cache_hit;
+   IntPtr target_reg = 0;
    HitWhere::where_t hit_where = HitWhere::MISS;
    SharedCacheBlockInfo* cache_block_info = getCacheBlockInfo(address);
 
@@ -1114,7 +1116,7 @@ CacheCntlr::processShmemReqFromPrevCache(CacheCntlr* requester,
    //  where L1D maybe train itself by calling this function
    if (modeled && m_master->m_prefetcher && (isPrefetch == Prefetch::NONE))
    {
-       trainPrefetcher(address, offset, cache_hit, prefetch_hit, t_issue, dynins);
+       trainPrefetcher(address, offset, cache_hit, prefetch_hit, t_issue, dynins, target_reg);
    }
 
    #ifdef PRIVATE_L2_OPTIMIZATION

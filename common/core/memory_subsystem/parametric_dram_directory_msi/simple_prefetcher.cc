@@ -25,7 +25,7 @@ SimplePrefetcher::SimplePrefetcher(String configName, core_id_t _core_id, UInt32
 }
 
 std::vector<IntPtr>
-SimplePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_t _core_id, DynamicInstruction *dynins, UInt64 *pointer_loads)
+SimplePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_t _core_id, DynamicInstruction *dynins, UInt64 *pointer_loads, IntPtr target_reg)
 {
    std::vector<IntPtr> &prev_address = m_prev_address.at(flows_per_core ? _core_id - core_id : 0);
 

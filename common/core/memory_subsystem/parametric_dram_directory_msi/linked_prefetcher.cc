@@ -10,7 +10,7 @@ const IntPtr PAGE_SIZE = 4096;
 const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
 //#define INFINITE_CT
 //#define INFINITE_PPW
-#if 1
+#if 0
    extern Lock iolock;
 #  include "core_manager.h"
 #  include "simulator.h"
@@ -78,7 +78,7 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
     bool already_in_ct = false;
 
     //if dynins = 0, that means, this memory access is send by doPrefetch(), so we not prefetch for them again
-    if (dynins!=0 && target_reg != 0)
+    if (dynins!=0 && target_reg != 0 && !dynins->memory_info[0].dir)
     {
         IntPtr CN = dynins->eip;
         //only deal with memory read, whose target reg is not empty
@@ -89,7 +89,7 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
         std::map<IntPtr, uint64_t>   &ppw = potential_producer_window.at(flows_per_core ? _core_id - core_id : 0);
         std::map<IntPtr, uint64_t> temp_ppw;
         std::vector <correlation_entry>      &ct = correlation_table.at(flows_per_core ? _core_id - core_id : 0);
-        correlation_entry temp_ct(0,0,"");
+        correlation_entry temp_ct(0,0,"",0);
         //std::unordered_map<IntPtr, IntPtr>   &prq = prefetch_request_queue.at(flows_per_core ? _core_id - core_id : 0);
         //Cache*                               &pb = prefetch_buffer.at(flows_per_core ? _core_id - core_id : 0);
 
@@ -184,7 +184,7 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
             }
             temp_ppw.clear();
 
-            temp_ct.SetCT(PR, CN, inst_temp);
+            temp_ct.SetCT(PR, CN, inst_temp, dynins->memory_info[0].size);
 #ifndef INFINITE_CT
            while (ct.size()>=correlation_table_size)
             {
@@ -218,6 +218,16 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
 
         //step 3, insert to ppw
         MYLOG("STEP 3:  update PPW");
+#ifndef INFINITE_PPW
+        if(ppw.size() >= potential_producer_window_size)
+        {
+            std::map<IntPtr, uint64_t>::iterator it_delete = ppw.begin();
+            //it_delete--;
+            //TODO: ppw replacement algorithm should be updated
+            MYLOG("PPW is full, erasing: 0x%lx", it_delete->first);;
+            ppw.erase(it_delete);
+        }
+#endif
         for (std::map<IntPtr, uint64_t>::iterator it_ppw = ppw.begin(); it_ppw!=ppw.end(); it_ppw++)
         {
             if (( it_ppw->first == dynins->eip) && (it_ppw->second == target_reg))
@@ -228,20 +238,10 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
         }
         if (!already_in_ppw)
         {
-#ifndef INFINITE_PPW
-            if(ppw.size() >= potential_producer_window_size)
-            {
-                std::map<IntPtr, uint64_t>::iterator it_delete = ppw.end();
-                it_delete--;
-                //TODO: ppw replacement algorithm should be updated
-                MYLOG("PPW is full, erasing: 0x%lx", it_delete->first);;
-                ppw.erase(it_delete);
-            }
-#endif
-            if(target_reg > 0xfffff) /* if target reg is small than 0xfffff, not an base address for others, throw it*/
+            if(target_reg> 0xfffff) /* if target reg is small than 0xfffff, not an base address for others, throw it*/
             {
                 //the most right reg is the target reg loaded from memory
-                MYLOG("Inserting to ppw eip: 0x%lx,   target reg is 0x%lx", dynins->eip,target_reg );
+                MYLOG("Inserting to ppw eip: 0x%lx,   target reg is 0x%lx", dynins->eip,target_reg);
                 pair<std::map<IntPtr, uint64_t>::iterator, bool> ppw_return=ppw.insert(std::make_pair(dynins->eip, target_reg));
                 //if current ip already in the PPW, ppw_return = false and update it.
                 if(ppw_return.second == false)
@@ -249,11 +249,12 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
                     ppw.erase(dynins->eip);
                     ppw.insert(std::make_pair(dynins->eip, target_reg));
                 }
-                for (std::map<IntPtr, uint64_t>::iterator it_ppw = ppw.begin(); it_ppw!=ppw.end(); it_ppw++)
-                {
-                    MYLOG("After insert in ppw, PC: 0x%lx target reg is 0x%lx", it_ppw->first,it_ppw->second);
-                }
             }
+        }
+        for (std::map<IntPtr, uint64_t>::iterator it_ppw = ppw.begin(); it_ppw!=ppw.end(); it_ppw++)
+        {
+            //                   MYLOG("After insert in ppw, PC: 0x%lx target reg is 0x%lx", it_ppw->first,it_ppw->second);
+            MYLOG("After insert in ppw, PC: 0x%lx", it_ppw->first);
         }
 
         //step 4, lookup CT to get the next prefetch address
@@ -333,6 +334,11 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
                     }
                 }
             }
+        }
+        //print addresses
+        for(std::vector<IntPtr>::iterator it = addresses.begin(); it != addresses.end(); ++it)
+        {
+            MYLOG("After push back in prefetch address: 0x%lx", *it);
         }
         return addresses;
     }

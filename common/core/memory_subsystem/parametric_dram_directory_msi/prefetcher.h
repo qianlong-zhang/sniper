@@ -8,24 +8,32 @@
 class correlation_entry {
     private:
         uint64_t ProducerPC;
+
         uint64_t ConsumerPC;
-        std::string disass;
+        std::string ConsumerDisass;
+        UInt32 ConsumerDataSize; //TODO:this shouold be producer's datasize
+        int32_t ConsumerOffset;
     public:
-        correlation_entry(uint64_t pr, uint64_t cn, std::string dis)
+        std::vector <correlation_entry> DepList;
+        correlation_entry(uint64_t pr, uint64_t cn, std::string dis, UInt32 size)
         {
             ProducerPC = pr;
             ConsumerPC = cn;
-            disass = dis;
+            ConsumerDisass = dis;
+            ConsumerDataSize = size;
         }
         ~correlation_entry()
         {
         }
 
-        void SetCT(uint64_t Producer, uint64_t Consumer, std::string dis)
+        void SetCT(uint64_t Producer, uint64_t Consumer, std::string dis, UInt32 size)
         {
             ProducerPC = Producer;
+
             ConsumerPC = Consumer;
-            disass = dis;
+            ConsumerDisass = dis;
+            ConsumerDataSize = size;
+            ConsumerOffset = 0;
         }
         uint64_t GetProducerPC()
         {
@@ -37,10 +45,78 @@ class correlation_entry {
         }
         std::string GetDisass()
         {
-            return disass;
+            return ConsumerDisass;
+        }
+        UInt32 GetDataSize()
+        {
+            return ConsumerDataSize;
+        }
+        int32_t  GetConsumerOffset()
+        {
+            return ConsumerOffset;
+        }
+
+
+        void SetConsumerOffset(uint32_t off)
+        {
+            ConsumerOffset = off;
         }
 };
 
+class potential_producer_entry{
+    private:
+        IntPtr ProducerPC;
+        IntPtr TargetValue;
+        UInt32 DataSize; //Producer data size
+    public:
+        potential_producer_entry(IntPtr pc, IntPtr target_reg, UInt32 size)
+        {
+            ProducerPC = pc;
+            TargetValue = target_reg;
+            DataSize=size;
+        }
+        ~potential_producer_entry()
+        {
+        }
+
+        IntPtr GetProducerPC() const
+        {
+            return ProducerPC;
+        }
+        uint64_t GetTargetValue()
+        {
+            return TargetValue;
+        }
+        UInt32 GetDataSize()
+        {
+            return DataSize;
+        }
+};
+#if 0
+class prefetch_entry{
+    private:
+        UInt32 offset;
+        UInt32 data_size; //consumer data size
+    public:
+        prefetch_entry(UInt32 off, UInt32 size)
+        {
+            offset = off;
+            data_size = size;
+        }
+        ~prefetch_entry()
+        {
+        }
+
+        UInt32 GetOffset()
+        {
+            return offset;
+        }
+        UInt32 GetDataSize()
+        {
+            return data_size;
+        }
+};
+#endif
 
 class Prefetcher
 {

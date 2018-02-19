@@ -204,7 +204,7 @@ DramCache::callPrefetcher(IntPtr train_address, bool cache_hit, bool prefetch_hi
 {
    // Always train the prefetcher
    //std::vector<IntPtr> prefetchList = m_prefetcher->getNextAddress(train_address, INVALID_CORE_ID);
-   std::vector<IntPtr> prefetchList = m_prefetcher->getNextAddress(train_address, 0 ,INVALID_CORE_ID, NULL, NULL);
+   std::vector<IntPtr> prefetchList = m_prefetcher->getNextAddress(train_address, 0 ,INVALID_CORE_ID, NULL, NULL, 0);
 
    // Only do prefetches on misses, or on hits to lines previously brought in by the prefetcher (if enabled)
    if (!cache_hit || (m_prefetch_on_prefetch_hit && prefetch_hit))

@@ -13,7 +13,8 @@
 #include <cstring>
 #include <iostream>
 using namespace std;
-const IntPtr PAGE_SIZE = 4096;
+//const IntPtr PAGE_SIZE = 4096;
+const IntPtr PAGE_SIZE = 2*1024*1024;
 const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
 // Define to allow private L2 caches not to take the stack lock.
 // Works in most cases, but seems to have some more bugs or race conditions, preventing it from being ready for prime time.

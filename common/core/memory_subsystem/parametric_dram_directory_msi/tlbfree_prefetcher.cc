@@ -7,7 +7,8 @@
 
 #include <cstdlib>
 
-const IntPtr PAGE_SIZE = 4096;
+//const IntPtr PAGE_SIZE = 4096;
+const IntPtr PAGE_SIZE = 2*1024*1024;
 const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
 //#define INFINITE_CT
 //#define INFINITE_PPW
@@ -153,7 +154,7 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
     int32_t inst_offset= DisassGetOffset(dynins->instruction->getDisassembly().c_str());
 
     //dynins=0 means memory access is send by doPrefetch(), so we not prefetch for them again
-    //dir=0 means write
+    //dir=0 means read
     if (dynins!=0 && target_reg != 0 && !dynins->memory_info[0].dir)
     {
         IntPtr CN = dynins->eip;
@@ -283,8 +284,8 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
             MYLOG("After insert in ct:");
             for (std::vector<correlation_entry>::iterator iter=ct.begin(); iter!=ct.end(); iter++)
             {
-                //MYLOG("In CT Producer is:0x%lx ConsumerPC is: 0x%lx  template is:%s, consumer offset:%d, data size is %d", iter->GetProducerPC(), iter->GetConsumerPC(), itostr(iter->GetDisass()).c_str(),  iter->GetConsumerOffset(), iter->GetDataSize());
-                MYLOG("In CT Producer is:0x%lx ConsumerPC is: 0x%lx  template is:%s", iter->GetProducerPC(), iter->GetConsumerPC(), itostr(iter->GetDisass()).c_str());
+                MYLOG("In CT Producer is:0x%lx ConsumerPC is: 0x%lx  template is:%s, consumer offset:%d, data size is %d", iter->GetProducerPC(), iter->GetConsumerPC(), itostr(iter->GetDisass()).c_str(),  iter->GetConsumerOffset(), iter->GetDataSize());
+                //MYLOG("In CT Producer is:0x%lx ConsumerPC is: 0x%lx  template is:%s", iter->GetProducerPC(), iter->GetConsumerPC(), itostr(iter->GetDisass()).c_str());
                 if(iter->DepList.size())
                 {
                     for (std::vector<correlation_entry>::iterator iter3=iter->DepList.begin(); iter3!=iter->DepList.end(); iter3++)
@@ -337,8 +338,8 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
         //print ppw
         for (std::vector<potential_producer_entry>::iterator it_ppw = ppw.begin(); it_ppw!=ppw.end(); it_ppw++)
         {
-            //MYLOG("After insert in ppw, PC: 0x%lx target reg is 0x%lx", it_ppw->GetProducerPC(),it_ppw->GetTargetValue());
-            MYLOG("After insert in ppw, PC: 0x%lx", it_ppw->GetProducerPC());
+            MYLOG("After insert in ppw, PC: 0x%lx target reg is 0x%lx", it_ppw->GetProducerPC(),it_ppw->GetTargetValue());
+            //MYLOG("After insert in ppw, PC: 0x%lx", it_ppw->GetProducerPC());
         }
         already_in_ppw=false;
 
@@ -363,12 +364,7 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
                 MYLOG("target_reg is 0x%lx, temp_temp_target_reg is 0x%lx, num_memory is %d, first memory address is 0x%lx, size is%d, GetDataSize() is %d", target_reg, temp_temp_target_reg, dynins->num_memory, dynins->memory_info[0].addr, dynins->memory_info[0].size, iter->GetDataSize());
             }
         }
-        //print addresses
-        for(std::vector<IntPtr>::iterator it = addresses.begin(); it != addresses.end(); ++it)
-        {
-            MYLOG("After push back in prefetch address: 0x%lx", *it);
-        }
-#if 0
+#if 1
         /****************************************/
         /****************************************/
         /****************************************/
@@ -412,6 +408,15 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
             }
         }
 #endif
+        //cout<<endl;
+        //cout<<endl;
+        //cout<<"IP: "<<hex<<dynins->eip<<endl;
+        //print addresses
+        for(std::vector<IntPtr>::iterator it = addresses.begin(); it != addresses.end(); ++it)
+        {
+            MYLOG("After push back in prefetch address: 0x%lx", *it);
+            //cout<<"After push back in prefetch address: 0x"<<hex<<*it<<endl;
+        }
         return addresses;
     }
     std::vector<IntPtr> empty_addresses;

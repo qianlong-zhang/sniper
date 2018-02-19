@@ -78,7 +78,8 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
     bool already_in_ct = false;
 
     //if dynins = 0, that means, this memory access is send by doPrefetch(), so we not prefetch for them again
-    if (dynins!=0 && target_reg != 0 && !dynins->memory_info[0].dir)
+    //if (dynins!=0 && target_reg != 0 && !dynins->memory_info[0].dir)
+    if (dynins!=0 && target_reg != 0)
     {
         IntPtr CN = dynins->eip;
         //only deal with memory read, whose target reg is not empty
@@ -221,8 +222,8 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
 #ifndef INFINITE_PPW
         if(ppw.size() >= potential_producer_window_size)
         {
-            std::map<IntPtr, uint64_t>::iterator it_delete = ppw.begin();
-            //it_delete--;
+            std::map<IntPtr, uint64_t>::iterator it_delete = ppw.end();
+            it_delete--;
             //TODO: ppw replacement algorithm should be updated
             MYLOG("PPW is full, erasing: 0x%lx", it_delete->first);;
             ppw.erase(it_delete);

@@ -69,7 +69,7 @@ LinkedPrefetcher::LinkedPrefetcher(String configName, core_id_t _core_id, UInt32
 }
 
 std::vector<IntPtr>
-LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_t _core_id, DynamicInstruction *dynins, UInt64 *pointer_loads, IntPtr target_reg)
+LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_t _core_id, DynamicInstruction *dynins, UInt64 *pointer_loads,UInt64* pointer_stores, IntPtr target_reg)
 {
     int32_t ppw_found=false;
     //bool ct_found=false;
@@ -78,8 +78,8 @@ LinkedPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_
     bool already_in_ct = false;
 
     //if dynins = 0, that means, this memory access is send by doPrefetch(), so we not prefetch for them again
-    //if (dynins!=0 && target_reg != 0 && !dynins->memory_info[0].dir)
-    if (dynins!=0 && target_reg != 0)
+    if (dynins!=0 && target_reg != 0 && !dynins->memory_info[0].dir)
+    //if (dynins!=0 && target_reg != 0)
     {
         IntPtr CN = dynins->eip;
         //only deal with memory read, whose target reg is not empty

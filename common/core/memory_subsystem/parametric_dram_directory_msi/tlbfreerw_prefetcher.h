@@ -1,5 +1,5 @@
-#ifndef __TLBFREE_PREFETCHER_H
-#define __TLBFREE_PREFETCHER_H
+#ifndef __TLBFREERW_PREFETCHER_H
+#define __TLBFREERW_PREFETCHER_H
 
 #include "prefetcher.h"
 #include <unordered_map>
@@ -9,10 +9,10 @@
 
 using namespace std;
 
-class TLBFreePrefetcher : public Prefetcher
+class TLBFreerwPrefetcher : public Prefetcher
 {
    public:
-      TLBFreePrefetcher(String configName, core_id_t core_id, UInt32 shared_cores);
+      TLBFreerwPrefetcher(String configName, core_id_t core_id, UInt32 shared_cores);
       virtual std::vector<IntPtr> getNextAddress(IntPtr current_address, UInt32 offset, core_id_t core_id, DynamicInstruction *dynins, UInt64 *pointer_loads, UInt64* pointer_stores, IntPtr target_reg);
       int32_t DisassGetOffset(std::string inst_disass);
       void PushInPrefetchList(IntPtr current_address, IntPtr prefetch_address, std::vector<IntPtr> *prefetch_list, UInt32 max_prefetches);
@@ -53,4 +53,4 @@ class TLBFreePrefetcher : public Prefetcher
 
 };
 
-#endif // __TLBFREE_PREFETCHER_H
+#endif // __TLBFREERW_PREFETCHER_H

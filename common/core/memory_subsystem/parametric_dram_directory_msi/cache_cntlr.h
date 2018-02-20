@@ -226,7 +226,7 @@ namespace ParametricDramDirectoryMSI
          struct {
            UInt64 loads, stores;
            UInt64 load_misses, store_misses;
-           UInt64 pointer_loads, pointer_load_misses;
+           UInt64 pointer_loads, pointer_stores, pointer_load_misses, pointer_store_misses;
            UInt64 try_to_prefetches, try_to_prefetches_already_in_cache, prefetch_in_same_page;
            UInt64 load_overlapping_misses, store_overlapping_misses;
            UInt64 loads_state[CacheState::NUM_CSTATE_STATES], stores_state[CacheState::NUM_CSTATE_STATES];
@@ -248,6 +248,7 @@ namespace ParametricDramDirectoryMSI
            SubsecondTime qbs_query_latency;
            SubsecondTime mshr_latency;
            SubsecondTime pointer_loads_latency;
+           SubsecondTime pointer_stores_latency;
            UInt64 prefetches;
            UInt64 coherency_downgrades, coherency_upgrades, coherency_invalidates, coherency_writebacks;
            #ifdef ENABLE_TRANSITIONS

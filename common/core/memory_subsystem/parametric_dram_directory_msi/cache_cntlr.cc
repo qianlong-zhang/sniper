@@ -236,12 +236,15 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
    registerStatsMetric(name, core_id, "qbs-query-latency", &stats.qbs_query_latency);
    registerStatsMetric(name, core_id, "mshr-latency", &stats.mshr_latency);
    registerStatsMetric(name, core_id, "pointer-loads-latency", &stats.pointer_loads_latency);
+   registerStatsMetric(name, core_id, "pointer-stores-latency", &stats.pointer_stores_latency);
    registerStatsMetric(name, core_id, "prefetches", &stats.prefetches);
    registerStatsMetric(name, core_id, "try-to-prefetches", &stats.try_to_prefetches);   //try-to-prefetches = prefetches + try_to_prefetches_already_in_cache
    registerStatsMetric(name, core_id, "try-to-prefetches-already-in-cache", &stats.try_to_prefetches_already_in_cache);
    registerStatsMetric(name, core_id, "pointer-loads", &stats.pointer_loads);
+   registerStatsMetric(name, core_id, "pointer-stores", &stats.pointer_stores);
    registerStatsMetric(name, core_id, "prefetch-in-same-page", &stats.prefetch_in_same_page);
    registerStatsMetric(name, core_id, "pointer-load-misses", &stats.pointer_load_misses);
+   registerStatsMetric(name, core_id, "pointer-store-misses", &stats.pointer_store_misses);
    for(CacheState::cstate_t state = CacheState::CSTATE_FIRST; state < CacheState::NUM_CSTATE_STATES; state = CacheState::cstate_t(int(state)+1)) {
       registerStatsMetric(name, core_id, String("loads-")+CStateString(state), &stats.loads_state[state]);
       registerStatsMetric(name, core_id, String("stores-")+CStateString(state), &stats.stores_state[state]);
@@ -622,8 +625,7 @@ if(MemComponent::L1_DCACHE==m_mem_component && (ca_address+offset))
    }
    else if(prefetcher_name == "tlbfree")
    {
-       //prefetch_start_time = t_start;
-       prefetch_start_time = t_now + PREFETCH_INTERVAL + SubsecondTime::NS(4);
+       prefetch_start_time = t_start;
    }
 
    if (modeled && m_master->m_prefetcher)
@@ -706,8 +708,9 @@ CacheCntlr::trainPrefetcher(IntPtr address,UInt32 offset, bool cache_hit, bool p
    ScopedLock sl(getLock());
 
    UInt64 pointer_loads_count = stats.pointer_loads;
+   UInt64 pointer_stores_count = stats.pointer_stores;
    // Always train the prefetcher
-   std::vector<IntPtr> prefetchList = m_master->m_prefetcher->getNextAddress(address,offset, m_core_id, dynins, &stats.pointer_loads, target_reg);
+   std::vector<IntPtr> prefetchList = m_master->m_prefetcher->getNextAddress(address,offset, m_core_id, dynins, &stats.pointer_loads, &stats.pointer_stores, target_reg);
    // if not equal, then the stats.pointer_loads is added in the getNextAddress() function
    //  which means that address is pointer_loads, combile with cache_hit in the para,
    //  then we can infer if this address hit/miss/pointer_loads/not_pointer_loads
@@ -718,6 +721,16 @@ CacheCntlr::trainPrefetcher(IntPtr address,UInt32 offset, bool cache_hit, bool p
            stats.pointer_load_misses++;
            MYLOG("pointer load miss address: 0x%lx, IP: 0x%lx", address+offset, dynins->eip);
            stats.pointer_loads_latency += temp_total_latency;
+           temp_total_latency = SubsecondTime::Zero();
+       }
+   }
+   if (pointer_stores_count != stats.pointer_stores)
+   {
+       if(!cache_hit)
+       {
+           stats.pointer_store_misses++;
+           MYLOG("pointer store miss address: 0x%lx, IP: 0x%lx", address+offset, dynins->eip);
+           stats.pointer_stores_latency += temp_total_latency;
            temp_total_latency = SubsecondTime::Zero();
        }
    }

@@ -1,4 +1,4 @@
-#include "tlbfree_prefetcher.h"
+#include "tlbfreerw_prefetcher.h"
 #include "simulator.h"
 #include "config.hpp"
 #include "instruction.h"
@@ -30,16 +30,16 @@ const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
 #  define MYLOG(...) {}
 #endif
 
-TLBFreePrefetcher::TLBFreePrefetcher(String configName, core_id_t _core_id, UInt32 _shared_cores)
+TLBFreerwPrefetcher::TLBFreerwPrefetcher(String configName, core_id_t _core_id, UInt32 _shared_cores)
    : core_id(_core_id)
    , shared_cores(_shared_cores)
-   , n_flows(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfree/flows", core_id))
-   , flows_per_core(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/tlbfree/flows_per_core", core_id))
-   , num_prefetches(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfree/num_prefetches", core_id))
-   , num_flattern_prefetches(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfree/num_flattern_prefetches", core_id))
-   , stop_at_page(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/tlbfree/stop_at_page_boundary", core_id))
+   , n_flows(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfreerw/flows", core_id))
+   , flows_per_core(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/tlbfreerw/flows_per_core", core_id))
+   , num_prefetches(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfreerw/num_prefetches", core_id))
+   , num_flattern_prefetches(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfreerw/num_flattern_prefetches", core_id))
+   , stop_at_page(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/tlbfreerw/stop_at_page_boundary", core_id))
    , cache_block_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/cache_block_size", core_id))
-   , only_count_lds(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/tlbfree/only_count_lds", core_id))
+   , only_count_lds(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/tlbfreerw/only_count_lds", core_id))
    , n_flow_next(0)
    , m_prev_address(flows_per_core ? shared_cores : 1)
    , potential_producer_window(flows_per_core ? shared_cores : 1)
@@ -47,11 +47,11 @@ TLBFreePrefetcher::TLBFreePrefetcher(String configName, core_id_t _core_id, UInt
    , correlation_table(flows_per_core ? shared_cores : 1)
    , prefetch_request_queue(flows_per_core ? shared_cores : 1)
    , prefetch_buffer(flows_per_core ? shared_cores : 1)
-   , potential_producer_window_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfree/potential_producer_window_size", core_id))  /*those param are only used to limit the size of the queue.*/
-   , correlation_table_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfree/correlation_table_size", core_id))
-   , correlation_table_dep_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfree/correlation_table_dep_size", core_id))
-   , prefetch_request_queue_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfree/prefetch_request_queue_size", core_id))
-   , prefetch_buffer_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfree/prefetch_buffer_size", core_id))
+   , potential_producer_window_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfreerw/potential_producer_window_size", core_id))  /*those param are only used to limit the size of the queue.*/
+   , correlation_table_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfreerw/correlation_table_size", core_id))
+   , correlation_table_dep_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfreerw/correlation_table_dep_size", core_id))
+   , prefetch_request_queue_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfreerw/prefetch_request_queue_size", core_id))
+   , prefetch_buffer_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfreerw/prefetch_buffer_size", core_id))
 {
    for(UInt32 idx = 0; idx < (flows_per_core ? shared_cores : 1); ++idx)
    	{
@@ -74,7 +74,7 @@ TLBFreePrefetcher::TLBFreePrefetcher(String configName, core_id_t _core_id, UInt
    	}
 }
 
-void TLBFreePrefetcher::PushInPrefetchList(IntPtr current_address, IntPtr prefetch_address, std::vector<IntPtr> *prefetch_list, UInt32 max_prefetches)
+void TLBFreerwPrefetcher::PushInPrefetchList(IntPtr current_address, IntPtr prefetch_address, std::vector<IntPtr> *prefetch_list, UInt32 max_prefetches)
 {
     bool address_found =false;
     if ((!stop_at_page || ((prefetch_address & PAGE_MASK) == (current_address & PAGE_MASK))) && (*prefetch_list).size() < max_prefetches)
@@ -108,7 +108,7 @@ void TLBFreePrefetcher::PushInPrefetchList(IntPtr current_address, IntPtr prefet
     }
 }
 
-int32_t TLBFreePrefetcher::DisassGetOffset(std::string inst_disass)
+int32_t TLBFreerwPrefetcher::DisassGetOffset(std::string inst_disass)
 {
 
     std::string inst_temp = inst_disass;
@@ -144,7 +144,7 @@ int32_t TLBFreePrefetcher::DisassGetOffset(std::string inst_disass)
 }
 
 std::vector<IntPtr>
-TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_t _core_id, DynamicInstruction *dynins, UInt64 *pointer_loads, UInt64* pointer_stores, IntPtr target_reg)
+TLBFreerwPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_t _core_id, DynamicInstruction *dynins, UInt64 *pointer_loads, UInt64* pointer_stores, IntPtr target_reg)
 {
     int32_t ppw_found=false;
 	IntPtr PR = 0;
@@ -155,8 +155,8 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
 
     //dynins=0 means memory access is send by doPrefetch(), so we not prefetch for them again
     //dir=0 means read
-    if (dynins!=0 && target_reg != 0 && !dynins->memory_info[0].dir)
-    //if (dynins!=0 && target_reg != 0 )
+    //if (dynins!=0 && target_reg != 0 && !dynins->memory_info[0].dir)
+    if (dynins!=0 && target_reg != 0 )
     {
         IntPtr CN = dynins->eip;
         UInt32 data_size = 0;
@@ -203,8 +203,10 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
         MYLOG("STEP 2:  if hit in PPW, update CT");
         if( ppw_found == true )
         {
-            if (pointer_loads)
+            if (pointer_loads &&!dynins->memory_info[0].dir )
                 (*pointer_loads)++;
+            if (pointer_stores &&dynins->memory_info[0].dir )
+                (*pointer_stores)++;
 
             temp_ct.SetCT(PR, CN, dynins->instruction->getDisassembly().c_str(), data_size);
             temp_ct.SetConsumerOffset(inst_offset);

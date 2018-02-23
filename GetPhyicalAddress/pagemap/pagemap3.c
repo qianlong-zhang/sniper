@@ -5,6 +5,8 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/types.h>
+#include <unistd.h>
+#include <string.h>
 #define PAGE_SIZE 0x1000
 
 #define FIND_LIB_NAME
@@ -22,9 +24,22 @@ static void print_page(unsigned long address, unsigned long data,
         (data >> 63) & 1,
         lib_name);
 }
+static void write_page(unsigned long address, unsigned long data,
+        const char *lib_name, FILE* fd ) {
+
+    fprintf(fd, "0x%-16lx : pfn %-16lx soft-dirty %ld file/shared %ld "
+        "swapped %ld present %ld library %s\n",
+        address,
+        data & 0x7fffffffffffff,
+        (data >> 55) & 1,
+        (data >> 61) & 1,
+        (data >> 62) & 1,
+        (data >> 63) & 1,
+        lib_name);
+}
 
 void handle_virtual_range(int pagemap, unsigned long start_address,
-    unsigned long end_address, const char *lib_name) {
+    unsigned long end_address, const char *lib_name, FILE* fd) {
 
     for(unsigned long i = start_address; i < end_address; i += 0x1000) {
         unsigned long data;
@@ -34,18 +49,23 @@ void handle_virtual_range(int pagemap, unsigned long start_address,
             break;
         }
 
-        print_page(i, data, lib_name);
+        //print_page(i, data, lib_name);
+        write_page(i, data, lib_name, fd);
     }
 }
 
-void parse_maps(const char *maps_file, const char *pagemap_file) {
+int parse_maps(const char *maps_file, const char *pagemap_file, FILE* fd) {
     int maps = open(maps_file, O_RDONLY);
-    if(maps < 0) return;
+    if(maps < 0)
+    {
+        printf(" pid not exist!\n");
+        return -1;
+    }
 
     int pagemap = open(pagemap_file, O_RDONLY);
     if(pagemap < 0) {
         close(maps);
-        return;
+        return -1;
     }
 
     char buffer[BUFSIZ];
@@ -57,9 +77,11 @@ void parse_maps(const char *maps_file, const char *pagemap_file) {
 
         length += offset;
 
-        for(size_t i = offset; i < (size_t)length; i ++) {
+        for(size_t i = offset; i < (size_t)length; i ++)
+        {
             unsigned long low = 0, high = 0;
-            if(buffer[i] == '\n' && i) {
+            if(buffer[i] == '\n' && i)
+            {
                 size_t x = i - 1;
                 while(x && buffer[x] != '\n') x --;
                 if(buffer[x] == '\n') x ++;
@@ -107,7 +129,7 @@ void parse_maps(const char *maps_file, const char *pagemap_file) {
                 lib_name = buffer + x;
 #endif
 
-                handle_virtual_range(pagemap, low, high, lib_name);
+                handle_virtual_range(pagemap, low, high, lib_name, fd);
 
 #ifdef FIND_LIB_NAME
                 buffer[y] = '\n';
@@ -118,6 +140,7 @@ void parse_maps(const char *maps_file, const char *pagemap_file) {
 
     close(maps);
     close(pagemap);
+    return 0;
 }
 
 
@@ -129,12 +152,24 @@ void process_pid(pid_t pid) {
     snprintf(pagemap_file, sizeof(pagemap_file),
         "/proc/%lu/pagemap", (unsigned long)pid);
 
-    parse_maps(maps_file, pagemap_file);
+    int i=0;
+    unsigned long count=0;
+    char *  filename=NULL;
+    int temp=1;
+    while(temp)
+    {
+        filename=strcat((char*)pid, (char*)count);
+        FILE* fd=fopen(filename, "a+");
+        temp=parse_maps(maps_file, pagemap_file, fd);
+        count++;
+        sleep(1000);
+        break;
+    }
 }
 
 int main(int argc, char *argv[]) {
     if(argc < 2) {
-        printf("Usage: %s pid1 [pid2...]\n", argv[0]);
+        printf("Usage: %s pid\n", argv[0]);
         return 1;
     }
 

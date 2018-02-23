@@ -8,8 +8,8 @@
 #define PAGE_SIZE 0x1000
 
 static void print_page(unsigned long address, unsigned long data) {
-    printf("0x%-16lx : pfn %-16lx soft-dirty %d file/shared %d "
-        "swapped %d present %d\n",
+    printf("0x%-16lx : pfn %-16lx soft-dirty %ld file/shared %ld "
+        "swapped %ld present %ld\n",
         address,
         data & 0x7fffffffffffff,
         (data >> 55) & 1,

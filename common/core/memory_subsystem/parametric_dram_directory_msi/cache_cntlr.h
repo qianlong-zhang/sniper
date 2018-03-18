@@ -97,6 +97,7 @@ namespace ParametricDramDirectoryMSI
          UInt32 outstanding_misses;
 
 
+
          CacheParameters()
             : data_access_time(NULL,0)
             , tags_access_time(NULL,0)
@@ -301,12 +302,10 @@ namespace ParametricDramDirectoryMSI
                Core::mem_op_t mem_op_type,
                IntPtr ca_address, UInt32 offset,
                Byte* data_buf, UInt32 data_length, bool update_replacement);
-         bool operationPermissibleinCache(
-               IntPtr address, Core::mem_op_t mem_op_type, CacheBlockInfo **cache_block_info = NULL);
 
          void copyDataFromNextLevel(Core::mem_op_t mem_op_type, IntPtr address, bool modeled, SubsecondTime t_start);
          void trainPrefetcher(IntPtr address, UInt32 offset, bool cache_hit, bool prefetch_hit, SubsecondTime t_issue, DynamicInstruction *dynins, IntPtr target_reg);
-         void Prefetch(SubsecondTime t_start);
+         void Prefetch(SubsecondTime t_start, Core::mem_op_t mem_op_type);
          void doPrefetch(IntPtr prefetch_address, SubsecondTime t_start);
 
          // Cache meta-data operations
@@ -421,10 +420,18 @@ namespace ParametricDramDirectoryMSI
          bool isShared(core_id_t core_id); //< Return true if core shares this cache
 
          bool isInLowerLevelCache(CacheBlockInfo *block_info);
+         bool operationPermissibleinCache(
+               IntPtr address, Core::mem_op_t mem_op_type, CacheBlockInfo **cache_block_info = NULL);
          void incrementQBSLookupCost();
 
          void enable() { m_master->m_cache->enable(); }
          void disable() { m_master->m_cache->disable(); }
+         void SetPerfect(){
+             m_perfect=1;
+         }
+         void ClearPerfect(){
+             m_perfect=0;
+         }
 
          friend class CacheCntlrList;
          friend class MemoryManager;

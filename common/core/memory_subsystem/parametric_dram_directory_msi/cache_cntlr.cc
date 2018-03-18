@@ -14,7 +14,7 @@
 #include <iostream>
 using namespace std;
 //const IntPtr PAGE_SIZE = 4096;
-const IntPtr PAGE_SIZE = 2*1024*1024;
+const IntPtr PAGE_SIZE = 1024*1024*1024;
 const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
 // Define to allow private L2 caches not to take the stack lock.
 // Works in most cases, but seems to have some more bugs or race conditions, preventing it from being ready for prime time.
@@ -186,7 +186,7 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
             Sim()->getFaultinjectionManager()
                ? Sim()->getFaultinjectionManager()->getFaultInjector(m_core_id_master, mem_component)
                : NULL);
-      m_master->m_prefetcher = Prefetcher::createPrefetcher(cache_params.prefetcher, cache_params.configName, m_core_id, m_shared_cores);
+      m_master->m_prefetcher = Prefetcher::createPrefetcher(cache_params.prefetcher, cache_params.configName, m_core_id, m_shared_cores, this);
       prefetcher_name = cache_params.prefetcher;
       //MYLOG("For %s creating prefetcher: %s", itostr(cache_params.configName).c_str(), itostr(cache_params.prefetcher).c_str());
 
@@ -618,14 +618,14 @@ if(MemComponent::L1_DCACHE==m_mem_component && (ca_address+offset))
    }
 
 
-   if(prefetcher_name == "linked")
+   if(prefetcher_name == "linked" || prefetcher_name == "linkednew")
    {
        //prefetch_start_time = t_now + PREFETCH_INTERVAL + TLB_delay + CT_delay + EXE2COMMIT_delay;
        prefetch_start_time = t_now + PREFETCH_INTERVAL + SubsecondTime::NS(4);
    }
-   else if(prefetcher_name == "tlbfree")
+   else if(prefetcher_name == "tlbfree" ||prefetcher_name == "tlbfreerw")
    {
-       prefetch_start_time = t_start;
+      prefetch_start_time = t_start + PREFETCH_INTERVAL;
    }
 
    if (modeled && m_master->m_prefetcher)
@@ -636,7 +636,7 @@ if(MemComponent::L1_DCACHE==m_mem_component && (ca_address+offset))
    // Call Prefetch on next-level caches (but not for atomic instructions as that causes a locking mess)
    if (lock_signal != Core::LOCK && modeled)
    {
-      Prefetch(prefetch_start_time);
+      Prefetch(prefetch_start_time, mem_op_type);
    }
 
    if (Sim()->getConfig()->getCacheEfficiencyCallbacks().notify_access_func)
@@ -778,7 +778,7 @@ CacheCntlr::trainPrefetcher(IntPtr address,UInt32 offset, bool cache_hit, bool p
 }
 
 void
-CacheCntlr::Prefetch(SubsecondTime t_now)
+CacheCntlr::Prefetch(SubsecondTime t_now, Core::mem_op_t mem_op_type)
 {
    std::vector<IntPtr> address_to_prefetch;
 
@@ -806,21 +806,66 @@ CacheCntlr::Prefetch(SubsecondTime t_now)
       }
    }
    //atomic_add_subsecondtime(m_master->m_prefetch_next, PREFETCH_INTERVAL);
-   std::vector<IntPtr>::iterator k = address_to_prefetch.begin();
-   while ( k!= address_to_prefetch.end() )
+   if(prefetcher_name == "linked" || prefetcher_name == "linkednew")
    {
-       doPrefetch(*k, m_master->m_prefetch_next);
-       if((*k & PAGE_MASK) == (current_access_address & PAGE_MASK))
+       //prefetch_start_time = t_now + PREFETCH_INTERVAL + TLB_delay + CT_delay + EXE2COMMIT_delay;
+       //prefetch_start_time = t_now + PREFETCH_INTERVAL + SubsecondTime::NS(4);
+       std::vector<IntPtr>::iterator k = address_to_prefetch.begin();
+       while ( k!= address_to_prefetch.end() )
        {
-           ++stats.prefetch_in_same_page;
+           doPrefetch(*k, m_master->m_prefetch_next);
+           if((*k & PAGE_MASK) == (current_access_address & PAGE_MASK))
+           {
+               ++stats.prefetch_in_same_page;
+           }
+           atomic_add_subsecondtime(m_master->m_prefetch_next, PREFETCH_INTERVAL);
+           k=address_to_prefetch.erase(k);
        }
-       atomic_add_subsecondtime(m_master->m_prefetch_next, PREFETCH_INTERVAL);
-       k=address_to_prefetch.erase(k);
    }
+   else if((MemComponent::L1_DCACHE==m_mem_component) && (prefetcher_name == "tlbfree" ||prefetcher_name == "tlbfreerw"))
+   {
+       std::vector<IntPtr>::iterator k = address_to_prefetch.begin();
+       while ( k!= address_to_prefetch.end() )
+       {
+           //SetPerfect();
+           doPrefetch(*k, m_master->m_prefetch_next);
+           //ClearPerfect();
+           if((*k & PAGE_MASK) == (current_access_address & PAGE_MASK))
+           {
+               ++stats.prefetch_in_same_page;
+           }
+           atomic_add_subsecondtime(m_master->m_prefetch_next, PREFETCH_INTERVAL);
+           k=address_to_prefetch.erase(k);
+       }
+
+   }
+   //else if((MemComponent::L1_DCACHE==m_mem_component) && (prefetcher_name == "tlbfree" ||prefetcher_name == "tlbfreerw"))
+   //{
+   //    bool cache_hit=0;
+   //    if(address_to_prefetch.size()>0)
+   //    {
+   //        std::vector<IntPtr>::iterator k = address_to_prefetch.begin();
+   //        cache_hit = operationPermissibleinCache(*k, mem_op_type);
+   //        MYLOG("geting info for 0x%lx", *k);
+   //        SharedCacheBlockInfo* cache_block_info = getCacheBlockInfo(*k);
+   //        while ( k!= address_to_prefetch.end() )
+   //        {
+   //            if(!cache_hit)
+   //            {
+   //                if (cache_block_info)
+   //                    cache_block_info->setCState(CacheState::MODIFIED);
+   //                else
+   //                    cache_block_info = insertCacheBlock(*k, mem_op_type == Core::READ ? CacheState::SHARED : CacheState::MODIFIED, NULL, m_core_id, ShmemPerfModel::_USER_THREAD);
+   //            }
+   //            k=address_to_prefetch.erase(k);
+   //        }
+   //    }
+   //}
+
 
    // In case the next-level cache has a prefetcher, run it
    if (m_next_cache_cntlr)
-      m_next_cache_cntlr->Prefetch(t_now);
+      m_next_cache_cntlr->Prefetch(t_now, mem_op_type);
 }
 
 void

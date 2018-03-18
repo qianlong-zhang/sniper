@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-GhbPrefetcher::GhbPrefetcher(String configName, core_id_t core_id)
+GhbPrefetcher::GhbPrefetcher(String configName, core_id_t core_id, void * cache_cntlr)
    : m_prefetchWidth(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/ghb/width", core_id))
    , m_prefetchDepth(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/ghb/depth", core_id))
    , m_lastAddress(INVALID_ADDRESS)

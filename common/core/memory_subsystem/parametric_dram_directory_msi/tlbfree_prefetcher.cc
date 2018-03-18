@@ -5,10 +5,9 @@
 #include <string>
 #include <algorithm>
 
-#include <cstdlib>
 
 //const IntPtr PAGE_SIZE = 4096;
-const IntPtr PAGE_SIZE = 2*1024*1024;
+const IntPtr PAGE_SIZE = 1024*1024*1024;
 const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
 //#define INFINITE_CT
 //#define INFINITE_PPW
@@ -30,7 +29,16 @@ const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
 #  define MYLOG(...) {}
 #endif
 
-TLBFreePrefetcher::TLBFreePrefetcher(String configName, core_id_t _core_id, UInt32 _shared_cores)
+static jmp_buf env;
+static void
+SegFaultHandler(int sig)
+{
+    MYLOG("Segment fault occure! %d\n", sig);
+    siglongjmp(env,1);
+}
+
+
+TLBFreePrefetcher::TLBFreePrefetcher(String configName, core_id_t _core_id, UInt32 _shared_cores, void * cache_cntlr)
    : core_id(_core_id)
    , shared_cores(_shared_cores)
    , n_flows(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/tlbfree/flows", core_id))
@@ -41,6 +49,7 @@ TLBFreePrefetcher::TLBFreePrefetcher(String configName, core_id_t _core_id, UInt
    , cache_block_size(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/cache_block_size", core_id))
    , only_count_lds(Sim()->getCfg()->getBoolArray("perf_model/" + configName + "/prefetcher/tlbfree/only_count_lds", core_id))
    , n_flow_next(0)
+   , prefetch_flag(0)
    , m_prev_address(flows_per_core ? shared_cores : 1)
    , potential_producer_window(flows_per_core ? shared_cores : 1)
    , tlbfree_ppw(flows_per_core ? shared_cores : 1)
@@ -56,28 +65,25 @@ TLBFreePrefetcher::TLBFreePrefetcher(String configName, core_id_t _core_id, UInt
    for(UInt32 idx = 0; idx < (flows_per_core ? shared_cores : 1); ++idx)
    	{
       m_prev_address.at(idx).resize(n_flows);
-
-#if 0
-    /* For tlbfree prefetcher, create PPW/CT/PRQ/PB */
-      prefetch_buffer.at(_core_id) = new Cache(configName,
-                    configName,
-                    _core_id,
-                    1,/* set */
-                    prefetch_buffer_size,/* associativity */
-                    64,
-                    "lru",
-                    CacheBase::PR_L1_CACHE,
-                    CacheBase::parseAddressHash("mask"),
-                    NULL);
-
-#endif
    	}
+    prev_cache_cntlr =  static_cast<ParametricDramDirectoryMSI::CacheCntlr *>(cache_cntlr);
 }
 
 void TLBFreePrefetcher::PushInPrefetchList(IntPtr current_address, IntPtr prefetch_address, std::vector<IntPtr> *prefetch_list, UInt32 max_prefetches)
 {
     bool address_found =false;
-    if ((!stop_at_page || ((prefetch_address & PAGE_MASK) == (current_address & PAGE_MASK))) && (*prefetch_list).size() < max_prefetches)
+    //if it's the first time to push back, no need to see the stop_at_page, else see the stop_at_page;
+    bool stop_at_page_flag = 0;
+    if(prefetch_flag == 0)
+    {
+        stop_at_page_flag = 0;
+    }
+    if(prefetch_flag >0)
+    {
+        stop_at_page_flag = stop_at_page;
+    }
+
+    if ((!stop_at_page_flag || ((prefetch_address & PAGE_MASK) == (current_address & PAGE_MASK))) && (*prefetch_list).size() < max_prefetches)
     {
         if (prefetch_address > 0x400000 && !only_count_lds && prefetch_address<0x800000000000)
         {
@@ -96,11 +102,15 @@ void TLBFreePrefetcher::PushInPrefetchList(IntPtr current_address, IntPtr prefet
                 }
                 if (!address_found)
                 {
-                    (*prefetch_list).push_back(prefetch_address);
-                    //MYLOG("Pushing back  current_address :0x%lx address push_back is 0x%lx After align:0x%lx ",
-                    //        current_address ,
-                    //        prefetch_address,
-                    //        prefetch_address-(prefetch_address % cache_block_size));
+                    if(prev_cache_cntlr && !prev_cache_cntlr->operationPermissibleinCache(prefetch_address, Core::READ))
+                    {
+                        (*prefetch_list).push_back(prefetch_address);
+                        //MYLOG("Pushing back  current_address :0x%lx address push_back is 0x%lx After align:0x%lx ",
+                        //        current_address ,
+                        //        prefetch_address,
+                        //        prefetch_address-(prefetch_address % cache_block_size));
+                        ++prefetch_flag;
+                    }
                 }
                 //MYLOG("After align to cache block size,current address is 0x%lx real Prefetch address  is 0x%lx", current_address, prefetch_address);
             }
@@ -115,10 +125,10 @@ int32_t TLBFreePrefetcher::DisassGetOffset(std::string inst_disass)
 
     // compute the offset of load instruction to get the real base reg value,
     // which will be used to compare with  other inst's target reg in PPW
-    string::size_type index1 = inst_temp.find_first_of("]", 0);
-    string::size_type index2 = inst_temp.find_first_of("+");
-    string::size_type index3 = inst_temp.find_first_of("-");
-    string::size_type temp_index;
+    std::string::size_type index1 = inst_temp.find_first_of("]", 0);
+    std::string::size_type index2 = inst_temp.find_first_of("+");
+    std::string::size_type index3 = inst_temp.find_first_of("-");
+    std::string::size_type temp_index;
 
     int32_t inst_offset=0;
     if (index1 !=string::npos )
@@ -134,7 +144,7 @@ int32_t TLBFreePrefetcher::DisassGetOffset(std::string inst_disass)
             stringstream offset(sub_str);
             offset>>hex>>inst_offset;
 
-            if(index3!=string::npos)
+            if(index3!=std::string::npos)
                 inst_offset=-inst_offset;
             MYLOG("sub_str: %s", itostr(sub_str).c_str());
             MYLOG("inst_offset: %d", inst_offset);
@@ -152,6 +162,7 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
     bool already_in_ct = false;
     bool already_in_dep_ct = false;
     int32_t inst_offset= DisassGetOffset(dynins->instruction->getDisassembly().c_str());
+    prefetch_flag = 0;
 
     //dynins=0 means memory access is send by doPrefetch(), so we not prefetch for them again
     //dir=0 means read
@@ -203,8 +214,10 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
         MYLOG("STEP 2:  if hit in PPW, update CT");
         if( ppw_found == true )
         {
-            if (pointer_loads)
+            if (pointer_loads &&!dynins->memory_info[0].dir )
                 (*pointer_loads)++;
+            if (pointer_stores &&dynins->memory_info[0].dir )
+                (*pointer_stores)++;
 
             temp_ct.SetCT(PR, CN, dynins->instruction->getDisassembly().c_str(), data_size);
             temp_ct.SetConsumerOffset(inst_offset);
@@ -212,7 +225,7 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
 #ifndef INFINITE_CT
            while (ct.size()>=correlation_table_size)
             {
-               vector<correlation_entry>::iterator k=ct.begin();
+               std::vector<correlation_entry>::iterator k=ct.begin();
                ct.erase(k);
             }
 #endif
@@ -276,7 +289,7 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
 #ifndef INFINITE_DEP_CT
                 while (iter1->DepList.size()>=correlation_table_dep_size)
                 {
-                    vector<correlation_entry>::iterator j=iter1->DepList.begin();
+                    std::vector<correlation_entry>::iterator j=iter1->DepList.begin();
                     iter1->DepList.erase(j);
                 }
 #endif
@@ -317,12 +330,12 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
             {
                 temp_it = it_ppw;
                 already_in_ppw = true;
-                MYLOG("In ppw already have one eip: 0x%lx  target reg is:0x%lx ", dynins->eip, target_reg );
+                MYLOG("In ppw already have one eip: 0x%lx  target reg is:0x%lx ", dynins->eip, it_ppw->GetTargetValue() );
             }
         }
         if (!already_in_ppw)
         {
-            if(target_reg> 0xfffff) /* if target reg is small than 0xfffff, not an base address for others, throw it*/
+            if(target_reg> 0xfffff && target_reg <0x800000000000) /* if target reg is small than 0xfffff, not an base address for others, throw it*/
             {
                 //the most right reg is the target reg loaded from memory
                 MYLOG("Inserting to ppw eip: 0x%lx,   target reg is 0x%lx", dynins->eip,target_reg);
@@ -331,9 +344,12 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
         }
         else
         {
-            MYLOG("updating ppw, deleting 0x%lx, target_reg is 0x%lx", temp_it->GetProducerPC(), temp_it->GetTargetValue());
-            ppw.erase(temp_it);
-            ppw.push_back(ppw_entry);
+            if(target_reg> 0xfffff && target_reg<0x800000000000) /* if target reg is small than 0xfffff, not an base address for others, throw it*/
+            {
+                MYLOG("updating ppw, deleting 0x%lx, target_reg is 0x%lx", temp_it->GetProducerPC(), temp_it->GetTargetValue());
+                ppw.erase(temp_it);
+                ppw.push_back(ppw_entry);
+            }
         }
         //std::sort(ppw.begin(), ppw.end(), comp);
         //print ppw
@@ -360,7 +376,16 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
 
                 for(int32_t j = iter->GetDataSize()-1; j >= 0; --j)
                 {
-                    temp_temp_target_reg = (temp_temp_target_reg << 8) | reinterpret_cast<Byte *>(current_address+offset)[j];
+                    int ret_val = sigsetjmp(env,1);
+                    if ( ret_val == 0 )
+                    {
+                        signal(SIGSEGV, SegFaultHandler);
+                        temp_temp_target_reg = (temp_temp_target_reg << 8) | reinterpret_cast<Byte *>(current_address+offset)[j];
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
                 MYLOG("target_reg is 0x%lx, temp_temp_target_reg is 0x%lx, num_memory is %d, first memory address is 0x%lx, size is%d, GetDataSize() is %d", target_reg, temp_temp_target_reg, dynins->num_memory, dynins->memory_info[0].addr, dynins->memory_info[0].size, iter->GetDataSize());
             }
@@ -384,10 +409,27 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
 
                     if (!stop_at_page || ((last_prefetch_address & PAGE_MASK) == (current_address & PAGE_MASK)) )
                     {
-                        MYLOG("\t\tDepList PR: 0x%lx, CN: 0x%lx, Getting data from 0x%lx, size:%d",iter->GetProducerPC(), iter->GetConsumerPC(), last_prefetch_address, iter->GetDataSize());
-                        for(int32_t j = iter->GetDataSize()-1; j >= 0; --j)
+                        if ((last_prefetch_address>0x600000 && last_prefetch_address<0x6fffff) || (last_prefetch_address>0x700000000000 && last_prefetch_address<0x800000000000))
                         {
-                            temp_target_reg = (temp_target_reg << 8) | reinterpret_cast<Byte *>(last_prefetch_address)[j];
+                            MYLOG("\t\tDepList PR: 0x%lx, CN: 0x%lx, Getting data from 0x%lx, size:%d",iter->GetProducerPC(), iter->GetConsumerPC(), last_prefetch_address, iter->GetDataSize());
+                            for(int32_t j = iter->GetDataSize()-1; j >= 0; --j)
+                            {
+                                int ret_val = sigsetjmp(env,1);
+                                if ( ret_val == 0 )
+                                {
+                                    signal(SIGSEGV, SegFaultHandler);
+                                    temp_target_reg = (temp_target_reg << 8) | reinterpret_cast<Byte *>(last_prefetch_address)[j];
+                                }
+                                else
+                                {
+                                    break;
+                                }
+                            }
+                            MYLOG("\t\tDepList data is 0x%lx", temp_target_reg);
+                        }
+                        else
+                        {
+                            break;
                         }
                         MYLOG("\t\tDepList data is 0x%lx", temp_target_reg);
                     }
@@ -397,10 +439,27 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
                         last_prefetch_address = temp_target_reg + iter4->GetConsumerOffset();
                         if (!stop_at_page || ((last_prefetch_address & PAGE_MASK) == (current_address & PAGE_MASK)) )
                         {
-                            MYLOG("\t\tDepList PR: 0x%lx, CN: 0x%lx, Getting data from 0x%lx, size:%d",iter4->GetProducerPC(), iter4->GetConsumerPC(), last_prefetch_address, iter4->GetDataSize());
-                            for(int32_t j = iter4->GetDataSize()-1; j >= 0; --j)
+                            if ((last_prefetch_address>0x600000 && last_prefetch_address<0x6fffff) || (last_prefetch_address>0x700000000000 && last_prefetch_address<0x800000000000))
                             {
-                                temp_target_reg = (temp_target_reg << 8) | reinterpret_cast<Byte *>(last_prefetch_address)[j];
+                                MYLOG("\t\tDepList PR: 0x%lx, CN: 0x%lx, Getting data from 0x%lx, size:%d",iter4->GetProducerPC(), iter4->GetConsumerPC(), last_prefetch_address, iter4->GetDataSize());
+                                for(int32_t j = iter4->GetDataSize()-1; j >= 0; --j)
+                                {
+                                    int ret_val = sigsetjmp(env,1);
+                                    if ( ret_val == 0 )
+                                    {
+                                        signal(SIGSEGV, SegFaultHandler);
+                                        temp_target_reg = (temp_target_reg << 8) | reinterpret_cast<Byte *>(last_prefetch_address)[j];
+                                    }
+                                    else
+                                    {
+                                        break;
+                                    }
+                                }
+                                MYLOG("\t\tDepList data is 0x%lx", temp_target_reg);
+                            }
+                            else
+                            {
+                                break;
                             }
                             MYLOG("\t\tDepList data is 0x%lx", temp_target_reg);
                         }

@@ -10,7 +10,7 @@ const IntPtr PAGE_SIZE = 4096;
 const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
 //#define DEBUG
 
-SimplePrefetcher::SimplePrefetcher(String configName, core_id_t _core_id, UInt32 _shared_cores)
+SimplePrefetcher::SimplePrefetcher(String configName, core_id_t _core_id, UInt32 _shared_cores, void * cache_cntlr)
    : core_id(_core_id)
    , shared_cores(_shared_cores)
    , n_flows(Sim()->getCfg()->getIntArray("perf_model/" + configName + "/prefetcher/simple/flows", core_id))

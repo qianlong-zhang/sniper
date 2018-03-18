@@ -53,7 +53,7 @@ DramCache::DramCache(MemoryManagerBase* memory_manager, ShmemPerfModel* shmem_pe
       m_queue_model = QueueModel::create("dram-cache-queue", m_core_id, queue_model_type, m_data_array_bandwidth.getRoundedLatency(8 * m_cache_block_size)); // bytes to bits
    }
 
-   m_prefetcher = Prefetcher::createPrefetcher(Sim()->getCfg()->getString("perf_model/dram/cache/prefetcher"), "dram/cache", m_core_id, 1);
+   m_prefetcher = Prefetcher::createPrefetcher(Sim()->getCfg()->getString("perf_model/dram/cache/prefetcher"), "dram/cache", m_core_id, 1, NULL);
    m_prefetch_on_prefetch_hit = Sim()->getCfg()->getBool("perf_model/dram/cache/prefetcher/prefetch_on_prefetch_hit");
 
    registerStatsMetric("dram-cache", m_core_id, "reads", &m_reads);

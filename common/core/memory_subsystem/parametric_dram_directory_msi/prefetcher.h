@@ -121,7 +121,7 @@ class prefetch_entry{
 class Prefetcher
 {
    public:
-      static Prefetcher* createPrefetcher(String type, String configName, core_id_t core_id, UInt32 shared_cores);
+      static Prefetcher* createPrefetcher(String type, String configName, core_id_t core_id, UInt32 shared_cores, void *cache_cntlr);
 
       virtual std::vector<IntPtr> getNextAddress(IntPtr current_address, UInt32 offset, core_id_t core_id, DynamicInstruction *dynins, UInt64 *pointer_loads, UInt64 *pointer_stores, IntPtr target_reg) = 0;
 };

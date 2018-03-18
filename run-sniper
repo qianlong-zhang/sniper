@@ -638,7 +638,7 @@ if not standalone:
     print >> sys.stderr, pin_version
     sys.exit(-1)
 
-  pinoptions = '-mt -injection child'
+  pinoptions = '-mt -injection child -follow-execv'
   if pin_version >= 49303:
     pinoptions += ' -xyzzy -enable_vsm 0' # TODO: Enable vsm once OpenMP thread exit is solved (Redmine #148)
 

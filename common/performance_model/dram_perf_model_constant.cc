@@ -11,7 +11,9 @@ DramPerfModelConstant::DramPerfModelConstant(core_id_t core_id,
    m_queue_model(NULL),
    m_dram_bandwidth(8 * Sim()->getCfg()->getFloat("perf_model/dram/per_controller_bandwidth")), // Convert bytes to bits
    m_total_queueing_delay(SubsecondTime::Zero()),
-   m_total_access_latency(SubsecondTime::Zero())
+   m_total_access_latency(SubsecondTime::Zero()),
+   m_total_process_time(SubsecondTime::Zero()),
+   m_total_dram_access_cost(SubsecondTime::Zero())
 {
    m_dram_access_cost = SubsecondTime::FS() * static_cast<uint64_t>(TimeConverter<float>::NStoFS(Sim()->getCfg()->getFloat("perf_model/dram/latency"))); // Operate in fs for higher precision before converting to uint64_t/SubsecondTime
 
@@ -23,6 +25,7 @@ DramPerfModelConstant::DramPerfModelConstant(core_id_t core_id,
 
    registerStatsMetric("dram", core_id, "total-access-latency", &m_total_access_latency);
    registerStatsMetric("dram", core_id, "total-queueing-delay", &m_total_queueing_delay);
+   registerStatsMetric("dram", core_id, "total-process-time", &m_total_process_time);
 }
 
 DramPerfModelConstant::~DramPerfModelConstant()
@@ -70,6 +73,8 @@ DramPerfModelConstant::getAccessLatency(SubsecondTime pkt_time, UInt64 pkt_size,
    m_num_accesses ++;
    m_total_access_latency += access_latency;
    m_total_queueing_delay += queue_delay;
+   m_total_process_time += processing_time;
+   m_total_dram_access_cost += m_dram_access_cost;
 
    return access_latency;
 }

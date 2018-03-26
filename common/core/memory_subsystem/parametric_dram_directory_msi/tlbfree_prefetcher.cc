@@ -6,12 +6,10 @@
 #include <algorithm>
 
 
-//const IntPtr PAGE_SIZE = 4096;
-const IntPtr PAGE_SIZE = 1024*1024*1024;
+const IntPtr PAGE_SIZE = 4096;
+//const IntPtr PAGE_SIZE = 1024*1024*1024;
+//const IntPtr PAGE_SIZE = 2*1024*1024;
 const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
-//#define INFINITE_CT
-//#define INFINITE_PPW
-//#define INFINITE_DEP_CT
 #if 0
    extern Lock iolock;
 #  include "core_manager.h"
@@ -154,7 +152,7 @@ int32_t TLBFreePrefetcher::DisassGetOffset(std::string inst_disass)
 }
 
 std::vector<IntPtr>
-TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_t _core_id, DynamicInstruction *dynins, UInt64 *pointer_loads, UInt64* pointer_stores, IntPtr target_reg)
+TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_t _core_id, DynamicInstruction *dynins, UInt64 *pointer_loads, UInt64* multi_consumer_loads, UInt64* pointer_stores, IntPtr target_reg)
 {
     int32_t ppw_found=false;
 	IntPtr PR = 0;
@@ -222,13 +220,14 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
             temp_ct.SetCT(PR, CN, dynins->instruction->getDisassembly().c_str(), data_size);
             temp_ct.SetConsumerOffset(inst_offset);
 
-#ifndef INFINITE_CT
-           while (ct.size()>=correlation_table_size)
+            if(!only_count_lds)
             {
-               std::vector<correlation_entry>::iterator k=ct.begin();
-               ct.erase(k);
+                while (ct.size()>=correlation_table_size)
+                {
+                    std::vector<correlation_entry>::iterator k=ct.begin();
+                    ct.erase(k);
+                }
             }
-#endif
             for (std::vector<correlation_entry>::iterator iter1=ct.begin(); iter1!=ct.end(); iter1++)
             {
                 if((iter1->GetProducerPC() == PR)&&(iter1->GetConsumerPC() == CN))
@@ -237,9 +236,10 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
                     MYLOG("In ct already have one PR is: 0x%lx, CN is 0x%lx", PR, CN);
                 }
             }
-            if (!already_in_ct &&
-                    dynins->instruction->getDisassembly().find("push") == string::npos &&
-                    dynins->instruction->getDisassembly().find("pop") == string::npos)
+            //if (!already_in_ct &&
+            //        dynins->instruction->getDisassembly().find("push") == string::npos &&
+            //        dynins->instruction->getDisassembly().find("pop") == string::npos)
+            if (!already_in_ct)
             {
                 ct.push_back(temp_ct);
             }
@@ -267,9 +267,10 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
                                 MYLOG("In dep ct already have one PR is: 0x%lx, CN is 0x%lx", PR, CN);
                             }
                         }
-                        if (!already_in_dep_ct &&
-                                dynins->instruction->getDisassembly().find("push") == string::npos &&
-                                dynins->instruction->getDisassembly().find("pop") == string::npos)
+                        //if (!already_in_dep_ct &&
+                        //        dynins->instruction->getDisassembly().find("push") == string::npos &&
+                        //        dynins->instruction->getDisassembly().find("pop") == string::npos)
+                        if (!already_in_dep_ct )
                         {
                             MYLOG("DepList pushing back: PR 0x%lx, CN 0x%lx, Diss: %s, size:%d", temp_ct.GetProducerPC(),temp_ct.GetConsumerPC(), itostr(temp_ct.GetDisass()).c_str(), temp_ct.GetDataSize() );
                             iter1->DepList.push_back(temp_ct);
@@ -286,13 +287,14 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
                     }
                 }
 
-#ifndef INFINITE_DEP_CT
-                while (iter1->DepList.size()>=correlation_table_dep_size)
+                if(!only_count_lds)
                 {
-                    std::vector<correlation_entry>::iterator j=iter1->DepList.begin();
-                    iter1->DepList.erase(j);
+                    while (iter1->DepList.size()>=correlation_table_dep_size)
+                    {
+                        std::vector<correlation_entry>::iterator j=iter1->DepList.begin();
+                        iter1->DepList.erase(j);
+                    }
                 }
-#endif
             }
             //print ct
             MYLOG("After insert in ct:");
@@ -312,15 +314,16 @@ TLBFreePrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id
 
         //step 3, insert to ppw
         MYLOG("STEP 3:  update PPW");
-#ifndef INFINITE_PPW
-        if(ppw.size() >= potential_producer_window_size)
+        if(!only_count_lds)
         {
-            std::vector<potential_producer_entry>::iterator it_delete = ppw.begin();
-            //TODO: ppw replacement algorithm should be updated
-            MYLOG("PPW is full, erasing: 0x%lx", it_delete->GetProducerPC());;
-            ppw.erase(it_delete);
+            if(ppw.size() >= potential_producer_window_size)
+            {
+                std::vector<potential_producer_entry>::iterator it_delete = ppw.begin();
+                //TODO: ppw replacement algorithm should be updated
+                MYLOG("PPW is full, erasing: 0x%lx", it_delete->GetProducerPC());;
+                ppw.erase(it_delete);
+            }
         }
-#endif
 
         potential_producer_entry ppw_entry(dynins->eip, target_reg, (dynins->num_memory>1) ? (dynins->memory_info[1].size) : (dynins->memory_info[0].size));
         std::vector<potential_producer_entry>::iterator temp_it = ppw.begin();

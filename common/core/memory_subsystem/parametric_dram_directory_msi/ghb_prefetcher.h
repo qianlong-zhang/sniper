@@ -7,7 +7,7 @@ class GhbPrefetcher : public Prefetcher
 {
    public:
       GhbPrefetcher(String configName, core_id_t core_id, void * cache_cntlr);
-      std::vector<IntPtr> getNextAddress(IntPtr currentAddress, UInt32 offset, core_id_t core_id, DynamicInstruction *dynins, UInt64 *pointer_loads, UInt64* pointer_stores, IntPtr target_reg);
+      std::vector<IntPtr> getNextAddress(IntPtr currentAddress, UInt32 offset, core_id_t core_id, DynamicInstruction *dynins, UInt64 *pointer_loads, UInt64* multi_consumer_loads, UInt64* pointer_stores, IntPtr target_reg);
 
       ~GhbPrefetcher();
 

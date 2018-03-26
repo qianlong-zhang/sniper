@@ -6,12 +6,10 @@
 #include <algorithm>
 
 
-//const IntPtr PAGE_SIZE = 4096;
-const IntPtr PAGE_SIZE = 1024*1024*1024;
+const IntPtr PAGE_SIZE = 4096;
+//const IntPtr PAGE_SIZE = 1024*1024*1024;
+//const IntPtr PAGE_SIZE = 2*1024*1024;
 const IntPtr PAGE_MASK = ~(PAGE_SIZE-1);
-//#define INFINITE_CT
-//#define INFINITE_PPW
-//#define INFINITE_DEP_CT
 #if 0
    extern Lock iolock;
 #  include "core_manager.h"
@@ -164,7 +162,7 @@ int32_t LinkednewPrefetcher::DisassGetOffset(std::string inst_disass)
 }
 
 std::vector<IntPtr>
-LinkednewPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_t _core_id, DynamicInstruction *dynins, UInt64 *pointer_loads, UInt64* pointer_stores, IntPtr target_reg)
+LinkednewPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_id_t _core_id, DynamicInstruction *dynins, UInt64 *pointer_loads, UInt64* multi_consumer_loads, UInt64* pointer_stores, IntPtr target_reg)
 {
     int32_t ppw_found=false;
 	IntPtr PR = 0;
@@ -173,6 +171,7 @@ LinkednewPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_
     bool already_in_dep_ct = false;
     int32_t inst_offset= DisassGetOffset(dynins->instruction->getDisassembly().c_str());
     prefetch_flag = 0;
+    uint64_t multi_consumer_count=0;
 
     //dynins=0 means memory access is send by doPrefetch(), so we not prefetch for them again
     //dir=0 means read
@@ -232,13 +231,14 @@ LinkednewPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_
             temp_ct.SetCT(PR, CN, dynins->instruction->getDisassembly().c_str(), data_size);
             temp_ct.SetConsumerOffset(inst_offset);
 
-#ifndef INFINITE_CT
-           while (ct.size()>=correlation_table_size)
+            if(!only_count_lds)
             {
-               vector<correlation_entry>::iterator k=ct.begin();
-               ct.erase(k);
+                while (ct.size()>=correlation_table_size)
+                {
+                    vector<correlation_entry>::iterator k=ct.begin();
+                    ct.erase(k);
+                }
             }
-#endif
             for (std::vector<correlation_entry>::iterator iter1=ct.begin(); iter1!=ct.end(); iter1++)
             {
                 if((iter1->GetProducerPC() == PR)&&(iter1->GetConsumerPC() == CN))
@@ -296,13 +296,14 @@ LinkednewPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_
                     }
                 }
 
-#ifndef INFINITE_DEP_CT
-                while (iter1->DepList.size()>=correlation_table_dep_size)
+                if(!only_count_lds)
                 {
-                    vector<correlation_entry>::iterator j=iter1->DepList.begin();
-                    iter1->DepList.erase(j);
+                    while (iter1->DepList.size()>=correlation_table_dep_size)
+                    {
+                        vector<correlation_entry>::iterator j=iter1->DepList.begin();
+                        iter1->DepList.erase(j);
+                    }
                 }
-#endif
             }
             //print ct
             MYLOG("After insert in ct:");
@@ -322,15 +323,16 @@ LinkednewPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_
 
         //step 3, insert to ppw
         MYLOG("STEP 3:  update PPW");
-#ifndef INFINITE_PPW
-        if(ppw.size() >= potential_producer_window_size)
+        if(!only_count_lds)
         {
-            std::vector<potential_producer_entry>::iterator it_delete = ppw.begin();
-            //TODO: ppw replacement algorithm should be updated
-            MYLOG("PPW is full, erasing: 0x%lx", it_delete->GetProducerPC());;
-            ppw.erase(it_delete);
+            if(ppw.size() >= potential_producer_window_size)
+            {
+                std::vector<potential_producer_entry>::iterator it_delete = ppw.begin();
+                //TODO: ppw replacement algorithm should be updated
+                MYLOG("PPW is full, erasing: 0x%lx", it_delete->GetProducerPC());;
+                ppw.erase(it_delete);
+            }
         }
-#endif
 
         potential_producer_entry ppw_entry(dynins->eip, target_reg, (dynins->num_memory>1) ? (dynins->memory_info[1].size) : (dynins->memory_info[0].size));
         std::vector<potential_producer_entry>::iterator temp_it = ppw.begin();
@@ -384,23 +386,36 @@ LinkednewPrefetcher::getNextAddress(IntPtr current_address, UInt32 offset, core_
                 MYLOG("Pushing back PR is 0x%lx, CN is 0x%lx,current address is 0x%lx,  Prefetch address is 0x%lx", iter->GetProducerPC(), iter->GetConsumerPC(),current_address + offset , target_reg + iter->GetConsumerOffset());
                 PushInPrefetchList(current_address+offset, target_reg + iter->GetConsumerOffset(), &addresses, num_flattern_prefetches);
 
-                for(int32_t j = iter->GetDataSize()-1; j >= 0; --j)
+                if(!only_count_lds)
                 {
-                    int ret_val = sigsetjmp(env,1);
-                    if ( ret_val == 0 )
+                    for(int32_t j = iter->GetDataSize()-1; j >= 0; --j)
                     {
-                        signal(SIGSEGV, SegFaultHandler);
-                        temp_temp_target_reg = (temp_temp_target_reg << 8) | reinterpret_cast<Byte *>(current_address+offset)[j];
+                        int ret_val = sigsetjmp(env,1);
+                        if ( ret_val == 0 )
+                        {
+                            signal(SIGSEGV, SegFaultHandler);
+                            temp_temp_target_reg = (temp_temp_target_reg << 8) | reinterpret_cast<Byte *>(current_address+offset)[j];
+                        }
+                        else
+                        {
+                            break;
+                        }
                     }
-                    else
-                    {
-                        break;
-                    }
+                    MYLOG("target_reg is 0x%lx, temp_temp_target_reg is 0x%lx, num_memory is %d, first memory address is 0x%lx, size is%d, GetDataSize() is %d", target_reg, temp_temp_target_reg, dynins->num_memory, dynins->memory_info[0].addr, dynins->memory_info[0].size, iter->GetDataSize());
                 }
-                MYLOG("target_reg is 0x%lx, temp_temp_target_reg is 0x%lx, num_memory is %d, first memory address is 0x%lx, size is%d, GetDataSize() is %d", target_reg, temp_temp_target_reg, dynins->num_memory, dynins->memory_info[0].addr, dynins->memory_info[0].size, iter->GetDataSize());
+                else
+                {
+                    multi_consumer_count++;
+                }
             }
         }
-#if 1
+        //this is a multi_consumer count it
+        if (multi_consumer_count>=2)
+        {
+            if (multi_consumer_loads &&!dynins->memory_info[0].dir )
+                (*multi_consumer_loads)++;
+        }
+#if 0
         /****************************************/
         /****************************************/
         /****************************************/

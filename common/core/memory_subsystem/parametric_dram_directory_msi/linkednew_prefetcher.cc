@@ -121,6 +121,7 @@ void LinkednewPrefetcher::PushInPrefetchList(IntPtr current_address, IntPtr pref
                     ++prefetch_flag;
                 }
                 //MYLOG("After align to cache block size,current address is 0x%lx real Prefetch address  is 0x%lx", current_address, prefetch_address);
+                //printf("prefetch_list.size is %d\n", (*prefetch_list).size());
             }
         }
     }

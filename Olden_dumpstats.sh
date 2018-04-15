@@ -5,7 +5,7 @@ for bench in `ls ./output_test/`
 do
     echo
     echo
-    OUT_PATH=$CURRENT_PATH/output_test/${bench}
+    OUT_PATH=$CURRENT_PATH/mnt_sdc/output_health/${bench}
     echo $OUT_PATH
     echo "Getting $bench"
     cd $OUT_PATH
@@ -17,8 +17,8 @@ do
         do
             cd $OUT_PATH/${dir}/${dir1}
             pwd
-            echo "../../../../tools/dumpstats.py >all.out"
-            #../../../../tools/dumpstats.py >all.out
+            echo "../../../../../tools/dumpstats.py >all.out"
+            ../../../../../tools/dumpstats.py >all.out
         done
     done
 done

@@ -6,6 +6,7 @@ Version 6.1
   * A new dumpstats.py option (-c|--config) prints configuration parameters one-per-line
   * Numerous bug fixes and improvements
 
+
 Version 6.0
   * Add Instruction Window-Centric core model (internal name: ROB core model, use rob.cfg)
   * Add SMT support (IWC/ROB core model only, use smt*.cfg)

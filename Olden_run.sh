@@ -1,12 +1,14 @@
 #!/bin/bash
 CURRENT_PATH=`pwd`
 BENCH_PATH=$CURRENT_PATH/Test_prog/Olden/Olden-compiled
+#PAGE_SIZE=4K
 #PAGE_SIZE=2M
-PAGE_SIZE=1G
+#PAGE_SIZE=1G
+PAGE_SIZE=NO_BOUND
 DATE_NAME=$(date +%Y%m%d%H%M)
 #DATE_NAME=$(date +%Y%m%d)
 CONFIG_PATH=my/
-#CONFIG_0=my-linked-only-count
+CONFIG_0=my-linked-only-count
 
 CONFIG_1=my-tlbfree-1
 CONFIG_2=my-tlbfree-2
@@ -38,8 +40,8 @@ echo $OUTPUT
 
 
 cd $BENCH_PATH
-#for bench in `ls -d */`
-for bench in "health/"
+for bench in `ls -d */`
+#for bench in "health/"
 do
     echo "Creating dir for output_test"
     echo $bench

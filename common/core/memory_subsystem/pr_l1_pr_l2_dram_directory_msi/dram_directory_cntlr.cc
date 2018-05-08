@@ -6,12 +6,18 @@
 #include "shmem_perf.h"
 #include "coherency_protocol.h"
 #include "config.hpp"
+#include "core_manager.h"
+#include "simulator.h"
 
-#if 0
+#if 1
    extern Lock iolock;
-#  include "core_manager.h"
-#  include "simulator.h"
-#  define MYLOG(...) { ScopedLock l(iolock); fflush(stdout); printf("[%s] %d%cdd %-25s@%3u: ", itostr(getShmemPerfModel()->getElapsedTime()).c_str(), getMemoryManager()->getCore()->getId(), Sim()->getCoreManager()->amiUserThread() ? '^' : '_', __FUNCTION__, __LINE__); printf(__VA_ARGS__); printf("\n"); fflush(stdout); }
+#  define LOCKED(...) { ScopedLock sl(iolock); fflush(stderr); __VA_ARGS__; fflush(stderr); }
+#  define LOGID() fprintf(stderr, "[%s] %2u%c  %-25s@%3u: ",  \
+                                    itostr(getShmemPerfModel()->getElapsedTime(Sim()->getCoreManager()->amiUserThread() ? ShmemPerfModel::_USER_THREAD : ShmemPerfModel::_SIM_THREAD)).c_str(),\
+                                    Sim()->getCoreManager()->getCurrentCoreID(),\
+                                    Sim()->getCoreManager()->amiUserThread() ? '^' : '_',\
+                                     __func__ , __LINE__ );
+#  define MYLOG(...) LOCKED(LOGID(); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n");)
 #else
 #  define MYLOG(...) {}
 #endif
